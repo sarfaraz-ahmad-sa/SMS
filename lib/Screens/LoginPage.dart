@@ -336,7 +336,8 @@ class _MyHomePageState extends State<MyHomePage>
               const SizedBox(height: 30),
               Center(
                 child: Text(
-                  'Powered by CARTZ Link',
+                  'Powered by SEEF',
+                  // Secure. Scalable. Intelligent
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w500,
