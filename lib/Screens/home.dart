@@ -91,41 +91,44 @@ class Home extends StatelessWidget {
         ],
       ),
       drawer: const Drawer(child: MainDrawer()),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-        children: [
-          _GreetingCard(name: name, roleLabel: roleLabel),
-          const SizedBox(height: 20),
-          const Text(
-            'Quick Access',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            children: [
+              _GreetingCard(name: name, roleLabel: roleLabel),
+              const SizedBox(height: 20),
+              const Text(
+                'Quick Access',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              _grid(features),
+              const SizedBox(height: 24),
+              const Text(
+                'Management',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              _grid(management),
+            ],
           ),
-          const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.92,
-            children: features.map(_buildCard(context)).toList(),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Management',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.92,
-            children: management.map(_buildCard(context)).toList(),
-          ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _grid(List<_Feature> items) {
+    return Builder(
+      builder: (context) => GridView.extent(
+        maxCrossAxisExtent: 170,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.0,
+        children: items.map(_buildCard(context)).toList(),
       ),
     );
   }

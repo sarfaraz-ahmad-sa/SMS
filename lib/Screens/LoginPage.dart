@@ -180,15 +180,20 @@ class _MyHomePageState extends State<MyHomePage>
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
+    // Cap slide distance so the entrance animation looks right on wide web.
+    final double width =
+        MediaQuery.of(context).size.width.clamp(0, 460).toDouble();
 
     return Scaffold(
       body: AnimatedBuilder(
         animation: animationController,
         builder: (BuildContext context, Widget? child) {
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            children: <Widget>[
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                children: <Widget>[
               const SizedBox(height: 60),
               Transform(
                 transform:
@@ -345,7 +350,9 @@ class _MyHomePageState extends State<MyHomePage>
                 ),
               ),
               const SizedBox(height: 20),
-            ],
+                ],
+              ),
+            ),
           );
         },
       ),
