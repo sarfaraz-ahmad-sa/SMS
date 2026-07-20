@@ -9,14 +9,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.3.48"
-  args:
-    dependency: transitive
-    description:
-      name: args
-      sha256: bf9f5caeea8d8fe6721a9c358dd8a5c1947b27f1cfaa18b39c301273594919e6
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.6.0"
   async:
     dependency: transitive
     description:
@@ -97,14 +89,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.0"
-  dropdown_search:
-    dependency: "direct main"
-    description:
-      name: dropdown_search
-      sha256: "8c96aaf8d0c0d4307804b28da73866e5a0fc94fd8e6942eceab896450aaa4999"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.0.1"
   fake_async:
     dependency: transitive
     description:
@@ -161,35 +145,19 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.19.0"
-  flrx_validator:
-    dependency: "direct main"
-    description:
-      name: flrx_validator
-      sha256: "1e14d8c81baa58f4c07d8e0b963fa7ba1b39ec3ecbae58363a82eb81dfd64657"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.0"
   flutter:
     dependency: "direct main"
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_randomcolor:
-    dependency: "direct main"
+  flutter_lints:
+    dependency: "direct dev"
     description:
-      name: flutter_randomcolor
-      sha256: c41c1371c038861a83158d0859faa8a4d32585bb7dc234bce76cc6175dac9aca
+      name: flutter_lints
+      sha256: "5398f14efa795ffb7a33e9b6a08798b26a180edac4ad7db3f231e40f82ce11e1"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.16"
-  flutter_svg:
-    dependency: "direct main"
-    description:
-      name: flutter_svg
-      sha256: "54900a1a1243f3c4a5506d853a2b5c2dbc38d5f27e52a52618a8054401431123"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.16"
+    version: "5.0.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -200,14 +168,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  fzregex:
-    dependency: "direct main"
-    description:
-      name: fzregex
-      sha256: "6ff6548330e94d98d591b62532dd8b824ccce27f730ad834152c7c1115d54e83"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.0"
   google_identity_services_web:
     dependency: transitive
     description:
@@ -304,6 +264,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
+  lints:
+    dependency: transitive
+    description:
+      name: lints
+      sha256: c35bb79562d980e9a453fc715854e1ed39e24e7d0297a880ef54e17f9874a9d7
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.1.1"
   matcher:
     dependency: transitive
     description:
@@ -324,10 +292,10 @@ packages:
     dependency: transitive
     description:
       name: meta
-      sha256: "1741988757a65eb6b36abe716829688cf01910bbf91c34354ff7ec1c3de2b349"
+      sha256: "23f08335362185a5ea2ad3a4e597f1375e78bce8a040df5c600c8d3552ef2394"
       url: "https://pub.dev"
     source: hosted
-    version: "1.18.0"
+    version: "1.17.0"
   path:
     dependency: transitive
     description:
@@ -336,22 +304,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.1"
-  path_parsing:
-    dependency: transitive
-    description:
-      name: path_parsing
-      sha256: "883402936929eac138ee0a45da5b0f2c80f89913e6dc3bf77eb65b84b409c6ca"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.0"
-  petitparser:
-    dependency: transitive
-    description:
-      name: petitparser
-      sha256: c15605cd28af66339f8eb6fbe0e541bfe2d1b72d5825efc6598f3e0a31b9ad27
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.0.2"
   plugin_platform_interface:
     dependency: transitive
     description:
@@ -360,14 +312,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
-  randomizer_null_safe:
-    dependency: "direct main"
-    description:
-      name: randomizer_null_safe
-      sha256: "23300d0ef7052904e2b00ea205a38ec01fcad5f0e21a1ac5da01e82d2b67f928"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.1.5"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -417,10 +361,10 @@ packages:
     dependency: transitive
     description:
       name: test_api
-      sha256: "949a932224383300f01be9221c39180316445ecb8e7547f70a41a35bf421fb9e"
+      sha256: "8161c84903fd860b26bfdefb7963b3f0b68fee7adea0f59ef805ecca346f0c7a"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.11"
+    version: "0.7.10"
   typed_data:
     dependency: transitive
     description:
@@ -429,30 +373,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
-  vector_graphics:
-    dependency: transitive
-    description:
-      name: vector_graphics
-      sha256: "27d5fefe86fb9aace4a9f8375b56b3c292b64d8c04510df230f849850d912cb7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.15"
-  vector_graphics_codec:
-    dependency: transitive
-    description:
-      name: vector_graphics_codec
-      sha256: "2430b973a4ca3c4dbc9999b62b8c719a160100dcbae5c819bae0cacce32c9cdb"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.12"
-  vector_graphics_compiler:
-    dependency: transitive
-    description:
-      name: vector_graphics_compiler
-      sha256: "1b4b9e706a10294258727674a340ae0d6e64a7231980f9f9a3d12e4b42407aad"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.1.16"
   vector_math:
     dependency: transitive
     description:
@@ -477,14 +397,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.0"
-  xml:
-    dependency: transitive
-    description:
-      name: xml
-      sha256: b015a8ad1c488f66851d762d3090a21c600e479dc75e68328c52774040cf9226
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.5.0"
 sdks:
-  dart: ">=3.10.0-0 <4.0.0"
+  dart: ">=3.9.0-0 <4.0.0"
   flutter: ">=3.24.0"
