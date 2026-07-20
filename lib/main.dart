@@ -1,38 +1,39 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:school_management/Screens/Leave_Apply/LeaveApply.dart';
-import 'package:school_management/Screens/LoginPage.dart';
-import 'package:school_management/Screens/SplashScreen.dart';
-import 'firebase_options.dart'; // Import the generated firebase_options.dart file
 
- void main() async {
+import 'package:school_management/Screens/SplashScreen.dart';
+import 'package:school_management/services/session_state.dart';
+import 'package:school_management/theme/app_theme.dart';
+import 'firebase_options.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase using the generated options
+  // Initialize Firebase once, here, using the generated options.
   await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform, // This automatically selects the right platform configuration
+    options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
-  void initState() {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
-  }
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Rise Education Center',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: SplashScreen(),
+    return ListenableBuilder(
+      listenable: SessionState.instance,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'CARTZ Link SMS',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: SessionState.instance.themeMode,
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }

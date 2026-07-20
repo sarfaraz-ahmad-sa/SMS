@@ -1,253 +1,182 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:school_management/Screens/Exam/Exam_Rseult.dart';
-import 'package:school_management/Widgets/AppBar.dart';
-import 'package:school_management/Widgets/BouncingButton.dart';
-import 'package:school_management/Widgets/DashboardCards.dart';
+
+import 'package:school_management/Widgets/FeatureCard.dart';
 import 'package:school_management/Widgets/MainDrawer.dart';
-import 'package:school_management/Widgets/UserDetailCard.dart';
+import 'package:school_management/services/session_state.dart';
+import 'package:school_management/theme/app_theme.dart';
 
 import 'Attendance/Attendance.dart';
+import 'Exam/Exam_Rseult.dart';
 import 'Leave_Apply/LeaveApply.dart';
+import 'Activity.dart';
+import 'Fees.dart';
+import 'Library.dart';
+import 'Notifications.dart';
+import 'Profile.dart';
+import 'Reports.dart';
+import 'TimeTable.dart';
+import 'Transport.dart';
+import 'Management/StudentManagement.dart';
+import 'Management/TeacherManagement.dart';
 
-class Home extends StatefulWidget {
-  @override
-  _HomeState createState() => _HomeState();
-}
-
-class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
-  late Animation animation, delayedAnimation, muchDelayedAnimation, LeftCurve;
-  late AnimationController animationController;
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    Firebase.initializeApp();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: []);
-    animationController =
-        AnimationController(duration: Duration(seconds: 3), vsync: this);
-    animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController, curve: Curves.fastOutSlowIn));
-
-    delayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.fastOutSlowIn)));
-
-    muchDelayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.8, 1.0, curve: Curves.fastOutSlowIn)));
-
-    LeftCurve = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.easeInOut)));
-  }
-
-  @override
-  void dispose() {
-    // TODO: implement dispose
-    animationController.dispose();
-    super.dispose();
-  }
+class Home extends StatelessWidget {
+  const Home({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    final double height = MediaQuery.of(context).size.height;
+    final user = SessionState.instance.user;
+    final name = user?.displayName ?? 'Student';
 
-    animationController.forward();
-    return AnimatedBuilder(
-      animation: animationController,
-      builder: (BuildContext context, Widget? child) {
-        final GlobalKey<ScaffoldState> _scaffoldKey =
-            new GlobalKey<ScaffoldState>();
-        return Scaffold(
-          key: _scaffoldKey,
-          drawer: Drawer(
-            elevation: 0,
-            child: MainDrawer(),
+    final features = <_Feature>[
+      _Feature('Profile', Icons.person_outline, AppColors.primary,
+          (c) => const ProfileScreen()),
+      _Feature('Attendance', Icons.fact_check_outlined, AppColors.success,
+          (c) => Attendance()),
+      _Feature('Exam Results', Icons.assignment_outlined, AppColors.secondary,
+          (c) => ExamResult()),
+      _Feature('Time Table', Icons.calendar_month_outlined, AppColors.warning,
+          (c) => const TimeTableScreen()),
+      _Feature('Library', Icons.menu_book_outlined, const Color(0xFF8B5CF6),
+          (c) => const LibraryScreen()),
+      _Feature('Fees', Icons.payments_outlined, const Color(0xFF0EA5E9),
+          (c) => const FeesScreen()),
+      _Feature('Transport', Icons.directions_bus_outlined,
+          const Color(0xFFF97316), (c) => const TransportScreen()),
+      _Feature('Apply Leave', Icons.event_busy_outlined, AppColors.danger,
+          (c) => LeaveApply()),
+      _Feature('Activities', Icons.emoji_events_outlined,
+          const Color(0xFFEC4899), (c) => const ActivityScreen()),
+    ];
+
+    final management = <_Feature>[
+      _Feature('Students', Icons.groups_outlined, AppColors.primary,
+          (c) => const StudentManagementScreen()),
+      _Feature('Teachers', Icons.co_present_outlined, AppColors.accent,
+          (c) => const TeacherManagementScreen()),
+      _Feature('Reports', Icons.bar_chart_rounded, AppColors.secondary,
+          (c) => const ReportsScreen()),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
           ),
-          appBar: CommonAppBar(
-            menuenabled: true,
-            notificationenabled: true,
-            ontap: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-            title: "Dashboard",
+        ],
+      ),
+      drawer: const Drawer(child: MainDrawer()),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        children: [
+          _GreetingCard(name: name),
+          const SizedBox(height: 20),
+          const Text(
+            'Quick Access',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          body: ListView(
-            children: [
-              UserDetailCard(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Container(
-                  alignment: Alignment(1.0, 0),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 10.0, right: 20.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Transform(
-                          transform: Matrix4.translationValues(
-                              muchDelayedAnimation.value * width, 0, 0),
-                          child: Bouncing(
-                            onPress: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (BuildContext context) =>
-                                        Attendance(),
-                                  ));
-                            },
-                            child: DashboardCard(
-                              name: "Attendance",
-                              imgpath: "attendance.png",
-                            ),
-                          ),
-                        ),
-                        Transform(
-                          transform: Matrix4.translationValues(
-                              delayedAnimation.value * width, 0, 0),
-                          child: Bouncing(
-                            onPress: () {},
-                            child: DashboardCard(
-                              name: "Profile",
-                              imgpath: "profile.png",
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Container(
-                  alignment: Alignment(1.0, 0),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 10.0, right: 20.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Transform(
-                          transform: Matrix4.translationValues(
-                              muchDelayedAnimation.value * width, 0, 0),
-                          child: Bouncing(
-                            onPress: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (BuildContext context) =>
-                                        ExamResult(),
-                                  ));
-                            },
-                            child: DashboardCard(
-                              name: "Exam",
-                              imgpath: "exam.png",
-                            ),
-                          ),
-                        ),
-                        Transform(
-                          transform: Matrix4.translationValues(
-                              delayedAnimation.value * width, 0, 0),
-                          child: Bouncing(
-                            onPress: () {},
-                            child: DashboardCard(
-                              name: "TimeTable",
-                              imgpath: "calendar.png",
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Container(
-                  alignment: Alignment(1.0, 0),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 10.0, right: 20.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Transform(
-                          transform: Matrix4.translationValues(
-                              muchDelayedAnimation.value * width, 0, 0),
-                          child: Bouncing(
-                            onPress: () {},
-                            child: DashboardCard(
-                              name: "Library",
-                              imgpath: "library.png",
-                            ),
-                          ),
-                        ),
-                        Transform(
-                          transform: Matrix4.translationValues(
-                              delayedAnimation.value * width, 0, 0),
-                          child: Bouncing(
-                            onPress: () {},
-                            child: DashboardCard(
-                              name: "Track Bus",
-                              imgpath: "bus.png",
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Container(
-                  alignment: Alignment(1.0, 0),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 10.0, right: 20.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Transform(
-                          transform: Matrix4.translationValues(
-                              muchDelayedAnimation.value * width, 0, 0),
-                          child: Bouncing(
-                            onPress: () {},
-                            child: DashboardCard(
-                              name: "Activity",
-                              imgpath: "activity.png",
-                            ),
-                          ),
-                        ),
-                        Transform(
-                          transform: Matrix4.translationValues(
-                              delayedAnimation.value * width, 0, 0),
-                          child: Bouncing(
-                            onPress: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (BuildContext context) =>
-                                        LeaveApply(),
-                                  ));
-                            },
-                            child: DashboardCard(
-                              name: "Apply Leave",
-                              imgpath: "leave_apply.png",
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: 12),
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.92,
+            children: features.map(_buildCard(context)).toList(),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Management',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.92,
+            children: management.map(_buildCard(context)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget Function(_Feature) _buildCard(BuildContext context) {
+    return (f) => FeatureCard(
+          title: f.title,
+          icon: f.icon,
+          color: f.color,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (c) => f.builder(c)),
           ),
         );
-      },
+  }
+}
+
+class _Feature {
+  final String title;
+  final IconData icon;
+  final Color color;
+  final Widget Function(BuildContext) builder;
+  _Feature(this.title, this.icon, this.color, this.builder);
+}
+
+class _GreetingCard extends StatelessWidget {
+  final String name;
+  const _GreetingCard({required this.name, Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: AppColors.brandGradient,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back,',
+                  style: TextStyle(color: Colors.white.withOpacity(0.85)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Class 12 · Section B',
+                  style: TextStyle(color: Colors.white.withOpacity(0.9)),
+                ),
+              ],
+            ),
+          ),
+          const CircleAvatar(
+            radius: 30,
+            backgroundColor: Colors.white24,
+            child: Icon(Icons.person, color: Colors.white, size: 34),
+          ),
+        ],
+      ),
     );
   }
 }

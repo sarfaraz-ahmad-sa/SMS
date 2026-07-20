@@ -1,12 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:fzregex/utils/fzregex.dart';
 import 'package:fzregex/utils/pattern.dart';
+
 import 'package:school_management/Screens/home.dart';
-import 'package:school_management/Widgets/BouncingButton.dart';
 import 'package:school_management/services/UserModel.dart';
+import 'package:school_management/services/models/user_role.dart';
+import 'package:school_management/services/session_state.dart';
+import 'package:school_management/services/tenant_service.dart';
+import 'package:school_management/theme/app_theme.dart';
 
 import 'ForgetPassword.dart';
 import 'RequestLogin.dart';
@@ -22,30 +24,37 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage>
     with SingleTickerProviderStateMixin {
-  late Animation animation, delayedAnimation, muchDelayedAnimation, LeftCurve;
-  late AnimationController animationController;
+  late final AnimationController animationController;
+  late final Animation animation, delayedAnimation, muchDelayedAnimation;
+  late final Animation leftCurve;
+
+  final GlobalKey<FormState> _formkey = GlobalKey<FormState>();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final TenantService _tenantService = TenantService();
+
+  AutovalidateMode _autoValidateMode = AutovalidateMode.disabled;
+  bool _passShow = false;
+  bool _loading = false;
+  String _pass = '';
+  String _email = '';
 
   @override
   void initState() {
-    WidgetsFlutterBinding.ensureInitialized();
-    Firebase.initializeApp();
     super.initState();
     animationController =
-        AnimationController(duration: Duration(seconds: 3), vsync: this);
+        AnimationController(duration: const Duration(seconds: 3), vsync: this);
     animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
         parent: animationController, curve: Curves.fastOutSlowIn));
-
     delayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
         parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.fastOutSlowIn)));
-
+        curve: const Interval(0.5, 1.0, curve: Curves.fastOutSlowIn)));
     muchDelayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
         parent: animationController,
-        curve: Interval(0.8, 1.0, curve: Curves.fastOutSlowIn)));
-
-    LeftCurve = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
+        curve: const Interval(0.8, 1.0, curve: Curves.fastOutSlowIn)));
+    leftCurve = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
         parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.easeInOut)));
+        curve: const Interval(0.5, 1.0, curve: Curves.easeInOut)));
+    animationController.forward();
   }
 
   @override
@@ -54,663 +63,253 @@ class _MyHomePageState extends State<MyHomePage>
     super.dispose();
   }
 
-  UserModel? _userfromfirebase(User? user) {
-    return user != null ? UserModel(uid: user.uid) : null;
+  Future<void> _signIn() async {
+    if (!_formkey.currentState!.validate()) {
+      setState(() => _autoValidateMode = AutovalidateMode.always);
+      return;
+    }
+    _formkey.currentState!.save();
+    setState(() => _loading = true);
+
+    try {
+      final cred = await _auth.signInWithEmailAndPassword(
+        email: _email.trim(),
+        password: _pass,
+      );
+      final firebaseUser = cred.user;
+      if (firebaseUser == null) throw FirebaseAuthException(code: 'unknown');
+
+      // Load the tenant-scoped profile; fall back to a minimal user if the
+      // Firestore profile isn't set up yet so login still succeeds.
+      final profile = await _tenantService.getUserProfile(firebaseUser.uid) ??
+          UserModel(uid: firebaseUser.uid, email: firebaseUser.email);
+      final tenant = await _tenantService.getTenant(profile.tenantId);
+
+      if (!mounted) return;
+      SessionState.instance.setSession(user: profile, tenant: tenant);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const Home()),
+      );
+    } on FirebaseAuthException catch (e) {
+      _showError(_messageFor(e.code));
+    } catch (_) {
+      _showError('Something went wrong. Please try again.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
-  GlobalKey<FormState> _formkey = GlobalKey<FormState>();
-  var _autoValidateMode = AutovalidateMode.disabled; // Updated to use AutovalidateMode
-  bool passshow = false;
-  late String _pass;
-  late String _email;
-  FirebaseAuth _auth = FirebaseAuth.instance;
+  /// Demo entry point — skips Firebase auth so the app can be previewed
+  /// before any real user accounts exist. Remove once sign-up is wired up.
+  void _continueAsGuest() {
+    SessionState.instance.setSession(
+      user: const UserModel(
+        uid: 'guest',
+        displayName: 'Guest User',
+        role: UserRole.student,
+      ),
+    );
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const Home()),
+    );
+  }
+
+  String _messageFor(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No account found for that email.';
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Incorrect email or password.';
+      case 'invalid-email':
+        return 'That email address looks invalid.';
+      case 'network-request-failed':
+        return 'Network error — check your connection.';
+      default:
+        return 'Sign in failed. Please try again.';
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.danger),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final double width = MediaQuery.of(context).size.width;
 
-    animationController.forward();
-    return AnimatedBuilder(
-      animation: animationController,
-      builder: (BuildContext context, Widget? child) {
-        return Scaffold(
-          body: ListView(
+    return Scaffold(
+      body: AnimatedBuilder(
+        animation: animationController,
+        builder: (BuildContext context, Widget? child) {
+          return ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
             children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      animation.value * width, 0.0, 0.0),
-                  child: Center(
-                    child: Stack(
-                      children: <Widget>[
-                        Container(
-                          child: Text(
-                            'Hello',
-                            style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 40.0,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        Container(
-                          child: Padding(
-                            padding:
-                            const EdgeInsets.fromLTRB(30.0, 35.0, 0, 0),
-                            child: Text(
-                              'There',
-                              style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 40.0,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(135.0, 0.0, 0, 30),
-                          child: Container(
-                            child: Text(
-                              '.',
-                              style: TextStyle(
-                                  color: Colors.green[400],
-                                  fontSize: 80.0,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 5.0),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Transform(
-                  transform: Matrix4.translationValues(LeftCurve.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Form(
-                            key: _formkey,
-                            autovalidateMode: _autoValidateMode,
-                            child: Column(
-                              children: [
-                                TextFormField(
-                                  validator: (value) {
-                                    if (value?.isEmpty ?? true) {
-                                      return "Enter a valid email address";
-                                    } else if (!Fzregex.hasMatch(value!, FzPattern.email)) {
-                                      return "Enter a valid email address";
-                                    }
-                                    return null;
-                                  },
-                                  onSaved: (value) {
-                                    _email = value!;
-                                  },
-                                  keyboardType: TextInputType.emailAddress,
-                                  decoration: InputDecoration(
-                                    labelText: 'EMAIL',
-                                    contentPadding: EdgeInsets.all(5),
-                                    labelStyle: TextStyle(
-                                        fontFamily: 'Montserrat',
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        color: Colors.grey),
-                                    focusedBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(height: 20.0),
-                                TextFormField(
-                                  obscuringCharacter: '*',
-                                  validator: (val) {
-                                    if (val?.isEmpty ?? true) {
-                                      return "Enter a valid password";
-                                    }
-                                    return null;
-                                  },
-                                  onSaved: (val) {
-                                    _pass = val!;
-                                  },
-                                  decoration: InputDecoration(
-                                      suffix: passshow == false
-                                          ? IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            passshow = true;
-                                          });
-                                        },
-                                        icon: Icon(Icons.lock_open),
-                                      )
-                                          : IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            passshow = false;
-                                          });
-                                        },
-                                        icon: Icon(Icons.lock),
-                                      ),
-                                      labelText: 'PASSWORD',
-                                      contentPadding: EdgeInsets.all(5),
-                                      labelStyle: TextStyle(
-                                          fontFamily: 'Montserrat',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey),
-                                      focusedBorder: UnderlineInputBorder(
-                                          borderSide:
-                                          BorderSide(color: Colors.green))),
-                                  obscureText: !passshow,
-                                ),
-                              ],
-                            )),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      delayedAnimation.value * width, 0, 0),
-                  child: Container(
-                    alignment: Alignment(1.0, 0),
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 10.0, right: 20.0),
-                      child: Bouncing(
-                        onPress: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (BuildContext context) =>
-                                    ForgetPassword(),
-                              ));
-                        },
-                        child: Text(
-                          "Forgot password?",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
+              const SizedBox(height: 60),
+              Transform(
+                transform:
+                    Matrix4.translationValues(animation.value * width, 0, 0),
+                child: Row(
+                  children: [
+                    Text(
+                      'Welcome',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20.0, 5, 20.0, 5),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      muchDelayedAnimation.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Bouncing(
-                          onPress: () {
-                            if (_formkey.currentState!.validate()) {
-                              _formkey.currentState!.save();
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (BuildContext context) => Home(),
-                                  ));
-                            } else {
-                              setState(() {
-                                _autoValidateMode = AutovalidateMode.always;
-                              });
-                            }
-                          },
-                          child: MaterialButton(
-                            onPressed: () {},
-                            elevation: 0.0,
-                            minWidth: MediaQuery.of(context).size.width,
-                            color: Colors.green,
-                            child: Text(
-                              " Login",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 10.0),
-                        Bouncing(
-                          onPress: () {},
-                          child: MaterialButton(
-                            onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (BuildContext context) =>
-                                        RequestLogin(),
-                                  ));
-                            },
-                            elevation: 0.5,
-                            minWidth: MediaQuery.of(context).size.width,
-                            color: Colors.grey[300],
-                            child: ListTile(
-                              leading: Icon(
-                                Icons.fingerprint,
-                                color: Colors.black,
-                              ),
-                              title: Text('Request Login ID'),
-                            ),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      '.',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Transform(
+                transform:
+                    Matrix4.translationValues(animation.value * width, 0, 0),
+                child: const Text(
+                  'Sign in to your account',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 15,
                   ),
                 ),
               ),
-              SizedBox(
-                height: 10.0,
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 30),
-                child: Container(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Text(
-                        "Coded By M.Irtaza",
-                        style: TextStyle(
-                            color: Colors.black, fontWeight: FontWeight.bold),
+              const SizedBox(height: 36),
+              Transform(
+                transform:
+                    Matrix4.translationValues(leftCurve.value * width, 0, 0),
+                child: Form(
+                  key: _formkey,
+                  autovalidateMode: _autoValidateMode,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: Icon(Icons.mail_outline),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Enter your email address';
+                          }
+                          if (!Fzregex.hasMatch(value, FzPattern.email)) {
+                            return 'Enter a valid email address';
+                          }
+                          return null;
+                        },
+                        onSaved: (value) => _email = value ?? '',
+                      ),
+                      const SizedBox(height: 18),
+                      TextFormField(
+                        obscureText: !_passShow,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(_passShow
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () =>
+                                setState(() => _passShow = !_passShow),
+                          ),
+                        ),
+                        validator: (val) =>
+                            (val == null || val.isEmpty)
+                                ? 'Enter your password'
+                                : null,
+                        onSaved: (val) => _pass = val ?? '',
                       ),
                     ],
                   ),
                 ),
               ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => ForgetPassword()),
+                  ),
+                  child: const Text('Forgot password?'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Transform(
+                transform: Matrix4.translationValues(
+                    muchDelayedAnimation.value * width, 0, 0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _signIn,
+                    child: _loading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : const Text('Login'),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
               SizedBox(
-                height: 10.0,
-              )
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => RequestLogin()),
+                  ),
+                  icon: const Icon(Icons.fingerprint),
+                  label: const Text('Request Login ID'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: TextButton.icon(
+                  onPressed: _continueAsGuest,
+                  icon: const Icon(Icons.explore_outlined, size: 18),
+                  label: const Text('Continue as Guest (Demo)'),
+                ),
+              ),
+              const SizedBox(height: 30),
+              Center(
+                child: Text(
+                  'Powered by CARTZ Link',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
             ],
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
-
-
-/*
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:fzregex/utils/fzregex.dart';
-import 'package:fzregex/utils/pattern.dart';
-import 'package:school_management/Screens/home.dart';
-import 'package:school_management/Widgets/BouncingButton.dart';
-import 'package:school_management/services/UserModel.dart';
-
-
-import 'ForgetPassword.dart';
-import 'RequestLogin.dart';
-
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  final String title;
-
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage>
-    with SingleTickerProviderStateMixin {
-  late Animation animation, delayedAnimation, muchDelayedAnimation, LeftCurve;
-  late AnimationController animationController;
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    WidgetsFlutterBinding.ensureInitialized();
-    Firebase.initializeApp();
-    super.initState();
-    animationController =
-        AnimationController(duration: Duration(seconds: 3), vsync: this);
-    animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController, curve: Curves.fastOutSlowIn));
-
-    delayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.fastOutSlowIn)));
-
-    muchDelayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.8, 1.0, curve: Curves.fastOutSlowIn)));
-
-    LeftCurve = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.easeInOut)));
-  }
-
-  @override
-  void dispose() {
-    // TODO: implement dispose
-    animationController.dispose();
-    super.dispose();
-  }
-
-  UserModel _userfromfirebase(FirebaseUser user) {
-    return user != null ? UserModel(uid: user.uid) : null;
-    print(user);
-  }
-
-  GlobalKey<FormState> _formkey = GlobalKey<FormState>();
-  var _autoValidateMode = false;
-  bool passshow = false;
-  late String _pass;
-  late String _email;
-  late String user1;
-  FirebaseAuth _auth = FirebaseAuth.instance;
-  @override
-  Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-
-    animationController.forward();
-    return AnimatedBuilder(
-      animation: animationController,
-      builder: (BuildContext context, Widget? child) {
-        return Scaffold(
-          body: ListView(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      animation.value * width, 0.0, 0.0),
-                  child: Center(
-                    child: Stack(
-                      children: <Widget>[
-                        Container(
-                          child: Text(
-                            'Hello',
-                            style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 40.0,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        Container(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(30.0, 35.0, 0, 0),
-                            child: Text(
-                              'There',
-                              style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 40.0,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(135.0, 0.0, 0, 30),
-                          child: Container(
-                            child: Text(
-                              '.',
-                              style: TextStyle(
-                                  color: Colors.green[400],
-                                  fontSize: 80.0,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 5.0),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Transform(
-                  transform:
-                      Matrix4.translationValues(LeftCurve.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Form(
-                            key: _formkey,
-                            autovalidateMode: _autoValidateMode,
-                            child: Column(
-                              children: [
-                                TextFormField(
-                                  validator: (value) {
-                                    if ((Fzregex.hasMatch(
-                                            value, FzPattern.email) ==
-                                        false)) {
-                                      return "Enter Vaild Email address";
-                                    } else {
-                                      return null;
-                                    }
-                                  },
-                                  onSaved: (value) {
-                                    _email = value!;
-                                  },
-                                  keyboardType: TextInputType.emailAddress,
-                                  decoration: InputDecoration(
-                                    labelText: 'EMAIL',
-                                    contentPadding: EdgeInsets.all(5),
-                                    labelStyle: TextStyle(
-                                        fontFamily: 'Montserrat',
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        color: Colors.grey),
-                                    focusedBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(height: 20.0),
-                                TextFormField(
-                                  obscuringCharacter: '*',
-                                  validator: (val) {
-                                    if (val.isEmpty) {
-                                      return "Enter Vaild password";
-                                    } else {
-                                      return null;
-                                    }
-                                  },
-                                  onSaved: (val) {
-                                    _pass = val!;
-                                  },
-                                  decoration: InputDecoration(
-                                      suffix: passshow == false
-                                          ? IconButton(
-                                              onPressed: () {
-                                                setState(() {
-                                                  passshow = true;
-                                                });
-                                              },
-                                              icon: Icon(Icons.lock_open),
-                                            )
-                                          : IconButton(
-                                              onPressed: () {
-                                                setState(() {
-                                                  passshow = false;
-                                                });
-                                              },
-                                              icon: Icon(Icons.lock),
-                                            ),
-                                      labelText: 'PASSWORD',
-                                      contentPadding: EdgeInsets.all(5),
-                                      labelStyle: TextStyle(
-                                          fontFamily: 'Montserrat',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey),
-                                      focusedBorder: UnderlineInputBorder(
-                                          borderSide:
-                                              BorderSide(color: Colors.green))),
-                                  obscureText: passshow == false ? true : false,
-                                ),
-                              ],
-                            )),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      delayedAnimation.value * width, 0, 0),
-                  child: Container(
-                    alignment: Alignment(1.0, 0),
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 10.0, right: 20.0),
-                      child: Bouncing(
-                        onPress: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (BuildContext context) =>
-                                    ForgetPassword(),
-                              ));
-                        },
-                        child: Text(
-                          "Forgot password?",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20.0, 5, 20.0, 5),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      muchDelayedAnimation.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Bouncing(
-                          onPress: () {
-                            if (_formkey.currentState!.validate()) {
-                              _formkey.currentState!.save();
-                              /*try {
-                                final FirebaseUser user =
-                                    (await _auth.signInWithEmailAndPassword(
-                                  email: _email,
-                                  password: _pass,
-                                ))
-                                        .user;
-                                dynamic userinfo = _auth.currentUser;
-                                return _userfromfirebase(userinfo);
-                              } catch (e) {
-                                if (e.code == 'user-not-found') {
-                                  print("user not found");
-                                } else if (e.code == 'wrong-password') {
-                                  print("wrong password");
-                                } else {
-                                  print("check internet connection!");
-                                }
-                              }
-                            } else {
-                              setState(() {
-                                _autoValidate = true;
-                              });
-                            }*/
-
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (BuildContext context) => Home(),
-                                  ));
-                            }
-                            ;
-                          },
-                          child: MaterialButton(
-                            onPressed: () {},
-                            elevation: 0.0,
-                            minWidth: MediaQuery.of(context).size.width,
-                            color: Colors.green,
-                            child: Text(
-                              "Login",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 10.0),
-                        Bouncing(
-                          onPress: () {},
-                          child: MaterialButton(
-                            onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (BuildContext context) =>
-                                        RequestLogin(),
-                                  ));
-                            },
-                            elevation: 0.5,
-                            minWidth: MediaQuery.of(context).size.width,
-                            color: Colors.grey[300],
-                            child: ListTile(
-                              leading: Icon(
-                                Icons.fingerprint,
-                                color: Colors.black,
-                              ),
-                              title: Text('Request Login ID'),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 30),
-                child: Container(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Text(
-                        "Coded By Deepak",
-                        style: TextStyle(
-                            color: Colors.black, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              )
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-*/
