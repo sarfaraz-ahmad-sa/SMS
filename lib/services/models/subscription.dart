@@ -73,6 +73,10 @@ class Subscription {
       status != SubscriptionStatus.cancelled &&
       status != SubscriptionStatus.suspended;
 
+  /// Display label exposed directly by the model so callers do not depend on
+  /// extension-import resolution.
+  String get planLabel => tier.label;
+
   factory Subscription.fromMap(Map<String, dynamic> map) {
     final legacyActive = map['active'];
     final inferredStatus = legacyActive == false

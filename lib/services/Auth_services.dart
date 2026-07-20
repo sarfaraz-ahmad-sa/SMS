@@ -57,7 +57,9 @@ class AuthService {
     await _firebaseAuth.signOut();
   }
 
-  Future<String?> getIdToken({bool forceRefresh = false}) {
-    return _firebaseAuth.currentUser?.getIdToken(forceRefresh);
+  Future<String?> getIdToken({bool forceRefresh = false}) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return null;
+    return user.getIdToken(forceRefresh);
   }
 }

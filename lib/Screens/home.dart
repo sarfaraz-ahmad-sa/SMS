@@ -207,7 +207,7 @@ class Home extends StatelessWidget {
                         : 'User',
                     roleLabel: user.roleLabel,
                     tenantName: tenant.name,
-                    planLabel: tenant.subscription.tier.label,
+                    planLabel: tenant.subscription.planLabel,
                     academicYearId: state.activeAcademicYearId,
                   ),
                   const SizedBox(height: 20),

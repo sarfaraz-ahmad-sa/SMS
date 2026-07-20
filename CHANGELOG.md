@@ -15,3 +15,11 @@
 - Modernized Android Gradle and Flutter web bootstrap
 - Replaced obsolete widget test with permission tests
 - Added SaaS architecture and production documentation
+
+## 2026-07-20 Windows setup hotfix
+
+- Fixed nullable Firebase ID token future compile error.
+- Exposed the subscription plan label directly from the `Subscription` model.
+- Added Windows CMD tenant seed and legacy migration wrappers.
+- Added a root Windows validation command and setup guide.
+- Included generated `lib/firebase_options.dart` in the distributable archive.

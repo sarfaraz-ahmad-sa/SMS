@@ -1,3 +1,16 @@
+# Windows users
+
+From Windows CMD, use the included wrappers instead of Linux-style inline environment variables:
+
+```bat
+set "GOOGLE_APPLICATION_CREDENTIALS=C:\\secure\\firebase-service-account.json"
+seed-tenant.cmd
+```
+
+For migration, run `migrate-flat.cmd`. See `../../WINDOWS_SETUP.md` for exact steps.
+
+---
+
 # Trusted Firebase Admin Tools
 
 These scripts require Application Default Credentials. Never place a service-account JSON file in the Flutter application or commit it to Git.

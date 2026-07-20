@@ -82,7 +82,7 @@ class TenantSwitcher extends StatelessWidget {
                   subtitle: Text(
                     <String>[
                       if (tenant.code?.isNotEmpty == true) tenant.code!,
-                      tenant.subscription.tier.label,
+                      tenant.subscription.planLabel,
                     ].join(' • '),
                   ),
                   onChanged: (String? value) =>
