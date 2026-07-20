@@ -1,705 +1,193 @@
-import 'package:dropdown_search/dropdown_search.dart';
 import 'package:flutter/material.dart';
-//import 'package:randomizer_null_safe/randomizer_null_safe.dart';
-import 'package:school_management/Widgets/AppBar.dart';
-import 'package:school_management/Widgets/BouncingButton.dart';
-import 'package:school_management/Widgets/Exams/SubjectCard.dart';
-import 'package:school_management/Widgets/MainDrawer.dart';
+
+import '../../Widgets/Exams/SubjectCard.dart';
+import '../../theme/app_theme.dart';
 
 class ExamResult extends StatefulWidget {
+  const ExamResult({Key? key}) : super(key: key);
+
   @override
-  _ExamResultState createState() => _ExamResultState();
+  State<ExamResult> createState() => _ExamResultState();
 }
 
-class _ExamResultState extends State<ExamResult>
-    with SingleTickerProviderStateMixin {
-  late Animation animation, delayedAnimation, muchDelayedAnimation;
-  late AnimationController animationController;
- // Randomizer randomizer = Randomizer();  // Instantiate Randomizer
+class _ExamResultState extends State<ExamResult> {
+  String _selectedExam = 'Annual Examination 2026';
 
-  @override
-  void initState() {
-    super.initState();
-    animationController =
-        AnimationController(duration: Duration(seconds: 3), vsync: this);
-    animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController, curve: Curves.fastOutSlowIn));
+  static const List<String> _exams = <String>[
+    'Annual Examination 2026',
+    'Mid Term Examination 2026',
+    'First Term Examination 2026',
+  ];
 
-    delayedAnimation = Tween(begin: 1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.2, 0.5, curve: Curves.fastOutSlowIn)));
-
-    muchDelayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.3, 0.5, curve: Curves.fastOutSlowIn)));
-  }
-
-  @override
-  void dispose() {
-    animationController.dispose();
-    super.dispose();
-  }
+  static const List<Map<String, String>> _subjects =
+      <Map<String, String>>[
+    <String, String>{
+      'name': 'English',
+      'chapters': '1-8',
+      'date': '12/03/2026',
+      'time': '09:00 AM – 11:00 AM',
+      'mark': '88/100',
+      'grade': 'A',
+    },
+    <String, String>{
+      'name': 'Mathematics',
+      'chapters': '1-10',
+      'date': '14/03/2026',
+      'time': '09:00 AM – 11:00 AM',
+      'mark': '94/100',
+      'grade': 'A+',
+    },
+    <String, String>{
+      'name': 'Science',
+      'chapters': '1-7',
+      'date': '16/03/2026',
+      'time': '09:00 AM – 11:00 AM',
+      'mark': '91/100',
+      'grade': 'A+',
+    },
+    <String, String>{
+      'name': 'Pakistan Studies',
+      'chapters': '1-6',
+      'date': '18/03/2026',
+      'time': '09:00 AM – 11:00 AM',
+      'mark': '87/100',
+      'grade': 'A',
+    },
+  ];
 
   @override
   Widget build(BuildContext context) {
-    animationController.forward();
-    final double width = MediaQuery.of(context).size.width;
-    final double height = MediaQuery.of(context).size.height;
-    return AnimatedBuilder(
-        animation: animationController,
-        builder: (BuildContext context, Widget? child) {
-          final GlobalKey<ScaffoldState> _scaffoldKey =
-          new GlobalKey<ScaffoldState>();
-          return Scaffold(
-              key: _scaffoldKey,
-              appBar: CommonAppBar(
-                menuenabled: true,
-                notificationenabled: false,
-                title: "Exams",
-                ontap: () {
-                  _scaffoldKey.currentState?.openDrawer();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Exam Results')),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: <Widget>[
+              DropdownButtonFormField<String>(
+                value: _selectedExam,
+                decoration: const InputDecoration(
+                  labelText: 'Examination',
+                  prefixIcon: Icon(Icons.assignment_outlined),
+                ),
+                items: _exams
+                    .map(
+                      (String exam) => DropdownMenuItem<String>(
+                        value: exam,
+                        child: Text(exam),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (String? value) {
+                  if (value != null) setState(() => _selectedExam = value);
                 },
               ),
-              drawer: Drawer(
-                elevation: 0,
-                child: MainDrawer(),
+              const SizedBox(height: 18),
+              const _ResultSummary(),
+              const SizedBox(height: 20),
+              const Text(
+                'Subject Results',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              body: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 5,
-                    horizontal: 15,
-                  ),
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          top: 8.0,
-                          bottom: 8.0,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  muchDelayedAnimation.value * width, 0, 0),
-                              child: Text(
-                                "Exam Name",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 17,
-                                ),
-                              ),
-                            ),
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  delayedAnimation.value * width, 0, 0),
-                              child: Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: Text(
-                                  "date-15/12/2020",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      Transform(
-                        transform: Matrix4.translationValues(
-                            muchDelayedAnimation.value * width, 0, 0),
-                        child: SubjectCard(
-                          subjectname: "Language(Tamil)",
-                          chapter: "1-5",
-                          date: "12/12/2020",
-                          grade: "A+",
-                          mark: "90",
-                          time: "9.00Am-10AM",
-                        ),
-                      ),
-                      Transform(
-                        transform: Matrix4.translationValues(
-                            muchDelayedAnimation.value * width, 0, 0),
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: SubjectCard(
-                            subjectname: "English",
-                            chapter: "1-5",
-                            date: "13/12/2020",
-                            grade: "A+",
-                            mark: "85",
-                            time: "9.00Am-10AM",
-                          ),
-                        ),
-                      ),
-                      // Add remaining SubjectCard widgets here...
-                      SizedBox(
-                        height: height * 0.05,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Transform(
-                                transform: Matrix4.translationValues(
-                                    muchDelayedAnimation.value * width, 0, 0),
-                                child: Text(
-                                  "Total Marks:",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                width: height * 0.03,
-                              ),
-                              Transform(
-                                transform: Matrix4.translationValues(
-                                    delayedAnimation.value * width, 0, 0),
-                                child: Text(
-                                  "490/500",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(
-                            width: 5,
-                          ),
-                          Row(
-                            children: [
-                              Transform(
-                                transform: Matrix4.translationValues(
-                                    muchDelayedAnimation.value * width, 0, 0),
-                                child: Text(
-                                  "Overall Grade:",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                width: height * 0.03,
-                              ),
-                              Transform(
-                                transform: Matrix4.translationValues(
-                                    delayedAnimation.value * width, 0, 0),
-                                child: Text(
-                                  "A +",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 13.0),
-                        child: Row(
-                          children: [
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  muchDelayedAnimation.value * width, 0, 0),
-                              child: Text(
-                                "Result: ",
-                                style: TextStyle(
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: height * 0.03,
-                            ),
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  delayedAnimation.value * width, 0, 0),
-                              child: Text(
-                                "Pass",
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 18, 0, 5),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  muchDelayedAnimation.value * width, 0, 0),
-                              child: Bouncing(
-                                onPress: () {},
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue,
-                                    borderRadius: BorderRadius.circular(3),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black26,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      "Save",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  delayedAnimation.value * width, 0, 0),
-                              child: Bouncing(
-                                onPress: () {},
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue,
-                                    borderRadius: BorderRadius.circular(3),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black26,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      "Share",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: height * 0.20,
-                      ),
-                    ],
+              const SizedBox(height: 12),
+              ..._subjects.map(
+                (Map<String, String> subject) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: SubjectCard(
+                    subjectname: subject['name']!,
+                    chapter: subject['chapters']!,
+                    date: subject['date']!,
+                    time: subject['time']!,
+                    grade: subject['grade']!,
+                    mark: subject['mark']!,
                   ),
                 ),
-              ));
-        });
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: <Widget>[
+                  FilledButton.icon(
+                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Report card download will use the document API.'),
+                      ),
+                    ),
+                    icon: const Icon(Icons.download_outlined),
+                    label: const Text('Download Report Card'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Result sharing link prepared.'),
+                      ),
+                    ),
+                    icon: const Icon(Icons.share_outlined),
+                    label: const Text('Share'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
-
-
-
-/*
-import 'package:dropdown_search/dropdown_search.dart';
-import 'package:flutter/material.dart';
-import 'package:randomizer_null_safe/randomizer_null_safe.dart';
-import 'package:school_management/Widgets/AppBar.dart';
-import 'package:school_management/Widgets/BouncingButton.dart';
-import 'package:school_management/Widgets/Exams/SubjectCard.dart';
-import 'package:school_management/Widgets/MainDrawer.dart';
-
-class ExamResult extends StatefulWidget {
-  @override
-  _ExamResultState createState() => _ExamResultState();
-}
-
-class _ExamResultState extends State<ExamResult>
-    with SingleTickerProviderStateMixin {
-  Animation animation, delayedAnimation, muchDelayedAnimation, LeftCurve;
-  AnimationController animationController;
-  Randomizer randomcolor = Randomizer();
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    //SystemChrome.setEnabledSystemUIOverlays([]);
-
-    animationController =
-        AnimationController(duration: Duration(seconds: 3), vsync: this);
-    animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController, curve: Curves.fastOutSlowIn));
-
-    delayedAnimation = Tween(begin: 1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.2, 0.5, curve: Curves.fastOutSlowIn)));
-
-    muchDelayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.3, 0.5, curve: Curves.fastOutSlowIn)));
-  }
-
-  @override
-  void dispose() {
-    // TODO: implement dispose
-    animationController.dispose();
-    super.dispose();
-  }
+class _ResultSummary extends StatelessWidget {
+  const _ResultSummary();
 
   @override
   Widget build(BuildContext context) {
-    animationController.forward();
-    final double width = MediaQuery.of(context).size.width;
-    final double height = MediaQuery.of(context).size.height;
-    return AnimatedBuilder(
-        animation: animationController,
-        builder: (BuildContext context, Widget child) {
-          final GlobalKey<ScaffoldState> _scaffoldKey =
-              new GlobalKey<ScaffoldState>();
-          return Scaffold(
-              key: _scaffoldKey,
-              appBar: CommonAppBar(
-                menuenabled: true,
-                notificationenabled: false,
-                title: "Exams",
-                ontap: () {
-                  _scaffoldKey.currentState.openDrawer();
-                },
-              ),
-              drawer: Drawer(
-                elevation: 0,
-                child: MainDrawer(),
-              ),
-              body: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 5,
-                    horizontal: 15,
-                  ),
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          top: 8.0,
-                          bottom: 8.0,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  muchDelayedAnimation.value * width, 0, 0),
-                              child: Text(
-                                "Exam Name",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 17,
-                                ),
-                              ),
-                            ),
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  delayedAnimation.value * width, 0, 0),
-                              child: Padding(
-                                padding: const EdgeInsets.all(4.0),
-                                child: Text(
-                                  "date-15/12/2020",
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(
-                        height: height * 0.02,
-                      ),
-                      Transform(
-                        transform: Matrix4.translationValues(
-                            muchDelayedAnimation.value * width, 0, 0),
-                        child: DropdownSearch<String>(
-                          validator: (v) => v == null ? "Please Select" : null,
-                          hint: "Please Select",
-                          mode: Mode.MENU,
-                          showSelectedItem: true,
-                          
-                          items: [
-                            "Quarterly",
-                            "half yearly",
-                            "First Revision",
-                            'Second Revision',
-                            'Third Revision',
-                            'Annual Exam'
-                          ],
-                          showClearButton: false,
-                          onChanged: (value) {},
-                        ),
-                      ),
-                      SizedBox(
-                        height: height * 0.05,
-                      ),
-                      Transform(
-                        transform: Matrix4.translationValues(
-                            muchDelayedAnimation.value * width, 0, 0),
-                        child: SubjectCard(
-                          subjectname: "Language(Tamil)",
-                          chapter: "1-5",
-                          date: "12/12/2020",
-                          grade: "A+",
-                          mark: "90",
-                          time: "9.00Am-10AM",
-                        ),
-                      ),
-                      Transform(
-                        transform: Matrix4.translationValues(
-                            muchDelayedAnimation.value * width, 0, 0),
-                        child: Padding(
-                          padding: const EdgeInsets.only(top:8.0),
-                          child: SubjectCard(
-                            subjectname: "English",
-                            chapter: "1-5",
-                            date: "13/12/2020",
-                            grade: "A+",
-                            mark: "85",
-                            time: "9.00Am-10AM",
-                          ),
-                        ),
-                      ),
-                       Transform(
-                        transform: Matrix4.translationValues(
-                            muchDelayedAnimation.value * width, 0, 0),
-                        child: Padding(
-                          padding: const EdgeInsets.only(top:8.0),
-                          child: SubjectCard(
-                            subjectname: "Maths",
-                            chapter: "1-5",
-                            date: "14/12/2020",
-                            grade: "A+",
-                            mark: "100",
-                            time: "9.00Am-10AM",
-                          ),
-                        ),
-                      ),
-                       Transform(
-                        transform: Matrix4.translationValues(
-                            muchDelayedAnimation.value * width, 0, 0),
-                        child: Padding(
-                          padding: const EdgeInsets.only(top:8.0),
-                          child: SubjectCard(
-                            subjectname: "science",
-                            chapter: "1-5",
-                            date: "14/12/2020",
-                            grade: "A+",
-                            mark: "100",
-                            time: "9.00Am-10AM",
-                          ),
-                        ),
-                      ),
-                       Transform(
-                        transform: Matrix4.translationValues(
-                            muchDelayedAnimation.value * width, 0, 0),
-                        child: Padding(
-                          padding: const EdgeInsets.only(top:8.0),
-                          child: SubjectCard(
-                            subjectname: "Social Science",
-                            chapter: "1-5",
-                            date: "15/12/2020",
-                            grade: "A+",
-                            mark: "100",
-                            time: "9.00Am-10AM",
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        height: height * 0.05,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Transform(
-                                transform: Matrix4.translationValues(
-                                    muchDelayedAnimation.value * width, 0, 0),
-                                child: Text(
-                                  "Total Marks:",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    //fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                width: height * 0.03,
-                              ),
-                              Transform(
-                                transform: Matrix4.translationValues(
-                                    delayedAnimation.value * width, 0, 0),
-                                child: Text(
-                                  "490/500",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(
-                            width: 5,
-                          ),
-                          Row(
-                            children: [
-                              Transform(
-                                transform: Matrix4.translationValues(
-                                    muchDelayedAnimation.value * width, 0, 0),
-                                child: Text(
-                                  "Overall Grade:",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    //fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                width: height * 0.03,
-                              ),
-                              Transform(
-                                transform: Matrix4.translationValues(
-                                    delayedAnimation.value * width, 0, 0),
-                                child: Text(
-                                  "A +",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 13.0),
-                        child: Row(
-                          children: [
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  muchDelayedAnimation.value * width, 0, 0),
-                              child: Text(
-                                "Result: ",
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  //fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: height * 0.03,
-                            ),
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  delayedAnimation.value * width, 0, 0),
-                              child: Text(
-                                "Pass",
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 18, 0, 5),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  muchDelayedAnimation.value * width, 0, 0),
-                              child: Bouncing(
-                                onPress: () {},
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                      color: Colors.blue,
-                                      borderRadius: BorderRadius.circular(3),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black26,
-                                        ),
-                                      ]),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      "Save",
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Transform(
-                              transform: Matrix4.translationValues(
-                                  delayedAnimation.value * width, 0, 0),
-                              child: Bouncing(
-                                onPress: () {},
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                      color: Colors.blue,
-                                      borderRadius: BorderRadius.circular(3),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black26,
-                                        ),
-                                      ]),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(
-                                      "Share",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                         
-                          ],
-                        ),
-                      ),
-                         SizedBox(
-                        height: height * 0.20,
-                      ),
-                    ],
-                  ),
-                ),
-              ));
-        });
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: AppColors.brandGradient,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Wrap(
+        spacing: 28,
+        runSpacing: 18,
+        alignment: WrapAlignment.spaceAround,
+        children: <Widget>[
+          _SummaryItem(label: 'Total', value: '360 / 400'),
+          _SummaryItem(label: 'Percentage', value: '90%'),
+          _SummaryItem(label: 'Grade', value: 'A+'),
+          _SummaryItem(label: 'Result', value: 'Pass'),
+        ],
+      ),
+    );
   }
 }
-*/
+
+class _SummaryItem extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _SummaryItem({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+      ],
+    );
+  }
+}

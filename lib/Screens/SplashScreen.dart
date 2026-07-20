@@ -1,9 +1,13 @@
-import 'dart:async';
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'package:school_management/Screens/LoginPage.dart';
-import 'package:school_management/theme/app_theme.dart';
+import '../services/Auth_services.dart';
+import '../services/session_state.dart';
+import '../services/models/tenant.dart';
+import '../services/tenant_service.dart';
+import '../theme/app_theme.dart';
+import 'LoginPage.dart';
+import 'home.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -16,26 +20,82 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _fade;
+  final AuthService _authService = AuthService();
+  final TenantService _tenantService = TenantService();
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 900),
     )..forward();
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-
-    Timer(const Duration(seconds: 3), _goToLogin);
+    _bootstrap();
   }
 
-  void _goToLogin() {
+  Future<void> _bootstrap() async {
+    final startedAt = DateTime.now();
+    String? loginMessage;
+
+    try {
+      final firebaseUser = FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null) {
+        SessionState.instance.markInitialized();
+        await _waitForBrandAnimation(startedAt);
+        _replace(const MyHomePage(title: 'CARTZ Link SMS'));
+        return;
+      }
+
+      final session = await _tenantService.loadSession(firebaseUser);
+      final accessibleTenants =
+          await _tenantService.getAccessibleTenants(firebaseUser);
+      SessionState.instance.setSession(
+        user: session.user,
+        tenant: session.tenant,
+        availableTenants: accessibleTenants.isEmpty
+            ? <Tenant>[session.tenant]
+            : accessibleTenants,
+        activeCampusId: session.activeCampusId,
+        activeAcademicYearId: session.activeAcademicYearId,
+      );
+
+      await _waitForBrandAnimation(startedAt);
+      _replace(const Home());
+      return;
+    } on TenantAccessException catch (error) {
+      loginMessage = error.message;
+      await _authService.signOut();
+      SessionState.instance.clear();
+    } on FirebaseAuthException catch (error) {
+      loginMessage = error.message ?? 'Your session could not be restored.';
+      await _authService.signOut();
+      SessionState.instance.clear();
+    } catch (_) {
+      loginMessage = 'Could not connect to the school service. Please try again.';
+      SessionState.instance.clear();
+    }
+
+    await _waitForBrandAnimation(startedAt);
+    _replace(MyHomePage(
+      title: 'CARTZ Link SMS',
+      initialMessage: loginMessage,
+    ));
+  }
+
+  Future<void> _waitForBrandAnimation(DateTime startedAt) async {
+    const minimumDuration = Duration(milliseconds: 1100);
+    final elapsed = DateTime.now().difference(startedAt);
+    if (elapsed < minimumDuration) {
+      await Future<void>.delayed(minimumDuration - elapsed);
+    }
+  }
+
+  void _replace(Widget screen) {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => MyHomePage(title: 'CARTZ Link SMS'),
-      ),
+      MaterialPageRoute(builder: (_) => screen),
     );
   }
 

@@ -1,0 +1,264 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function userData() {
+      return get(userPath()).data;
+    }
+
+    function memberPath(tenantId) {
+      return /databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
+    }
+
+    function hasMembershipDocument(tenantId) {
+      return signedIn() && exists(memberPath(tenantId));
+    }
+
+    function memberData(tenantId) {
+      return get(memberPath(tenantId)).data;
+    }
+
+    function legacyTenantAccess(tenantId) {
+      return signedIn() &&
+        (
+          userData().get('tenantId', '') == tenantId ||
+          (
+            userData().get('tenantIds', []) is list &&
+            tenantId in userData().get('tenantIds', [])
+          )
+        );
+    }
+
+    function isActiveMember(tenantId) {
+      return signedIn() &&
+        (
+          (
+            hasMembershipDocument(tenantId) &&
+            memberData(tenantId).get('isActive', true) == true &&
+            memberData(tenantId).get('status', 'active') == 'active'
+          ) ||
+          legacyTenantAccess(tenantId)
+        );
+    }
+
+    function memberRoles(tenantId) {
+      return hasMembershipDocument(tenantId)
+        ? memberData(tenantId).get('roles', [])
+        : userData().get('roles', []);
+    }
+
+    function memberPermissions(tenantId) {
+      return hasMembershipDocument(tenantId)
+        ? memberData(tenantId).get('permissions', [])
+        : userData().get('permissions', []);
+    }
+
+    function deniedPermissions(tenantId) {
+      return hasMembershipDocument(tenantId)
+        ? memberData(tenantId).get('deniedPermissions', [])
+        : userData().get('deniedPermissions', []);
+    }
+
+    function hasPermission(tenantId, permission) {
+      return isActiveMember(tenantId) &&
+        !(permission in deniedPermissions(tenantId)) &&
+        (
+          '*' in memberPermissions(tenantId) ||
+          permission in memberPermissions(tenantId)
+        );
+    }
+
+    function hasAnyRole(tenantId, roles) {
+      return isActiveMember(tenantId) &&
+        (
+          memberRoles(tenantId).hasAny(roles) ||
+          (
+            hasMembershipDocument(tenantId) &&
+            memberData(tenantId).get('role', '') in roles
+          ) ||
+          userData().get('role', '') in roles
+        );
+    }
+
+    function isLeadership(tenantId) {
+      return hasAnyRole(tenantId, [
+        'superAdmin',
+        'schoolOwner',
+        'principal',
+        'vicePrincipal'
+      ]);
+    }
+
+    function canCreateStudents(tenantId) {
+      return isLeadership(tenantId) ||
+        hasPermission(tenantId, 'students.create') ||
+        hasAnyRole(tenantId, ['adminStaff', 'receptionist']);
+    }
+
+    function canUpdateStudents(tenantId) {
+      return isLeadership(tenantId) ||
+        hasPermission(tenantId, 'students.update') ||
+        hasAnyRole(tenantId, ['adminStaff', 'classTeacher']);
+    }
+
+    function canArchiveStudents(tenantId) {
+      return isLeadership(tenantId) ||
+        hasPermission(tenantId, 'students.archive');
+    }
+
+    function canViewStudents(tenantId) {
+      return canCreateStudents(tenantId) ||
+        canUpdateStudents(tenantId) ||
+        canArchiveStudents(tenantId) ||
+        hasPermission(tenantId, 'students.view') ||
+        hasAnyRole(tenantId, [
+          'teacher',
+          'librarian',
+          'transportManager',
+          'hostelManager'
+        ]);
+    }
+
+    function canManageEvents(tenantId) {
+      return isLeadership(tenantId) ||
+        hasPermission(tenantId, 'events.manage') ||
+        hasAnyRole(tenantId, [
+          'adminStaff',
+          'teacher',
+          'classTeacher'
+        ]);
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+
+      allow update: if signedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'activeTenantId',
+          'activeCampusId',
+          'activeAcademicYearId',
+          'displayName',
+          'photoUrl',
+          'updatedAt'
+        ]) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['activeTenantId']) ||
+          request.resource.data.activeTenantId in resource.data.get('tenantIds', []) ||
+          request.resource.data.activeTenantId == resource.data.get('tenantId', '')
+        );
+
+      allow create, delete: if false;
+    }
+
+    match /tenants/{tenantId} {
+      allow read: if isActiveMember(tenantId);
+      allow create, update, delete: if false;
+
+      match /members/{memberId} {
+        allow read: if isActiveMember(tenantId) &&
+          (request.auth.uid == memberId || isLeadership(tenantId));
+        allow create, update, delete: if false;
+      }
+
+      match /students/{studentId} {
+        allow read: if canViewStudents(tenantId) ||
+          (
+            isActiveMember(tenantId) &&
+            resource.data.get('authUid', '') == request.auth.uid
+          ) ||
+          (
+            isActiveMember(tenantId) &&
+            request.auth.uid in resource.data.get('guardianUids', [])
+          );
+
+        allow create: if canCreateStudents(tenantId) &&
+          request.resource.data.tenantId == tenantId &&
+          request.resource.data.get('createdBy', '') == request.auth.uid &&
+          request.resource.data.get('isArchived', false) == false;
+
+        allow update: if
+          request.resource.data.tenantId == tenantId &&
+          request.resource.data.tenantId == resource.data.tenantId &&
+          request.resource.data.get('createdBy', '') == resource.data.get('createdBy', '') &&
+          (
+            (
+              !request.resource.data.diff(resource.data).affectedKeys()
+                .hasAny(['isArchived', 'archivedAt', 'archivedBy']) &&
+              canUpdateStudents(tenantId)
+            ) ||
+            (
+              canArchiveStudents(tenantId) &&
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'isArchived',
+                'archivedAt',
+                'archivedBy',
+                'updatedAt',
+                'updatedBy'
+              ]) &&
+              resource.data.get('isArchived', false) == false &&
+              request.resource.data.get('isArchived', false) == true
+            )
+          );
+
+        allow delete: if false;
+      }
+
+      match /events/{eventId} {
+        allow read: if isActiveMember(tenantId);
+        allow create: if canManageEvents(tenantId) &&
+          request.resource.data.tenantId == tenantId &&
+          request.resource.data.get('createdBy', '') == request.auth.uid &&
+          request.resource.data.get('isArchived', false) == false;
+        allow update: if canManageEvents(tenantId) &&
+          request.resource.data.tenantId == tenantId &&
+          request.resource.data.tenantId == resource.data.tenantId &&
+          request.resource.data.get('createdBy', '') == resource.data.get('createdBy', '');
+        allow delete: if false;
+      }
+
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+
+    match /accessRequests/{requestId} {
+      allow create: if
+        request.resource.data.keys().hasOnly([
+          'schoolCode',
+          'name',
+          'rollNumber',
+          'className',
+          'email',
+          'phone',
+          'status',
+          'createdAt'
+        ]) &&
+        request.resource.data.schoolCode is string &&
+        request.resource.data.schoolCode.size() >= 2 &&
+        request.resource.data.schoolCode.size() <= 30 &&
+        request.resource.data.name is string &&
+        request.resource.data.name.size() >= 2 &&
+        request.resource.data.name.size() <= 120 &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() <= 180 &&
+        request.resource.data.phone is string &&
+        request.resource.data.phone.size() <= 30 &&
+        request.resource.data.status == 'pending';
+      allow read, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

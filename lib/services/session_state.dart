@@ -3,34 +3,104 @@ import 'package:flutter/material.dart';
 import 'UserModel.dart';
 import 'models/tenant.dart';
 
-/// App-wide session state: who is signed in, which tenant they belong to,
-/// and the active theme mode.
-///
-/// Implemented as a [ChangeNotifier] singleton (no external state-management
-/// package required). Read it anywhere via `SessionState.instance`, and rebuild
-/// on changes with `ListenableBuilder(listenable: SessionState.instance, ...)`.
 class SessionState extends ChangeNotifier {
   SessionState._();
+
   static final SessionState instance = SessionState._();
 
   UserModel? _user;
   Tenant? _tenant;
-  ThemeMode _themeMode = ThemeMode.light; // default to light
+  List<Tenant> _availableTenants = const <Tenant>[];
+  String? _activeCampusId;
+  String? _activeAcademicYearId;
+  bool _initialized = false;
+  bool _switchingTenant = false;
+  ThemeMode _themeMode = ThemeMode.light;
 
   UserModel? get user => _user;
   Tenant? get tenant => _tenant;
+  List<Tenant> get availableTenants => List<Tenant>.unmodifiable(_availableTenants);
+  String? get activeCampusId => _activeCampusId;
+  String? get activeAcademicYearId => _activeAcademicYearId;
+  bool get initialized => _initialized;
+  bool get switchingTenant => _switchingTenant;
   ThemeMode get themeMode => _themeMode;
-  bool get isSignedIn => _user != null;
 
-  void setSession({required UserModel user, Tenant? tenant}) {
+  bool get isSignedIn => _user != null && _tenant != null;
+  bool get canSwitchTenant => _availableTenants.length > 1;
+
+  void setSession({
+    required UserModel user,
+    required Tenant tenant,
+    List<Tenant>? availableTenants,
+    String? activeCampusId,
+    String? activeAcademicYearId,
+  }) {
     _user = user;
     _tenant = tenant;
+    if (availableTenants != null) {
+      _availableTenants = List<Tenant>.unmodifiable(availableTenants);
+    } else if (_availableTenants.isEmpty) {
+      _availableTenants = <Tenant>[tenant];
+    }
+    _activeCampusId = activeCampusId ??
+        (user.campusIds.isNotEmpty ? user.campusIds.first : null);
+    _activeAcademicYearId = activeAcademicYearId ?? tenant.activeAcademicYearId;
+    _initialized = true;
+    _switchingTenant = false;
+    notifyListeners();
+  }
+
+  void updateUser(UserModel user) {
+    if (_user?.uid != user.uid) {
+      throw StateError('Cannot replace the active session with another user.');
+    }
+    _user = user;
+    notifyListeners();
+  }
+
+  void setSwitchingTenant(bool value) {
+    _switchingTenant = value;
+    notifyListeners();
+  }
+
+  void setActiveCampus(String? campusId) {
+    if (campusId != null &&
+        _user != null &&
+        _user!.campusIds.isNotEmpty &&
+        !_user!.campusIds.contains(campusId)) {
+      throw StateError('You do not have access to this campus.');
+    }
+    _activeCampusId = campusId;
+    notifyListeners();
+  }
+
+  void setActiveAcademicYear(String? academicYearId) {
+    _activeAcademicYearId = academicYearId;
+    notifyListeners();
+  }
+
+  bool hasPermission(String permission) {
+    return _user?.hasPermission(permission) ?? false;
+  }
+
+  bool hasAnyPermission(Iterable<String> permissions) {
+    return _user?.hasAnyPermission(permissions) ?? false;
+  }
+
+  void markInitialized() {
+    _initialized = true;
     notifyListeners();
   }
 
   void clear() {
     _user = null;
     _tenant = null;
+    _availableTenants = const <Tenant>[];
+    _activeCampusId = null;
+    _activeAcademicYearId = null;
+    _initialized = true;
+    _switchingTenant = false;
     notifyListeners();
   }
 

@@ -1,451 +1,145 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:fzregex/utils/fzregex.dart';
-import 'package:fzregex/utils/pattern.dart';
-import 'package:school_management/Widgets/BouncingButton.dart';
+
+import '../services/Auth_services.dart';
+import '../theme/app_theme.dart';
 
 class ForgetPassword extends StatefulWidget {
+  const ForgetPassword({Key? key}) : super(key: key);
+
   @override
-  _ForgetPasswordState createState() => _ForgetPasswordState();
+  State<ForgetPassword> createState() => _ForgetPasswordState();
 }
 
-class _ForgetPasswordState extends State<ForgetPassword>
-    with SingleTickerProviderStateMixin {
-  late Animation animation, delayedAnimation, muchDelayedAnimation, LeftCurve;
-  late AnimationController animationController;
-
-  final GlobalKey<FormState> _formkey = GlobalKey<FormState>();
-  bool _autovalidate = false;
-  late String _email;
-  late String _rollno;
-
-  @override
-  void initState() {
-    super.initState();
-    animationController =
-        AnimationController(duration: Duration(seconds: 3), vsync: this);
-    animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController, curve: Curves.fastOutSlowIn));
-
-    delayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.fastOutSlowIn)));
-
-    muchDelayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.8, 1.0, curve: Curves.fastOutSlowIn)));
-
-    LeftCurve = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.easeInOut)));
-  }
+class _ForgetPasswordState extends State<ForgetPassword> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _emailController = TextEditingController();
+  final AuthService _authService = AuthService();
+  bool _loading = false;
 
   @override
   void dispose() {
-    animationController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
+  Future<void> _sendResetLink() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+
+    try {
+      await _authService.sendPasswordResetEmail(_emailController.text);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Reset link sent'),
+          content: const Text(
+            'Check your inbox and follow the password reset instructions.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      if (mounted) Navigator.pop(context);
+    } on FirebaseAuthException catch (error) {
+      _showError(error.message ?? 'Password reset failed.');
+    } catch (_) {
+      _showError('Could not send the reset email. Please try again.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.danger),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    animationController.forward();
-    return AnimatedBuilder(
-      animation: animationController,
-      builder: (BuildContext context, Widget? child) {
-        return Scaffold(
-          body: ListView(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      animation.value * width, 0.0, 0.0),
-                  child: Center(
-                    child: Stack(
-                      children: <Widget>[
-                        Container(
-                          child: Text(
-                            'Forget',
-                            style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 40.0,
-                                fontWeight: FontWeight.bold),
-                          ),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Reset Password')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Card(
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Icon(
+                        Icons.lock_reset_rounded,
+                        size: 58,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Forgot your password?',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
-                        Container(
-                          child: Padding(
-                            padding:
-                            const EdgeInsets.fromLTRB(10.0, 35.0, 0, 0),
-                            child: Text(
-                              'Password',
-                              style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 40.0,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Enter your registered email address. Firebase will send you a secure reset link.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 24),
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email address',
+                          prefixIcon: Icon(Icons.mail_outline),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(190.0, 0.0, 0, 30),
-                          child: Container(
-                            child: Text(
-                              '.',
-                              style: TextStyle(
-                                  color: Colors.green[400],
-                                  fontSize: 80.0,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 5.0),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Transform(
-                  transform:
-                  Matrix4.translationValues(LeftCurve.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Form(
-                          key: _formkey,
-                          autovalidateMode: _autovalidate
-                              ? AutovalidateMode.always
-                              : AutovalidateMode.disabled,
-                          child: Column(
-                            children: [
-                              TextFormField(
-                                validator : (val) {
-                                  if (val == null || val.isEmpty) {
-                                    return "You Must Enter Roll Number";
-                                  }
-                                  return null;
-                                },
-                                onSaved: (val) {
-                                  _rollno = val!;
-                                },
-                                decoration: InputDecoration(
-                                  labelText: 'Roll Number',
-                                  contentPadding: EdgeInsets.all(5),
-                                  labelStyle: TextStyle(
-                                      fontFamily: 'Montserrat',
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: Colors.grey),
-                                  focusedBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(color: Colors.green)),
+                        validator: (value) {
+                          final email = value?.trim() ?? '';
+                          if (email.isEmpty) return 'Enter your email address';
+                          if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                              .hasMatch(email)) {
+                            return 'Enter a valid email address';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _loading ? null : _sendResetLink,
+                        child: _loading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
                                 ),
-                              ),
-                              SizedBox(height: 20.0),
-                              TextFormField(
-                                validator: (value) {
-                                  if (value == null || !Fzregex.hasMatch(value, FzPattern.email)) {
-                                    return "Enter a Valid Email address";
-                                  }
-                                  return null;
-                                },
-                                onSaved: (value) {
-                                  _email = value!;
-                                },
-                                keyboardType: TextInputType.emailAddress,
-                                decoration: InputDecoration(
-                                  labelText: 'EMAIL',
-                                  contentPadding: EdgeInsets.all(5),
-                                  labelStyle: TextStyle(
-                                      fontFamily: 'Montserrat',
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: Colors.grey),
-                                  focusedBorder: UnderlineInputBorder(
-                                    borderSide: BorderSide(color: Colors.green),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(height: 20.0),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                              )
+                            : const Text('Send reset link'),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              SizedBox(height: 10.0),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20.0, 5, 20.0, 5),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      muchDelayedAnimation.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Bouncing(
-                          onPress: () {
-                            if (_formkey.currentState!.validate()) {
-                              _formkey.currentState!.save();
-                              // Placeholder for password reset logic
-                              try {
-                                // Implement password reset logic here
-                              } catch (e) {
-                                // Handle any errors that occur during the process
-                              }
-                            } else {
-                              setState(() {
-                                _autovalidate = true;
-                              });
-                            }
-                          },
-                          child: MaterialButton(
-                            onPressed: () {},
-                            elevation: 0.0,
-                            minWidth: MediaQuery.of(context).size.width,
-                            color: Colors.green,
-                            child: Text(
-                              "Request",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 10.0),
-            ],
+            ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
-
-
-
-
-
-/*
-import 'package:flutter/material.dart';
-import 'package:fzregex/utils/fzregex.dart';
-import 'package:fzregex/utils/pattern.dart';
-import 'package:school_management/Widgets/BouncingButton.dart';
-
-class ForgetPassword extends StatefulWidget {
-  @override
-  _ForgetPasswordState createState() => _ForgetPasswordState();
-}
-
-class _ForgetPasswordState extends State<ForgetPassword>
-    with SingleTickerProviderStateMixin {
-  late Animation animation, delayedAnimation, muchDelayedAnimation, LeftCurve;
-  late AnimationController animationController;
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    animationController =
-        AnimationController(duration: Duration(seconds: 3), vsync: this);
-    animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController, curve: Curves.fastOutSlowIn));
-
-    delayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.fastOutSlowIn)));
-
-    muchDelayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.8, 1.0, curve: Curves.fastOutSlowIn)));
-
-    LeftCurve = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.easeInOut)));
-  }
-
-  final GlobalKey<FormState> _formkey = GlobalKey<FormState>();
-  bool _autovalidate = false;
-  late String _email;
-  late String _rollno;
-  @override
-  Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    animationController.forward();
-    return AnimatedBuilder(
-      animation: animationController,
-      builder: (BuildContext context, Widget? child) {
-        return Scaffold(
-          body: ListView(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      animation.value * width, 0.0, 0.0),
-                  child: Center(
-                    child: Stack(
-                      children: <Widget>[
-                        Container(
-                          child: Text(
-                            'Forget',
-                            style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 40.0,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        Container(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(10.0, 35.0, 0, 0),
-                            child: Text(
-                              'Password',
-                              style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 40.0,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(190.0, 0.0, 0, 30),
-                          child: Container(
-                            child: Text(
-                              '.',
-                              style: TextStyle(
-                                  color: Colors.green[400],
-                                  fontSize: 80.0,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 5.0),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Transform(
-                  transform:
-                      Matrix4.translationValues(LeftCurve.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Form(
-                            key: _formkey,
-                            autovalidate: _autovalidate,
-                            child: Column(
-                              children: [
-                                TextFormField(
-                                  validator: (val) {
-                                    if (val.isEmpty) {
-                                      return "You Must Enter Roll Number";
-                                    } else {
-                                      return null;
-                                    }
-                                  },
-                                  onSaved: (val) {
-                                    _rollno = val!;
-                                  },
-                                  decoration: InputDecoration(
-                                      labelText: 'Roll Number',
-                                      contentPadding: EdgeInsets.all(5),
-                                      labelStyle: TextStyle(
-                                          fontFamily: 'Montserrat',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey),
-                                      focusedBorder: UnderlineInputBorder(
-                                          borderSide:
-                                              BorderSide(color: Colors.green))),
-                                ),
-                                SizedBox(height: 20.0),
-                                TextFormField(
-                                  validator: (value) {
-                                    if ((Fzregex.hasMatch(
-                                            value, FzPattern.email) ==
-                                        false)) {
-                                      return "Enter Vaild Email address";
-                                    } else {
-                                      return null;
-                                    }
-                                  },
-                                  onSaved: (value) {
-                                    _email = value!;
-                                  },
-                                  keyboardType: TextInputType.emailAddress,
-                                  decoration: InputDecoration(
-                                    labelText: 'EMAIL',
-                                    contentPadding: EdgeInsets.all(5),
-                                    labelStyle: TextStyle(
-                                        fontFamily: 'Montserrat',
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        color: Colors.grey),
-                                    focusedBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(height: 20.0),
-                              ],
-                            )),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20.0, 5, 20.0, 5),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      muchDelayedAnimation.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Bouncing(
-                          onPress: () {
-                            if (_formkey.currentState!.validate()) {
-                              _formkey.currentState!.save();
-                              try {} catch (e) {}
-                            } else {
-                              _autovalidate = true;
-                            }
-                          },
-                          child: MaterialButton(
-                            onPressed: () {},
-                            elevation: 0.0,
-                            minWidth: MediaQuery.of(context).size.width,
-                            color: Colors.green,
-                            child: Text(
-                              "Request",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-*/

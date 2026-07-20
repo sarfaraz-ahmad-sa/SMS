@@ -1,19 +1,16 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
-import 'package:school_management/Screens/SplashScreen.dart';
-import 'package:school_management/services/session_state.dart';
-import 'package:school_management/theme/app_theme.dart';
+import 'Screens/SplashScreen.dart';
 import 'firebase_options.dart';
+import 'services/session_state.dart';
+import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize Firebase once, here, using the generated options.
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
   runApp(const MyApp());
 }
 

@@ -1,59 +1,89 @@
-# CARTZ Link SMS — SaaS Architecture
+# SaaS Architecture
 
-This document describes the multi-tenant SaaS foundation added to the School
-Management System and the roadmap to a production-ready platform.
+## Current Firebase phase
 
-## Concept
-
-The app is now structured as a **multi-tenant SaaS**: one codebase serves many
-schools ("tenants"). Each tenant has its own users, data, branding, and
-subscription. Platform staff (CARTZ Link) act as `superAdmin`.
-
-## Data model (Firestore)
-
-```
-tenants/{tenantId}                     -> Tenant  (name, logo, brandColor, subscription)
-tenants/{tenantId}/students/{id}
-tenants/{tenantId}/attendance/{id}
-tenants/{tenantId}/exams/{id}
-users/{uid}                            -> UserModel (email, displayName, tenantId, role)
+```text
+Firebase Auth identity
+        |
+users/{uid}
+        |
+activeTenantId / tenantIds
+        |
+tenants/{tenantId}/members/{uid}
+        |
+roles + permissions + campus scope
+        |
+tenants/{tenantId}/students|events|...
 ```
 
-Everything a school owns lives under `tenants/{tenantId}/…`. This makes tenant
-isolation enforceable with a single Firestore security rule that checks the
-requesting user's `tenantId` against the document path.
+### Trust boundaries
 
-## Code added
+1. Firebase Authentication proves identity.
+2. Tenant membership determines which school can be opened.
+3. Membership roles and permissions determine visible modules.
+4. Firestore rules validate every mobile/web read and write.
+5. The client cannot create tenants, assign roles, or activate subscriptions.
 
-| File | Purpose |
-|------|---------|
-| `lib/services/models/tenant.dart` | Tenant/organization model + Firestore (de)serialization |
-| `lib/services/models/subscription.dart` | `SubscriptionTier` (trial/starter/pro/enterprise) + plan limits |
-| `lib/services/models/user_role.dart` | RBAC roles (superAdmin/admin/teacher/student/parent) + permission helpers |
-| `lib/services/UserModel.dart` | User now scoped to a tenant + role |
-| `lib/services/tenant_service.dart` | Data-access layer for tenant/user lookups |
-| `lib/services/session_state.dart` | App-wide session (current user, tenant, theme) via `provider` |
-| `lib/theme/app_theme.dart` | Centralized Material 3 theme (light + dark) |
+## Target enterprise phase
 
-## Roles & permissions
-
-`UserRole` exposes helpers such as `canManageTenant`, `canManagePlatform`, and
-`canTakeAttendance` so screens can gate features by role.
-
-## Roadmap to production SaaS
-
-1. **Sign-up / onboarding flow** — create a tenant + first admin, seed a trial subscription.
-2. **Firestore security rules** — enforce `tenantId` isolation and role checks server-side.
-3. **Billing** — integrate Stripe (or similar) and sync `Subscription` state via webhooks/Cloud Functions.
-4. **Per-tenant theming** — apply `Tenant.brandColor` / `logoUrl` at runtime so each school is branded.
-5. **Real data screens** — replace the hardcoded student/exam/attendance data with tenant-scoped Firestore queries.
-6. **Admin console** — user management, invites, plan/seat limits enforcement.
-
-## Suggested Firestore security rule (starting point)
-
+```text
+Flutter Parent / Student / Staff apps
+Flutter Web administration portal
+                 |
+        WAF / Load Balancer
+                 |
+          Laravel API nodes
+                 |
+     Redis / Queue / Object Storage
+                 |
+Central SaaS DB + tenant MySQL databases
 ```
-match /tenants/{tenantId}/{document=**} {
-  allow read, write: if request.auth != null
-    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId;
-}
-```
+
+### Central control-plane database
+
+- tenants
+- tenant_domains
+- global_users
+- user_tenant_memberships
+- plans
+- subscriptions
+- tenant_database_instances
+- provisioning_jobs
+- platform_audit_logs
+
+### Tenant database
+
+- school setup
+- users and role assignments
+- students and guardians
+- attendance
+- examinations
+- fees and accounting
+- HR and payroll
+- library
+- transport
+- hostel
+- inventory
+- communication
+- documents
+- audit logs
+
+## Migration approach
+
+1. Keep Firebase Authentication.
+2. Exchange the Firebase ID token with Laravel.
+3. Laravel validates Firebase identity and tenant membership.
+4. Laravel issues a short-lived application token.
+5. Move transactional modules from Firestore to tenant MySQL databases.
+6. Keep Firestore only for selected realtime features if required.
+
+## Scale principles
+
+- Stateless Laravel nodes
+- Redis cache and queues
+- Tenant-aware background jobs
+- Database-per-tenant or hybrid tenant isolation
+- Private object storage with signed URLs
+- Outbox pattern for notifications and integrations
+- Immutable financial and audit records
+- Read replicas or analytics warehouse for large reporting workloads

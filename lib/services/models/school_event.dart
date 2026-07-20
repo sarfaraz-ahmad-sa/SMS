@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// A calendar event. `dateKey` is 'YYYY-MM-DD' for easy day grouping/queries.
 class SchoolEvent {
   final String? id;
   final String title;
@@ -8,6 +7,9 @@ class SchoolEvent {
   final String type;
   final String dateKey;
   final String tenantId;
+  final bool isArchived;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const SchoolEvent({
     this.id,
@@ -15,29 +17,61 @@ class SchoolEvent {
     this.description,
     this.type = 'General',
     required this.dateKey,
-    this.tenantId = '',
+    required this.tenantId,
+    this.isArchived = false,
+    this.createdAt,
+    this.updatedAt,
   });
 
-  static String keyFor(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  static String keyFor(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
-  Map<String, dynamic> toMap() => {
-        'title': title,
-        'description': description,
+  SchoolEvent copyWithTenant(String tenantId) => SchoolEvent(
+        id: id,
+        title: title,
+        description: description,
+        type: type,
+        dateKey: dateKey,
+        tenantId: tenantId,
+        isArchived: isArchived,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
+      );
+
+  Map<String, dynamic> toCreateMap({required String createdBy}) =>
+      <String, dynamic>{
+        'title': title.trim(),
+        'description': description?.trim(),
         'type': type,
         'dateKey': dateKey,
         'tenantId': tenantId,
+        'isArchived': false,
+        'createdBy': createdBy,
+        'updatedBy': createdBy,
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
-  factory SchoolEvent.fromDoc(String id, Map<String, dynamic> m) {
+  factory SchoolEvent.fromDoc(String id, Map<String, dynamic> map) {
     return SchoolEvent(
       id: id,
-      title: (m['title'] as String?) ?? '',
-      description: m['description'] as String?,
-      type: (m['type'] as String?) ?? 'General',
-      dateKey: (m['dateKey'] as String?) ?? '',
-      tenantId: (m['tenantId'] as String?) ?? '',
+      title: map['title']?.toString() ?? '',
+      description: map['description']?.toString(),
+      type: map['type']?.toString() ?? 'General',
+      dateKey: map['dateKey']?.toString() ?? '',
+      tenantId: map['tenantId']?.toString() ?? '',
+      isArchived: map['isArchived'] is bool
+          ? map['isArchived'] as bool
+          : false,
+      createdAt: _dateFromValue(map['createdAt']),
+      updatedAt: _dateFromValue(map['updatedAt']),
     );
   }
+}
+
+DateTime? _dateFromValue(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is DateTime) return value;
+  if (value == null) return null;
+  return DateTime.tryParse(value.toString());
 }

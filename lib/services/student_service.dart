@@ -1,36 +1,78 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'models/app_permission.dart';
 import 'models/student.dart';
+import 'session_state.dart';
 
-/// Firestore access for student records.
-///
-/// Collection: `students` (each doc carries `tenantId` for multi-tenant
-/// filtering). Swap to `tenants/{tenantId}/students` if you prefer nested
-/// isolation.
 class StudentService {
   StudentService({FirebaseFirestore? firestore})
       : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 
-  CollectionReference<Map<String, dynamic>> get _col =>
-      _db.collection('students');
+  CollectionReference<Map<String, dynamic>> _collection(String tenantId) =>
+      _db.collection('tenants').doc(tenantId).collection('students');
 
-  /// Save a new student. Returns the created document id.
-  Future<String> addStudent(Student student) async {
-    final ref = await _col.add(student.toMap());
-    return ref.id;
-  }
-
-  /// Live stream of students (newest first), optionally filtered by tenant.
-  Stream<List<Student>> streamStudents({String? tenantId}) {
-    Query<Map<String, dynamic>> q = _col.orderBy('createdAt', descending: true);
-    if (tenantId != null && tenantId.isNotEmpty) {
-      q = _col.where('tenantId', isEqualTo: tenantId);
+  String _requireTenant() {
+    final tenantId = SessionState.instance.tenant?.id;
+    if (tenantId == null || tenantId.isEmpty) {
+      throw StateError('No active school session.');
     }
-    return q.snapshots().map((snap) =>
-        snap.docs.map((d) => Student.fromDoc(d.id, d.data())).toList());
+    return tenantId;
   }
 
-  Future<void> deleteStudent(String id) => _col.doc(id).delete();
+  void _requirePermission(String permission) {
+    if (!SessionState.instance.hasPermission(permission)) {
+      throw StateError('Permission denied: $permission');
+    }
+  }
+
+  Future<String> addStudent(Student student) async {
+    _requirePermission(AppPermission.studentsCreate);
+    final tenantId = _requireTenant();
+    final userId = SessionState.instance.user?.uid;
+    if (userId == null) throw StateError('No authenticated user.');
+
+    final normalizedStudent = student.copyWithTenant(tenantId);
+    final reference = await _collection(tenantId).add(
+      normalizedStudent.toCreateMap(createdBy: userId),
+    );
+    return reference.id;
+  }
+
+  Stream<List<Student>> streamStudents() {
+    _requirePermission(AppPermission.studentsView);
+    final tenantId = _requireTenant();
+
+    return _collection(tenantId)
+        .where('isArchived', isEqualTo: false)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (QuerySnapshot<Map<String, dynamic>> snapshot) => snapshot.docs
+              .map(
+                (QueryDocumentSnapshot<Map<String, dynamic>> document) =>
+                    Student.fromDoc(document.id, document.data()),
+              )
+              .where((Student student) => !student.isArchived)
+              .toList(),
+        );
+  }
+
+  Future<void> archiveStudent(String id) async {
+    _requirePermission(AppPermission.studentsArchive);
+    final tenantId = _requireTenant();
+    final userId = SessionState.instance.user?.uid;
+    if (userId == null) throw StateError('No authenticated user.');
+
+    await _collection(tenantId).doc(id).update(<String, dynamic>{
+      'isArchived': true,
+      'archivedAt': FieldValue.serverTimestamp(),
+      'archivedBy': userId,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedBy': userId,
+    });
+  }
+
+  Future<void> deleteStudent(String id) => archiveStudent(id);
 }

@@ -1,27 +1,76 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'models/app_permission.dart';
 import 'models/school_event.dart';
+import 'session_state.dart';
 
-/// Firestore access for calendar events. Collection: `events`.
 class EventService {
   EventService({FirebaseFirestore? firestore})
       : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 
-  CollectionReference<Map<String, dynamic>> get _col =>
-      _db.collection('events');
+  CollectionReference<Map<String, dynamic>> _collection(String tenantId) =>
+      _db.collection('tenants').doc(tenantId).collection('events');
 
-  Future<String> addEvent(SchoolEvent e) async {
-    final ref = await _col.add(e.toMap());
-    return ref.id;
+  String _requireTenant() {
+    final tenantId = SessionState.instance.tenant?.id;
+    if (tenantId == null || tenantId.isEmpty) {
+      throw StateError('No active school session.');
+    }
+    return tenantId;
   }
 
-  Future<void> deleteEvent(String id) => _col.doc(id).delete();
+  void _requirePermission(String permission) {
+    if (!SessionState.instance.hasPermission(permission)) {
+      throw StateError('Permission denied: $permission');
+    }
+  }
 
-  /// Live stream of all events.
+  Future<String> addEvent(SchoolEvent event) async {
+    _requirePermission(AppPermission.eventsManage);
+    final tenantId = _requireTenant();
+    final userId = SessionState.instance.user?.uid;
+    if (userId == null) throw StateError('No authenticated user.');
+
+    final reference = await _collection(tenantId).add(
+      event.copyWithTenant(tenantId).toCreateMap(createdBy: userId),
+    );
+    return reference.id;
+  }
+
+  Future<void> archiveEvent(String id) async {
+    _requirePermission(AppPermission.eventsManage);
+    final tenantId = _requireTenant();
+    final userId = SessionState.instance.user?.uid;
+    if (userId == null) throw StateError('No authenticated user.');
+
+    await _collection(tenantId).doc(id).update(<String, dynamic>{
+      'isArchived': true,
+      'archivedAt': FieldValue.serverTimestamp(),
+      'archivedBy': userId,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'updatedBy': userId,
+    });
+  }
+
+  Future<void> deleteEvent(String id) => archiveEvent(id);
+
   Stream<List<SchoolEvent>> streamEvents() {
-    return _col.snapshots().map((snap) =>
-        snap.docs.map((d) => SchoolEvent.fromDoc(d.id, d.data())).toList());
+    _requirePermission(AppPermission.eventsView);
+    final tenantId = _requireTenant();
+    return _collection(tenantId)
+        .where('isArchived', isEqualTo: false)
+        .orderBy('dateKey')
+        .snapshots()
+        .map(
+          (QuerySnapshot<Map<String, dynamic>> snapshot) => snapshot.docs
+              .map(
+                (QueryDocumentSnapshot<Map<String, dynamic>> document) =>
+                    SchoolEvent.fromDoc(document.id, document.data()),
+              )
+              .where((SchoolEvent event) => !event.isArchived)
+              .toList(),
+        );
   }
 }

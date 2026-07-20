@@ -1,85 +1,36 @@
-# Deploying CARTZ Link SMS (Flutter Web) to Vercel
+# Deploy CARTZ Link SMS Web
 
-You have two options. **Option A (local build) is the most reliable** — Vercel
-doesn't ship Flutter, so the git-based build (Option B) works but is slow and can
-hit build-time limits on the free tier.
+## Recommended: build locally and deploy static output
 
----
+```bash
+flutter clean
+flutter pub get
+flutter build web --release
+npm install -g vercel
+cd build/web
+vercel --prod
+```
 
-## Option A — Build locally, deploy the output (recommended)
+The included rewrite sends browser routes back to `index.html` for Flutter web navigation.
 
-1. Build the web app on your machine:
-   ```bash
-   flutter pub get
-   flutter build web --release
-   ```
-   This creates the `build/web/` folder.
+## Git-based Vercel build
 
-2. Install the Vercel CLI (once):
-   ```bash
-   npm i -g vercel
-   ```
+`vercel.json` can clone Flutter stable and build the project automatically. This is convenient but slower and less deterministic than building with the Flutter version used by your development and CI environments.
 
-3. Deploy the built folder:
-   ```bash
-   cd build/web
-   vercel --prod
-   ```
-   First run asks you to log in and link/create a project. Done — you get a live URL.
+For controlled production releases, build in CI with a pinned Flutter SDK and deploy only `build/web`.
 
-> Re-run steps 1 and 3 each time you want to publish updates.
+## Firebase configuration required
 
----
+1. Run `flutterfire configure` after confirming Android package ID, iOS bundle ID, and web app.
+2. Add the Vercel/custom domain in Firebase Authentication authorized domains.
+3. Enable Email/Password and Google sign-in providers.
+4. Deploy the included production rules and indexes:
 
-## Option B — Auto-deploy from GitHub (Vercel builds Flutter)
+```bash
+firebase deploy --only firestore:rules,firestore:indexes,storage
+```
 
-The included `vercel.json` clones the Flutter SDK and builds on Vercel.
+5. Create tenant and membership records using trusted backend tooling.
+6. Test authorization with the Firebase Emulator Suite.
 
-1. Push this project to a GitHub repo.
-2. On vercel.com → **Add New → Project → Import** your repo.
-3. Framework preset: **Other**. Leave build settings as-is (they come from
-   `vercel.json`). Deploy.
-
-`vercel.json` already sets:
-- `buildCommand`: clones Flutter stable, enables web, `pub get`, `build web --release`
-- `outputDirectory`: `build/web`
-- SPA `rewrites`: every path → `/index.html` (so page refresh/deep links work)
-
-If the build times out on the free plan, use Option A instead.
-
----
-
-## REQUIRED: Firebase settings for the live site
-
-Your app uses Firebase Auth + Firestore, so after you have the Vercel URL:
-
-1. **Authorize the domain** — Firebase Console → Authentication → Settings →
-   **Authorized domains** → add your Vercel domain (e.g. `your-app.vercel.app`).
-   Without this, Google/Email sign-in is blocked on the live site.
-
-2. **Firestore enabled** — Firebase Console → Firestore Database → Create
-   database (production or test mode).
-
-3. **Security rules** — for a quick test you can allow access, but lock this down
-   before real use:
-   ```
-   // TEST ONLY — do not ship to production
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /{document=**} { allow read, write: if true; }
-     }
-   }
-   ```
-
-4. **Custom domain (optional)** — Vercel → Project → Settings → Domains. Add the
-   new domain to Firebase Authorized domains too.
-
----
-
-## Notes
-
-- `<base href="/">` in `web/index.html` is correct for a root Vercel domain. If you
-  ever host under a sub-path, change it accordingly.
-- The demo "Continue as Guest" login does not use Firebase Auth, so Firestore
-  writes require test-mode rules (or real login) as noted above.
+Never replace the included rules with public `allow read, write: if true` rules, even for a temporary production deployment.

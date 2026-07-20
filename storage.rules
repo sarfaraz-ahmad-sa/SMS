@@ -1,0 +1,110 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function memberPath(tenantId) {
+      return /databases/(default)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
+    }
+
+    function hasMembership(tenantId) {
+      return signedIn() && firestore.exists(memberPath(tenantId));
+    }
+
+    function memberData(tenantId) {
+      return firestore.get(memberPath(tenantId)).data;
+    }
+
+    function isActiveMember(tenantId) {
+      return hasMembership(tenantId) &&
+        memberData(tenantId).get('isActive', true) == true &&
+        memberData(tenantId).get('status', 'active') == 'active';
+    }
+
+    function roles(tenantId) {
+      return hasMembership(tenantId)
+        ? memberData(tenantId).get('roles', [])
+        : [];
+    }
+
+    function permissions(tenantId) {
+      return hasMembership(tenantId)
+        ? memberData(tenantId).get('permissions', [])
+        : [];
+    }
+
+    function hasAnyRole(tenantId, allowedRoles) {
+      return isActiveMember(tenantId) &&
+        (
+          roles(tenantId).hasAny(allowedRoles) ||
+          memberData(tenantId).get('role', '') in allowedRoles
+        );
+    }
+
+    function hasPermission(tenantId, permission) {
+      return isActiveMember(tenantId) &&
+        (
+          '*' in permissions(tenantId) ||
+          permission in permissions(tenantId)
+        ) &&
+        !(permission in memberData(tenantId).get('deniedPermissions', []));
+    }
+
+    function isLeadership(tenantId) {
+      return hasAnyRole(tenantId, [
+        'superAdmin',
+        'schoolOwner',
+        'principal',
+        'vicePrincipal'
+      ]);
+    }
+
+    function canManageStudentDocuments(tenantId) {
+      return isLeadership(tenantId) ||
+        hasPermission(tenantId, 'students.update') ||
+        hasAnyRole(tenantId, ['adminStaff', 'classTeacher']);
+    }
+
+    function canManageSharedFiles(tenantId) {
+      return isLeadership(tenantId) ||
+        hasPermission(tenantId, 'tenant.manage') ||
+        hasAnyRole(tenantId, ['adminStaff', 'itAdmin']);
+    }
+
+    function validUpload() {
+      return request.resource != null &&
+        request.resource.size < 10 * 1024 * 1024 &&
+        request.resource.contentType.matches(
+          'image/.*|application/pdf|text/plain|application/vnd\\.openxmlformats-officedocument\\..*'
+        );
+    }
+
+    match /tenants/{tenantId}/users/{userId}/{allPaths=**} {
+      allow read: if isActiveMember(tenantId) && request.auth.uid == userId;
+      allow create, update: if isActiveMember(tenantId) &&
+        request.auth.uid == userId &&
+        validUpload();
+      allow delete: if false;
+    }
+
+    match /tenants/{tenantId}/students/{studentId}/{allPaths=**} {
+      allow read: if canManageStudentDocuments(tenantId);
+      allow create, update: if canManageStudentDocuments(tenantId) &&
+        validUpload();
+      allow delete: if false;
+    }
+
+    match /tenants/{tenantId}/shared/{allPaths=**} {
+      allow read: if isActiveMember(tenantId);
+      allow create, update: if canManageSharedFiles(tenantId) && validUpload();
+      allow delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

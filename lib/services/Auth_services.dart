@@ -1,56 +1,63 @@
-/*
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-
-class Auth_Service {
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final GoogleSignIn _googlesignin = GoogleSignIn();
-
-  void googlesignin() async {
-    final GoogleSignInAccount googleuser = await _googlesignin.signIn();
-    final GoogleSignInAuthentication authentication =
-        await googleuser.authentication;
-    final AuthCredential credential = GoogleAuthProvider.getCredential(
-      accessToken: authentication.accessToken,
-      idToken: authentication.idToken,
-    );
-    final User user =
-        (await _firebaseAuth.signInWithCredential(credential).then((value) {
-      print(value);
-    }));
-  }
-}
-*/
-
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  AuthService({FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn})
+      : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+        _googleSignIn = googleSignIn ?? GoogleSignIn();
 
-  Future<User?> googleSignIn() async {
-    // Sign in with Google
-    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+  final FirebaseAuth _firebaseAuth;
+  final GoogleSignIn _googleSignIn;
 
-    // Check if the user is null (canceled sign in)
-    if (googleUser == null) {
-      return null; // Sign in was aborted or failed
+  Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
+  User? get currentUser => _firebaseAuth.currentUser;
+
+  Future<UserCredential> signInWithEmail({
+    required String email,
+    required String password,
+  }) {
+    return _firebaseAuth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+  }
+
+  Future<UserCredential> signInWithGoogle() async {
+    if (kIsWeb) {
+      return _firebaseAuth.signInWithPopup(GoogleAuthProvider());
     }
 
-    // Get authentication details from the sign-in
-    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+    final account = await _googleSignIn.signIn();
+    if (account == null) {
+      throw FirebaseAuthException(
+        code: 'google-sign-in-cancelled',
+        message: 'Google sign-in was cancelled.',
+      );
+    }
 
-    // Create credential for Firebase
-    final AuthCredential credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
+    final authentication = await account.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: authentication.accessToken,
+      idToken: authentication.idToken,
     );
+    return _firebaseAuth.signInWithCredential(credential);
+  }
 
-    // Sign in to Firebase with the credential
-    final UserCredential userCredential = await _firebaseAuth.signInWithCredential(credential);
+  Future<void> sendPasswordResetEmail(String email) {
+    return _firebaseAuth.sendPasswordResetEmail(email: email.trim());
+  }
 
-    // Return the signed-in user
-    return userCredential.user;
+  Future<void> signOut() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {
+      // Google Sign-In may not be initialized for email/password users.
+    }
+    await _firebaseAuth.signOut();
+  }
+
+  Future<String?> getIdToken({bool forceRefresh = false}) {
+    return _firebaseAuth.currentUser?.getIdToken(forceRefresh);
   }
 }

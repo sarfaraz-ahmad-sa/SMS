@@ -1,1 +1,49 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"school-management-app-46a07","appId":"1:36032789799:android:c03ed2dd38f444bb07bd02","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"school-management-app-46a07","configurations":{"android":"1:36032789799:android:c03ed2dd38f444bb07bd02","ios":"1:36032789799:ios:b0f44a6dcb35fdad07bd02","web":"1:36032789799:web:41eb6a835d69ea2f07bd02"}}},"ios":{"default":{"projectId":"school-management-app-46a07","appId":"1:36032789799:ios:b0f44a6dcb35fdad07bd02","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      { "source": "**", "destination": "/index.html" }
+    ]
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "school-management-app-46a07",
+          "appId": "1:36032789799:android:c03ed2dd38f444bb07bd02",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "school-management-app-46a07",
+          "configurations": {
+            "android": "1:36032789799:android:c03ed2dd38f444bb07bd02",
+            "ios": "1:36032789799:ios:b0f44a6dcb35fdad07bd02",
+            "web": "1:36032789799:web:41eb6a835d69ea2f07bd02"
+          }
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "school-management-app-46a07",
+          "appId": "1:36032789799:ios:b0f44a6dcb35fdad07bd02",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      }
+    }
+  }
+}

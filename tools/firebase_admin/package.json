@@ -1,0 +1,12 @@
+{
+  "name": "cartz-link-sms-firebase-admin-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed:tenant": "node seed-tenant.mjs",
+    "migrate:flat": "node migrate-flat-collections.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.4.0"
+  }
+}

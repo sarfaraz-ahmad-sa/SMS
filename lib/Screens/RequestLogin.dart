@@ -1,616 +1,217 @@
 import 'package:flutter/material.dart';
-import 'package:fzregex/fzregex.dart';
-import 'package:fzregex/utils/pattern.dart';
-import 'package:school_management/Widgets/BouncingButton.dart';
-import 'RequestProcessing.dart';
+
+import '../services/access_request_service.dart';
+import '../theme/app_theme.dart';
 
 class RequestLogin extends StatefulWidget {
+  const RequestLogin({Key? key}) : super(key: key);
+
   @override
-  _RequestLoginState createState() => _RequestLoginState();
+  State<RequestLogin> createState() => _RequestLoginState();
 }
 
-class _RequestLoginState extends State<RequestLogin>
-    with SingleTickerProviderStateMixin {
-  late Animation animation, delayedAnimation, muchDelayedAnimation, leftCurve;
-  late AnimationController animationController;
+class _RequestLoginState extends State<RequestLogin> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final AccessRequestService _service = AccessRequestService();
 
-  late String email, phno, className, name, rollno; // Renamed _class to className
-  GlobalKey<FormState> _formkey = GlobalKey<FormState>();
+  final TextEditingController _schoolCode = TextEditingController();
+  final TextEditingController _name = TextEditingController();
+  final TextEditingController _rollNumber = TextEditingController();
+  final TextEditingController _className = TextEditingController();
+  final TextEditingController _email = TextEditingController();
+  final TextEditingController _phone = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    animationController = AnimationController(duration: Duration(seconds: 3), vsync: this);
-
-    animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController, curve: Curves.fastOutSlowIn));
-
-    delayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.fastOutSlowIn)));
-
-    muchDelayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.8, 1.0, curve: Curves.fastOutSlowIn)));
-
-    leftCurve = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.easeInOut)));
-  }
+  bool _saving = false;
 
   @override
   void dispose() {
-    animationController.dispose(); // Dispose of the animation controller
+    _schoolCode.dispose();
+    _name.dispose();
+    _rollNumber.dispose();
+    _className.dispose();
+    _email.dispose();
+    _phone.dispose();
     super.dispose();
   }
 
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+
+    try {
+      final requestId = await _service.submit(
+        schoolCode: _schoolCode.text,
+        name: _name.text,
+        rollNumber: _rollNumber.text,
+        className: _className.text,
+        email: _email.text,
+        phone: _phone.text,
+      );
+
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Request submitted'),
+          content: Text(
+            'Your school administrator can now review the request.\n\nReference: $requestId',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Request could not be submitted. Please try again.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    animationController.forward();
-
-    return AnimatedBuilder(
-      animation: animationController,
-      builder: (BuildContext context, Widget? child) {
-        return Scaffold(
-          body: ListView(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: Transform(
-                  transform: Matrix4.translationValues(animation.value * width, 0.0, 0.0),
-                  child: Center(
-                    child: Stack(
-                      children: <Widget>[
-                        Container(
-                          child: Text(
-                            'Request',
-                            style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 40.0,
-                                fontWeight: FontWeight.bold),
-                          ),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Request Login ID')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Card(
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Icon(
+                        Icons.badge_outlined,
+                        size: 56,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Request school access',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
-                        Container(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(70.0, 35.0, 0, 0),
-                            child: Text(
-                              'ID',
-                              style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 40.0,
-                                  fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Use the school code provided by your institute. The administrator must approve and create your account.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 24),
+                      _field(
+                        controller: _schoolCode,
+                        label: 'School code',
+                        icon: Icons.school_outlined,
+                      ),
+                      _field(
+                        controller: _name,
+                        label: 'Full name',
+                        icon: Icons.person_outline,
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _field(
+                              controller: _rollNumber,
+                              label: 'Roll / employee no.',
+                              icon: Icons.numbers_outlined,
                             ),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(105.0, 0.0, 0, 30),
-                          child: Container(
-                            child: Text(
-                              '.',
-                              style: TextStyle(
-                                  color: Colors.green[400],
-                                  fontSize: 80.0,
-                                  fontWeight: FontWeight.bold),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _field(
+                              controller: _className,
+                              label: 'Class / department',
+                              icon: Icons.class_outlined,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                      _field(
+                        controller: _email,
+                        label: 'Email address',
+                        icon: Icons.mail_outline,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          final email = value?.trim() ?? '';
+                          if (email.isEmpty) return 'Required';
+                          if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                              .hasMatch(email)) {
+                            return 'Invalid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      _field(
+                        controller: _phone,
+                        label: 'Phone number',
+                        icon: Icons.phone_outlined,
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: _saving ? null : _submit,
+                        icon: _saving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : const Icon(Icons.send_outlined),
+                        label: Text(_saving ? 'Submitting...' : 'Submit request'),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              SizedBox(height: 5.0),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Transform(
-                  transform: Matrix4.translationValues(leftCurve.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Form(
-                            key: _formkey,
-                            child: Column(
-                              children: [
-                                TextFormField(
-                                  validator: (value) {
-                                    RegExp nameRegExp = RegExp(r'^[a-zA-Z ]+$'); // Allow spaces
-                                    if (value?.isEmpty ?? true) {
-                                      return 'You must enter your name!';
-                                    } else if (nameRegExp.hasMatch(value!)) {
-                                      return null;
-                                    } else {
-                                      return 'Enter a valid name';
-                                    }
-                                  },
-                                  onSaved: (val) {
-                                    name = val!;
-                                  },
-                                  keyboardType: TextInputType.name,
-                                  decoration: InputDecoration(
-                                    labelText: 'Name',
-                                    contentPadding: EdgeInsets.all(5),
-                                    labelStyle: TextStyle(
-                                        fontFamily: 'Montserrat',
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        color: Colors.grey),
-                                    focusedBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(height: 20.0),
-                                TextFormField(
-                                  onSaved: (val) {
-                                    rollno = val!;
-                                  },
-                                  validator: (val) {
-                                    if (val?.isEmpty ?? true) {
-                                      return 'Enter your roll number';
-                                    } else {
-                                      return null;
-                                    }
-                                  },
-                                  decoration: InputDecoration(
-                                      labelText: 'Roll Number',
-                                      contentPadding: EdgeInsets.all(5),
-                                      labelStyle: TextStyle(
-                                          fontFamily: 'Montserrat',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey),
-                                      focusedBorder: UnderlineInputBorder(
-                                          borderSide:
-                                          BorderSide(color: Colors.green))),
-                                ),
-                                SizedBox(height: 20.0),
-                                TextFormField(
-                                  onSaved: (val) {
-                                    className = val!; // Renamed _class to className
-                                  },
-                                  validator: (value) {
-                                    RegExp classRegExp = RegExp(r'^[A-Za-z0-9]+$'); // Allow alphanumeric
-                                    if (value?.isEmpty ?? true) {
-                                      return 'You must enter your class!';
-                                    } else if (classRegExp.hasMatch(value!)) {
-                                      return null;
-                                    } else {
-                                      return 'Enter a valid class';
-                                    }
-                                  },
-                                  decoration: InputDecoration(
-                                      labelText: 'Class',
-                                      contentPadding: EdgeInsets.all(5),
-                                      labelStyle: TextStyle(
-                                          fontFamily: 'Montserrat',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey),
-                                      focusedBorder: UnderlineInputBorder(
-                                          borderSide:
-                                          BorderSide(color: Colors.green))),
-                                ),
-                                SizedBox(height: 20.0),
-                                TextFormField(
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return "Email cannot be empty"; // Handle empty case
-                                    } else if (!Fzregex.hasMatch(value, FzPattern.email)) {
-                                      return "Enter a valid email address"; // Handle invalid email format
-                                    } else {
-                                      return null; // Valid email
-                                    }
-                                  },
-                                  onSaved: (value) {
-                                    email = value!;
-                                  },
-                                  keyboardType: TextInputType.emailAddress,
-                                  decoration: InputDecoration(
-                                      labelText: 'E-Mail',
-                                      contentPadding: EdgeInsets.all(5),
-                                      labelStyle: TextStyle(
-                                          fontFamily: 'Montserrat',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey),
-                                      focusedBorder: UnderlineInputBorder(
-                                          borderSide:
-                                          BorderSide(color: Colors.green))),
-                                ),
-                                SizedBox(height: 20.0),
-                                TextFormField(
-                                  validator: (value) {
-                                    String pattern = r'(^(?:[+0]9)?[0-9]{10,12}$)';
-                                    RegExp regExp = RegExp(pattern);
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter mobile number';
-                                    } else if (!regExp.hasMatch(value)) {
-                                      return 'Please enter a valid mobile number';
-                                    }
-                                    return null;
-                                  },
-                                  onSaved: (val) {
-                                    phno = val!;
-                                  },
-                                  decoration: InputDecoration(
-                                      labelText: 'Phone Number',
-                                      contentPadding: EdgeInsets.all(5),
-                                      labelStyle: TextStyle(
-                                          fontFamily: 'Montserrat',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey),
-                                      focusedBorder: UnderlineInputBorder(
-                                          borderSide:
-                                          BorderSide(color: Colors.green))),
-                                ),
-                              ],
-                            )),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20.0, 5, 20.0, 5),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      muchDelayedAnimation.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Bouncing(
-                          onPress: () {
-                            if (_formkey.currentState!.validate()) {
-                              _formkey.currentState!.save();
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (BuildContext context) =>
-                                        ProcessingRequest(),
-                                  ));
-                            }
-                          },
-                          child: MaterialButton(
-                            elevation: 0.0,
-                            minWidth: MediaQuery.of(context).size.width,
-                            color: Colors.green,
-                            onPressed: () {  },
-                            child: Text(
-                              "Request",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              ),
-            ],
+            ),
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+
+  Widget _field({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon),
+        ),
+        validator: validator ??
+            (value) => value == null || value.trim().isEmpty ? 'Required' : null,
+      ),
     );
   }
 }
-
-
-/*
-import 'package:flutter/material.dart';
-import 'package:fzregex/fzregex.dart';
-import 'package:fzregex/utils/pattern.dart';
-import 'package:school_management/Widgets/BouncingButton.dart';
-
-import 'RequestProcessing.dart';
-
-class RequestLogin extends StatefulWidget {
-  @override
-  _RequestLoginState createState() => _RequestLoginState();
-}
-
-class _RequestLoginState extends State<RequestLogin>
-    with SingleTickerProviderStateMixin {
-  late Animation animation, delayedAnimation, muchDelayedAnimation, LeftCurve;
-  late AnimationController animationController;
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    animationController =
-        AnimationController(duration: Duration(seconds: 3), vsync: this);
-    animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController, curve: Curves.fastOutSlowIn));
-
-    delayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.fastOutSlowIn)));
-
-    muchDelayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.8, 1.0, curve: Curves.fastOutSlowIn)));
-
-    LeftCurve = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.5, 1.0, curve: Curves.easeInOut)));
-  }
-
-  late String email, phno, className, name, rollno;
-  GlobalKey<FormState> _formkey = GlobalKey<FormState>();
-  @override
-  Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    animationController.forward();
-    return AnimatedBuilder(
-      animation: animationController,
-      builder: (BuildContext context, Widget? child) {
-        return Scaffold(
-          body: ListView(
-            children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      animation.value * width, 0.0, 0.0),
-                  child: Center(
-                    child: Stack(
-                      children: <Widget>[
-                        Container(
-                          child: Text(
-                            'Request',
-                            style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 40.0,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        Container(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(70.0, 35.0, 0, 0),
-                            child: Text(
-                              'ID',
-                              style: TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 40.0,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(105.0, 0.0, 0, 30),
-                          child: Container(
-                            child: Text(
-                              '.',
-                              style: TextStyle(
-                                  color: Colors.green[400],
-                                  fontSize: 80.0,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 5.0),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30.0, 10, 30, 10),
-                child: Transform(
-                  transform:
-                      Matrix4.translationValues(LeftCurve.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Form(
-                            key: _formkey,
-                            child: Column(
-                              children: [
-                                TextFormField(
-                                  validator: (value) {
-                                    RegExp nameRegExp = RegExp('[a-zA-Z]');
-                                    RegExp numberRegExp = RegExp(r'\d');
-                                    if (value?.isEmpty ?? true) {
-                                      return 'You Must enter your Name!';
-                                    } else if (nameRegExp.hasMatch(value!)) {
-                                      return null;
-                                    } else {
-                                      return 'Enter Vaild Name';
-                                    }
-                                  },
-                                  onSaved: (val) {
-                                    name = val!;
-                                  },
-                                  keyboardType: TextInputType.name,
-                                  decoration: InputDecoration(
-                                    labelText: 'Name',
-                                    contentPadding: EdgeInsets.all(5),
-                                    labelStyle: TextStyle(
-                                        fontFamily: 'Montserrat',
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        color: Colors.grey),
-                                    focusedBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(height: 20.0),
-                                TextFormField(
-                                  onSaved: (val) {
-                                    rollno = val!;
-                                  },
-                                  validator: (val) {
-                                    if (val?.isEmpty ?? true) {
-                                      return 'Enter your Roll Number';
-                                    } else {
-                                      return null;
-                                    }
-                                  },
-                                  decoration: InputDecoration(
-                                      labelText: 'Roll Number',
-                                      contentPadding: EdgeInsets.all(5),
-                                      labelStyle: TextStyle(
-                                          fontFamily: 'Montserrat',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey),
-                                      focusedBorder: UnderlineInputBorder(
-                                          borderSide:
-                                              BorderSide(color: Colors.green))),
-                                ),
-                                SizedBox(height: 20.0),
-                                TextFormField(
-                                  onSaved: (val) {
-                                    className = val!;
-                                  },
-                                  validator: (value) {
-                                    RegExp nameRegExp = RegExp('[0-9]');
-                                    RegExp numberRegExp = RegExp(r'\d');
-                                    if (value?.isEmpty ?? true) {
-                                      return 'You Must enter your class!';
-                                    } else if (nameRegExp.hasMatch(value!)) {
-                                      return null;
-                                    } else {
-                                      return 'Enter Vaild class';
-                                    }
-                                  },
-                                  decoration: InputDecoration(
-                                      labelText: 'Class',
-                                      contentPadding: EdgeInsets.all(5),
-                                      labelStyle: TextStyle(
-                                          fontFamily: 'Montserrat',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey),
-                                      focusedBorder: UnderlineInputBorder(
-                                          borderSide:
-                                              BorderSide(color: Colors.green))),
-                                ),
-                                SizedBox(height: 20.0),
-                                TextFormField(
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return "Email cannot be empty"; // Handle empty case
-                                    } else if (!Fzregex.hasMatch(value, FzPattern.email)) {
-                                      return "Enter Valid Email address"; // Handle invalid email format
-                                    } else {
-                                      return null; // Valid email
-                                    }
-                                  },
-                                  onSaved: (value) {
-                                    email = value!;
-                                  },
-                                  keyboardType: TextInputType.emailAddress,
-                                  decoration: InputDecoration(
-                                      labelText: 'E-Mail',
-                                      contentPadding: EdgeInsets.all(5),
-                                      labelStyle: TextStyle(
-                                          fontFamily: 'Montserrat',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey),
-                                      focusedBorder: UnderlineInputBorder(
-                                          borderSide:
-                                              BorderSide(color: Colors.green))),
-                                ),
-                                SizedBox(height: 20.0),
-                                TextFormField(
-                                  validator: (value) {
-                                    String pattern =
-                                        r'(^(?:[+0]9)?[0-9]{10,12}$)';
-                                    RegExp regExp = new RegExp(pattern);
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter mobile number';
-                                    } else if (!regExp.hasMatch(value)) {
-                                      return 'Please enter valid mobile number';
-                                    }
-                                    return null;
-                                  },
-                                  onSaved: (val) {
-                                    phno = val!;
-                                  },
-                                  decoration: InputDecoration(
-                                      labelText: 'Phone Number',
-                                      contentPadding: EdgeInsets.all(5),
-                                      labelStyle: TextStyle(
-                                          fontFamily: 'Montserrat',
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey),
-                                      focusedBorder: UnderlineInputBorder(
-                                          borderSide:
-                                              BorderSide(color: Colors.green))),
-                                ),
-                              ],
-                            )),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20.0, 5, 20.0, 5),
-                child: Transform(
-                  transform: Matrix4.translationValues(
-                      muchDelayedAnimation.value * width, 0, 0),
-                  child: Container(
-                    child: Column(
-                      children: <Widget>[
-                        Bouncing(
-                          onPress: () {
-                            if (_formkey.currentState!.validate()) {
-                              _formkey.currentState!.save();
-
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (BuildContext context) =>
-                                        ProcessingRequest(),
-                                  ));
-                            }
-                            ;
-                          },
-                          child: MaterialButton(
-                            onPressed: () {},
-                            elevation: 0.0,
-                            minWidth: MediaQuery.of(context).size.width,
-                            color: Colors.green,
-                            child: Text(
-                              "Request",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10.0,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-*/

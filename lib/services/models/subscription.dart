@@ -1,13 +1,8 @@
-/// Subscription tiers for the SaaS billing model.
-///
-/// Plain enum + extension (no "enhanced enum" members) for maximum Dart
-/// version compatibility.
-enum SubscriptionTier {
-  trial,
-  starter,
-  pro,
-  enterprise,
-}
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+enum SubscriptionTier { trial, starter, pro, enterprise }
+
+enum SubscriptionStatus { trialing, active, pastDue, suspended, cancelled }
 
 extension SubscriptionTierX on SubscriptionTier {
   String get label {
@@ -23,21 +18,8 @@ extension SubscriptionTierX on SubscriptionTier {
     }
   }
 
-  /// Stable string used for storage/serialization.
-  String get value {
-    switch (this) {
-      case SubscriptionTier.trial:
-        return 'trial';
-      case SubscriptionTier.starter:
-        return 'starter';
-      case SubscriptionTier.pro:
-        return 'pro';
-      case SubscriptionTier.enterprise:
-        return 'enterprise';
-    }
-  }
+  String get value => name;
 
-  /// Seat / student caps per plan (0 = unlimited). Tune to your pricing.
   int get maxStudents {
     switch (this) {
       case SubscriptionTier.trial:
@@ -47,53 +29,79 @@ extension SubscriptionTierX on SubscriptionTier {
       case SubscriptionTier.pro:
         return 2000;
       case SubscriptionTier.enterprise:
-        return 0; // unlimited
+        return 0;
     }
   }
 }
 
 SubscriptionTier subscriptionTierFromString(String? value) {
-  switch (value) {
-    case 'starter':
-      return SubscriptionTier.starter;
-    case 'pro':
-      return SubscriptionTier.pro;
-    case 'enterprise':
-      return SubscriptionTier.enterprise;
-    case 'trial':
-    default:
-      return SubscriptionTier.trial;
+  for (final tier in SubscriptionTier.values) {
+    if (tier.value == value?.trim()) return tier;
   }
+  return SubscriptionTier.trial;
 }
 
-/// The subscription state attached to a tenant.
+SubscriptionStatus subscriptionStatusFromString(String? value) {
+  for (final status in SubscriptionStatus.values) {
+    if (status.name == value?.trim()) return status;
+  }
+  return SubscriptionStatus.trialing;
+}
+
 class Subscription {
   final SubscriptionTier tier;
+  final SubscriptionStatus status;
   final DateTime? currentPeriodEnd;
-  final bool active;
+  final DateTime? trialEndsAt;
 
   const Subscription({
     required this.tier,
+    this.status = SubscriptionStatus.trialing,
     this.currentPeriodEnd,
-    this.active = true,
+    this.trialEndsAt,
   });
 
-  bool get isExpired =>
-      currentPeriodEnd != null && currentPeriodEnd!.isBefore(DateTime.now());
+  bool get isExpired {
+    final end = status == SubscriptionStatus.trialing
+        ? trialEndsAt ?? currentPeriodEnd
+        : currentPeriodEnd;
+    return end != null && end.isBefore(DateTime.now());
+  }
+
+  bool get isUsable =>
+      !isExpired &&
+      status != SubscriptionStatus.cancelled &&
+      status != SubscriptionStatus.suspended;
 
   factory Subscription.fromMap(Map<String, dynamic> map) {
+    final legacyActive = map['active'];
+    final inferredStatus = legacyActive == false
+        ? SubscriptionStatus.suspended
+        : subscriptionStatusFromString(map['status']?.toString());
+
     return Subscription(
-      tier: subscriptionTierFromString(map['tier'] as String?),
-      active: (map['active'] as bool?) ?? true,
-      currentPeriodEnd: map['currentPeriodEnd'] != null
-          ? DateTime.tryParse(map['currentPeriodEnd'].toString())
-          : null,
+      tier: subscriptionTierFromString(map['tier']?.toString()),
+      status: inferredStatus,
+      currentPeriodEnd: _dateFromValue(map['currentPeriodEnd']),
+      trialEndsAt: _dateFromValue(map['trialEndsAt']),
     );
   }
 
-  Map<String, dynamic> toMap() => {
+  Map<String, dynamic> toMap() => <String, dynamic>{
         'tier': tier.value,
-        'active': active,
-        'currentPeriodEnd': currentPeriodEnd?.toIso8601String(),
+        'status': status.name,
+        'active': isUsable,
+        'currentPeriodEnd': currentPeriodEnd == null
+            ? null
+            : Timestamp.fromDate(currentPeriodEnd!),
+        'trialEndsAt':
+            trialEndsAt == null ? null : Timestamp.fromDate(trialEndsAt!),
       };
+}
+
+DateTime? _dateFromValue(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is DateTime) return value;
+  if (value == null) return null;
+  return DateTime.tryParse(value.toString());
 }
