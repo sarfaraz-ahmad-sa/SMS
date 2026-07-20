@@ -7,6 +7,12 @@ import 'package:school_management/Screens/Fees.dart';
 import 'package:school_management/Screens/Leave_Apply/LeaveApply.dart';
 import 'package:school_management/Screens/Library.dart';
 import 'package:school_management/Screens/LoginPage.dart';
+import 'package:school_management/Screens/Management/Accounting.dart';
+import 'package:school_management/Screens/Management/Admissions.dart';
+import 'package:school_management/Screens/Management/Events.dart';
+import 'package:school_management/Screens/Management/HR.dart';
+import 'package:school_management/Screens/Management/Hostel.dart';
+import 'package:school_management/Screens/Management/Inventory.dart';
 import 'package:school_management/Screens/Management/StudentManagement.dart';
 import 'package:school_management/Screens/Management/TeacherManagement.dart';
 import 'package:school_management/Screens/Notifications.dart';
@@ -83,10 +89,22 @@ class MainDrawer extends StatelessWidget {
                   () => _go(context, const NotificationsScreen())),
               const Divider(),
               _section('Management'),
+              _tile(context, Icons.how_to_reg_outlined, 'Admissions',
+                  () => _go(context, const AdmissionsScreen())),
               _tile(context, Icons.groups_outlined, 'Students',
                   () => _go(context, const StudentManagementScreen())),
               _tile(context, Icons.co_present_outlined, 'Teachers',
                   () => _go(context, const TeacherManagementScreen())),
+              _tile(context, Icons.badge_outlined, 'HR & Payroll',
+                  () => _go(context, const HRScreen())),
+              _tile(context, Icons.account_balance_outlined, 'Accounting',
+                  () => _go(context, const AccountingScreen())),
+              _tile(context, Icons.event_outlined, 'Events',
+                  () => _go(context, const EventsScreen())),
+              _tile(context, Icons.bed_outlined, 'Hostel',
+                  () => _go(context, const HostelScreen())),
+              _tile(context, Icons.inventory_2_outlined, 'Inventory',
+                  () => _go(context, const InventoryScreen())),
               _tile(context, Icons.bar_chart_rounded, 'Reports',
                   () => _go(context, const ReportsScreen())),
               const Divider(),

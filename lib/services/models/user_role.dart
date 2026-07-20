@@ -1,16 +1,24 @@
-/// Role-based access control for the multi-tenant SMS SaaS.
+/// Role-based access control for the multi-tenant School ERP.
 ///
-/// Every user belongs to exactly one tenant (organization/school) and carries
-/// one role that governs what they can see and do.
-///
-/// Written as a plain enum + extension (no "enhanced enum" members) so it
-/// compiles on any Dart language version.
+/// Plain enum + extension (no "enhanced enum" members) for Dart-version
+/// compatibility.
 enum UserRole {
-  superAdmin, // platform owner — manages all tenants (CARTZ Link staff)
-  admin, // school administrator — manages one tenant
+  superAdmin,
+  schoolOwner,
+  principal,
+  vicePrincipal,
+  adminStaff,
+  accountant,
   teacher,
+  classTeacher,
   student,
   parent,
+  librarian,
+  hrManager,
+  receptionist,
+  transportManager,
+  hostelManager,
+  itAdmin,
 }
 
 extension UserRoleX on UserRole {
@@ -18,51 +26,72 @@ extension UserRoleX on UserRole {
     switch (this) {
       case UserRole.superAdmin:
         return 'Super Admin';
-      case UserRole.admin:
-        return 'Administrator';
+      case UserRole.schoolOwner:
+        return 'School Owner';
+      case UserRole.principal:
+        return 'Principal';
+      case UserRole.vicePrincipal:
+        return 'Vice Principal';
+      case UserRole.adminStaff:
+        return 'Admin Staff';
+      case UserRole.accountant:
+        return 'Accountant';
       case UserRole.teacher:
         return 'Teacher';
+      case UserRole.classTeacher:
+        return 'Class Teacher';
       case UserRole.student:
         return 'Student';
       case UserRole.parent:
-        return 'Parent';
+        return 'Parent / Guardian';
+      case UserRole.librarian:
+        return 'Librarian';
+      case UserRole.hrManager:
+        return 'HR Manager';
+      case UserRole.receptionist:
+        return 'Receptionist';
+      case UserRole.transportManager:
+        return 'Transport Manager';
+      case UserRole.hostelManager:
+        return 'Hostel Manager';
+      case UserRole.itAdmin:
+        return 'IT Administrator';
     }
   }
 
-  /// Stable string used for storage/serialization.
-  String get value {
-    switch (this) {
-      case UserRole.superAdmin:
-        return 'superAdmin';
-      case UserRole.admin:
-        return 'admin';
-      case UserRole.teacher:
-        return 'teacher';
-      case UserRole.student:
-        return 'student';
-      case UserRole.parent:
-        return 'parent';
-    }
-  }
+  /// Stable string for storage/serialization.
+  String get value => toString().split('.').last;
 
-  bool get canManageTenant =>
-      this == UserRole.admin || this == UserRole.superAdmin;
+  // Broad permission groups used to gate dashboard modules.
   bool get canManagePlatform => this == UserRole.superAdmin;
-  bool get canTakeAttendance => this == UserRole.teacher || canManageTenant;
+
+  bool get isLeadership =>
+      this == UserRole.superAdmin ||
+      this == UserRole.schoolOwner ||
+      this == UserRole.principal ||
+      this == UserRole.vicePrincipal;
+
+  bool get canManageStudents =>
+      isLeadership ||
+      this == UserRole.adminStaff ||
+      this == UserRole.receptionist ||
+      this == UserRole.classTeacher;
+
+  bool get canManageStaff => isLeadership || this == UserRole.hrManager;
+
+  bool get canManageFinance =>
+      isLeadership || this == UserRole.accountant;
+
+  bool get canTakeAttendance =>
+      isLeadership || this == UserRole.teacher || this == UserRole.classTeacher;
+
+  bool get isStaff =>
+      this != UserRole.student && this != UserRole.parent;
 }
 
 UserRole userRoleFromString(String? value) {
-  switch (value) {
-    case 'superAdmin':
-      return UserRole.superAdmin;
-    case 'admin':
-      return UserRole.admin;
-    case 'teacher':
-      return UserRole.teacher;
-    case 'parent':
-      return UserRole.parent;
-    case 'student':
-    default:
-      return UserRole.student;
+  for (final r in UserRole.values) {
+    if (r.value == value) return r;
   }
+  return UserRole.student;
 }

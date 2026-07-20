@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:school_management/Widgets/FeatureCard.dart';
 import 'package:school_management/Widgets/MainDrawer.dart';
 import 'package:school_management/services/session_state.dart';
+import 'package:school_management/services/models/user_role.dart';
 import 'package:school_management/theme/app_theme.dart';
 
 import 'Attendance/Attendance.dart';
@@ -18,6 +19,12 @@ import 'TimeTable.dart';
 import 'Transport.dart';
 import 'Management/StudentManagement.dart';
 import 'Management/TeacherManagement.dart';
+import 'Management/Admissions.dart';
+import 'Management/HR.dart';
+import 'Management/Accounting.dart';
+import 'Management/Events.dart';
+import 'Management/Hostel.dart';
+import 'Management/Inventory.dart';
 
 class Home extends StatelessWidget {
   const Home({Key? key}) : super(key: key);
@@ -26,6 +33,7 @@ class Home extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = SessionState.instance.user;
     final name = user?.displayName ?? 'Student';
+    final roleLabel = user?.role.label ?? 'Student';
 
     final features = <_Feature>[
       _Feature('Profile', Icons.person_outline, AppColors.primary,
@@ -49,10 +57,22 @@ class Home extends StatelessWidget {
     ];
 
     final management = <_Feature>[
+      _Feature('Admissions', Icons.how_to_reg_outlined, const Color(0xFF10B981),
+          (c) => const AdmissionsScreen()),
       _Feature('Students', Icons.groups_outlined, AppColors.primary,
           (c) => const StudentManagementScreen()),
       _Feature('Teachers', Icons.co_present_outlined, AppColors.accent,
           (c) => const TeacherManagementScreen()),
+      _Feature('HR & Payroll', Icons.badge_outlined, const Color(0xFF8B5CF6),
+          (c) => const HRScreen()),
+      _Feature('Accounting', Icons.account_balance_outlined,
+          const Color(0xFF0EA5E9), (c) => const AccountingScreen()),
+      _Feature('Events', Icons.event_outlined, const Color(0xFFEC4899),
+          (c) => const EventsScreen()),
+      _Feature('Hostel', Icons.bed_outlined, const Color(0xFFF97316),
+          (c) => const HostelScreen()),
+      _Feature('Inventory', Icons.inventory_2_outlined,
+          const Color(0xFF6366F1), (c) => const InventoryScreen()),
       _Feature('Reports', Icons.bar_chart_rounded, AppColors.secondary,
           (c) => const ReportsScreen()),
     ];
@@ -74,7 +94,7 @@ class Home extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          _GreetingCard(name: name),
+          _GreetingCard(name: name, roleLabel: roleLabel),
           const SizedBox(height: 20),
           const Text(
             'Quick Access',
@@ -133,7 +153,10 @@ class _Feature {
 
 class _GreetingCard extends StatelessWidget {
   final String name;
-  const _GreetingCard({required this.name, Key? key}) : super(key: key);
+  final String roleLabel;
+  const _GreetingCard(
+      {required this.name, required this.roleLabel, Key? key})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +187,7 @@ class _GreetingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Class 12 · Section B',
+                  roleLabel,
                   style: TextStyle(color: Colors.white.withOpacity(0.9)),
                 ),
               ],

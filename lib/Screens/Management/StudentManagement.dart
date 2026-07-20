@@ -1,17 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'package:school_management/Screens/Management/AddStudent.dart';
+import 'package:school_management/services/models/student.dart';
+import 'package:school_management/services/student_service.dart';
 import 'package:school_management/theme/app_theme.dart';
-
-class Student {
-  String name;
-  String rollNo;
-  String className;
-  String section;
-  String guardian;
-  String phone;
-  Student(this.name, this.rollNo, this.className, this.section, this.guardian,
-      this.phone);
-}
 
 class StudentManagementScreen extends StatefulWidget {
   const StudentManagementScreen({Key? key}) : super(key: key);
@@ -22,114 +14,39 @@ class StudentManagementScreen extends StatefulWidget {
 }
 
 class _StudentManagementScreenState extends State<StudentManagementScreen> {
-  final _students = <Student>[
-    Student('Ahmed Raza', 'BCM2005', '12', 'B', 'Raza Khan', '+92 300 1112222'),
-    Student('Sara Ali', 'BCM2006', '12', 'A', 'Imran Ali', '+92 301 3334444'),
-    Student('Hassan Iqbal', 'BCM1998', '11', 'C', 'Iqbal Sheikh', '+92 302 5556666'),
-    Student('Ayesha Noor', 'BCM2011', '10', 'B', 'Noor Ahmed', '+92 303 7778888'),
-  ];
-
+  final _service = StudentService();
   String _query = '';
 
-  void _openForm({Student? existing, int? index}) {
-    final formKey = GlobalKey<FormState>();
-    final name = TextEditingController(text: existing?.name ?? '');
-    final roll = TextEditingController(text: existing?.rollNo ?? '');
-    final cls = TextEditingController(text: existing?.className ?? '');
-    final sec = TextEditingController(text: existing?.section ?? '');
-    final guardian = TextEditingController(text: existing?.guardian ?? '');
-    final phone = TextEditingController(text: existing?.phone ?? '');
-
-    showModalBottomSheet(
+  Future<void> _confirmDelete(Student s) async {
+    final ok = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-        ),
-        child: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(existing == null ? 'Add Student' : 'Edit Student',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                _tf(name, 'Full Name', Icons.person_outline),
-                _tf(roll, 'Roll No', Icons.badge_outlined),
-                Row(children: [
-                  Expanded(child: _tf(cls, 'Class', Icons.school_outlined)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _tf(sec, 'Section', Icons.group_outlined)),
-                ]),
-                _tf(guardian, 'Guardian', Icons.people_outline),
-                _tf(phone, 'Phone', Icons.phone_outlined,
-                    type: TextInputType.phone),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (!formKey.currentState!.validate()) return;
-                      final s = Student(name.text, roll.text, cls.text,
-                          sec.text, guardian.text, phone.text);
-                      setState(() {
-                        if (index != null) {
-                          _students[index] = s;
-                        } else {
-                          _students.add(s);
-                        }
-                      });
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(existing == null
-                              ? 'Student added'
-                              : 'Student updated'),
-                          backgroundColor: AppColors.success,
-                        ),
-                      );
-                    },
-                    child: Text(existing == null ? 'Add' : 'Save'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+      builder: (_) => AlertDialog(
+        title: const Text('Delete student?'),
+        content: Text('Remove ${s.fullName} permanently?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete')),
+        ],
       ),
     );
-  }
-
-  void _delete(int index) {
-    final removed = _students[index];
-    setState(() => _students.removeAt(index));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${removed.name} removed')),
-    );
+    if (ok == true && s.id != null) {
+      await _service.deleteStudent(s.id!);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _students
-        .where((s) =>
-            s.name.toLowerCase().contains(_query.toLowerCase()) ||
-            s.rollNo.toLowerCase().contains(_query.toLowerCase()))
-        .toList();
-
     return Scaffold(
       appBar: AppBar(title: const Text('Student Management')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddStudentScreen()),
+        ),
         icon: const Icon(Icons.add),
         label: const Text('Add Student'),
       ),
@@ -140,84 +57,107 @@ class _StudentManagementScreenState extends State<StudentManagementScreen> {
             child: TextField(
               onChanged: (v) => setState(() => _query = v),
               decoration: const InputDecoration(
-                hintText: 'Search by name or roll no',
+                hintText: 'Search by name or ID card',
                 prefixIcon: Icon(Icons.search),
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Text('${filtered.length} students',
-                    style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w600)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
           Expanded(
-            child: filtered.isEmpty
-                ? const Center(child: Text('No students found'))
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) {
-                      final s = filtered[i];
-                      final realIndex = _students.indexOf(s);
-                      return Card(
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: AppColors.primary.withOpacity(0.1),
-                            child: Text(
-                              s.name.isNotEmpty ? s.name[0].toUpperCase() : '?',
-                              style: const TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          title: Text(s.name,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                              'Roll ${s.rollNo} · Class ${s.className}-${s.section}'),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (v) {
-                              if (v == 'edit') {
-                                _openForm(existing: s, index: realIndex);
-                              } else if (v == 'delete') {
-                                _delete(realIndex);
-                              }
-                            },
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              PopupMenuItem(
-                                  value: 'delete', child: Text('Delete')),
-                            ],
+            child: StreamBuilder<List<Student>>(
+              stream: _service.streamStudents(),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snap.hasError) {
+                  return _error(snap.error.toString());
+                }
+                final all = snap.data ?? [];
+                final list = all
+                    .where((s) =>
+                        s.fullName
+                            .toLowerCase()
+                            .contains(_query.toLowerCase()) ||
+                        s.idCardNumber
+                            .toLowerCase()
+                            .contains(_query.toLowerCase()))
+                    .toList();
+
+                if (list.isEmpty) {
+                  return _empty();
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
+                  itemCount: list.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) {
+                    final s = list[i];
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.primary.withOpacity(0.1),
+                          child: Text(
+                            s.firstName.isNotEmpty
+                                ? s.firstName[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
-                      );
-                    },
-                  ),
+                        title: Text(s.fullName,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(
+                            'Class ${s.className}-${s.section} · ${s.idCardNumber}'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline,
+                              color: AppColors.danger),
+                          onPressed: () => _confirmDelete(s),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _tf(TextEditingController c, String label, IconData icon,
-      {TextInputType? type}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: c,
-        keyboardType: type,
-        decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
-        validator: (v) =>
-            (v == null || v.trim().isEmpty) ? 'Enter $label' : null,
-      ),
-    );
-  }
+  Widget _empty() => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.group_off_outlined,
+                size: 56, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
+            const Text('No students yet'),
+            const SizedBox(height: 4),
+            Text('Tap "Add Student" to create one',
+                style: TextStyle(color: Colors.grey.shade600)),
+          ],
+        ),
+      );
+
+  Widget _error(String msg) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off, size: 48, color: AppColors.danger),
+              const SizedBox(height: 12),
+              const Text('Could not load from Firebase',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              Text(msg,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+            ],
+          ),
+        ),
+      );
 }

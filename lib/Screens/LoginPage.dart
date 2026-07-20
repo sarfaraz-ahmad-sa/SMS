@@ -102,13 +102,51 @@ class _MyHomePageState extends State<MyHomePage>
   }
 
   /// Demo entry point — skips Firebase auth so the app can be previewed
-  /// before any real user accounts exist. Remove once sign-up is wired up.
+  /// with any role before real accounts exist. Remove once sign-up is wired up.
   void _continueAsGuest() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Enter demo as…',
+                  style:
+                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            SizedBox(
+              height: 360,
+              child: ListView(
+                children: UserRole.values
+                    .map((r) => ListTile(
+                          leading: const Icon(Icons.badge_outlined),
+                          title: Text(r.label),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _enterAs(r);
+                          },
+                        ))
+                    .toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _enterAs(UserRole role) {
     SessionState.instance.setSession(
-      user: const UserModel(
-        uid: 'guest',
-        displayName: 'Guest User',
-        role: UserRole.student,
+      user: UserModel(
+        uid: 'demo',
+        displayName: '${role.label} (Demo)',
+        role: role,
       ),
     );
     Navigator.pushReplacement(
