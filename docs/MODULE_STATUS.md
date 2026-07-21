@@ -1,51 +1,47 @@
 # Module Implementation Status
 
-## Connected to tenant-scoped Firebase data
+## Implemented in the Flutter/Firebase build
 
-- Authentication and session restore
-- Tenant membership validation
-- Multi-school switching
-- Role and permission based dashboard
-- Student creation, listing, and archiving
-- Event creation, listing, and archiving
-- Profile display-name update
-- Password reset
-- School access request
+All 24 modules and 105 workflows are registered in the enterprise catalog and use a shared tenant-aware operational engine:
 
-## Existing interactive UI prototypes
+- permission-filtered dashboard, drawer, modules and entity options;
+- responsive desktop tables and mobile cards;
+- dynamic validated forms;
+- search and status filters;
+- create, update, detail and archive operations;
+- tenant, campus, academic-year, actor and timestamp metadata;
+- demo records for immediate evaluation;
+- live Firestore persistence for authenticated school users;
+- default-deny Firestore rules for all known ERP collections.
 
-- Admissions
-- Teacher management
-- HR and payroll
-- Accounting
-- Fees
-- Attendance
-- Examination results
-- Timetable
-- Library
-- Transport
-- Hostel
-- Inventory
-- Reports
-- Activities
-- Leave application
-- Notifications
+See `ENTERPRISE_MODULES.md` for the complete inventory.
 
-These screens remain useful UI prototypes but are not yet authoritative ERP workflows. Their transactional implementation belongs in the Laravel/MySQL API described in `docs/LARAVEL_HANDOFF.md`.
+## Ready as application workflows
 
-## Not represented as production workflows yet
+- School and academic master setup
+- Admissions pipeline records
+- Student, guardian, teacher and employee records
+- Attendance sessions and entries
+- Curriculum, lesson plans, assignments and materials
+- Examination setup, schedules, marks, results and transcripts
+- Fee structures, invoices, payments, scholarships and refunds
+- Accounting master and transaction records
+- Library, transport, hostel, inventory and assets
+- Communication, events, certificates and timetable records
+- Reports, reception, visitor, complaint and helpdesk records
+- Student welfare, compliance, SaaS administration and AI-review records
 
-- Double-entry accounting and bank reconciliation
-- Fee invoice/payment allocation and gateway reconciliation
-- Examination moderation, result locking, transcripts, GPA/CGPA
-- Payroll approval and disbursement
-- Biometric/RFID ingestion
-- Procurement and inventory ledger
-- Hostel allocation ledger
-- GPS transport integration
-- Document templates, certificate verification, and digital signatures
-- Audit log and sensitive-read log
-- SaaS subscription billing and automated tenant provisioning
-- AI features
+## Trusted backend required before live production
 
-No placeholder UI should be interpreted as production-complete until its Laravel API, database schema, authorization policies, validation, audit trail, and automated tests are implemented.
+The UI and tenant data records exist, but these actions must not rely on direct client writes:
+
+- financial posting, payment reconciliation, refunds and period close;
+- payroll approval and disbursement;
+- final marks locking, moderation and result publication;
+- user creation, role elevation, MFA enforcement and support access;
+- payment/SMS/WhatsApp/SSO secrets and webhook handling;
+- certificate signing and public verification;
+- immutable audit ingestion, backups, restore and retention execution;
+- AI inference and automatic high-impact decisions.
+
+These operations are specified for a trusted Laravel/Cloud Functions layer in `LARAVEL_HANDOFF.md` and `PRODUCTION_CHECKLIST.md`.

@@ -1,0 +1,28 @@
+CARTZ Link School ERP static validation
+UTC: 2026-07-21 07:03:28
+
+Dart source files: 78
+Dart lexical/delimiter validation: PASS
+Missing relative imports: 0
+Undeclared package imports: 0
+ERP modules: 24 (unique 24)
+ERP workflows/collections: 105 (unique 105)
+Rules collection coverage: 105
+Collections missing from rules: []
+Extra rule collections: []
+Permission definitions: 87
+Permission keys used: 78
+Undefined permission references: []
+JSON firebase.json: PASS
+JSON firestore.indexes.json: PASS
+JSON vercel.json: PASS
+JSON web/manifest.json: PASS
+JSON tools/firebase_admin/package.json: PASS
+Firestore composite indexes: 34
+Node syntax migrate-flat-collections.mjs: PASS
+Node syntax seed-enterprise-data.mjs: PASS
+Node syntax seed-tenant.mjs: PASS
+
+Flutter SDK is not available in this validation container; run flutter analyze/test/build on the Windows workstation.
+Catalog primary/secondary/status field references: PASS
+Firestore rules delimiter validation: PASS

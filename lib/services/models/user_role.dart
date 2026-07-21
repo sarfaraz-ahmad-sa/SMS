@@ -59,139 +59,204 @@ extension UserRoleX on UserRole {
 
   String get value => name;
 
-  /// Default module visibility. Explicit membership permissions can extend
-  /// this list and deniedPermissions can remove individual permissions.
+  bool get isLeadership => <UserRole>{
+        UserRole.superAdmin,
+        UserRole.schoolOwner,
+        UserRole.principal,
+        UserRole.vicePrincipal,
+      }.contains(this);
+
+  bool get isLearner => this == UserRole.student;
+  bool get isGuardian => this == UserRole.parent;
+  bool get isStaff => !isLearner && !isGuardian;
+
   Set<String> get defaultPermissions {
     const common = <String>{
+      AppPermission.dashboardView,
       AppPermission.profileView,
       AppPermission.notificationsView,
       AppPermission.timetableView,
+      AppPermission.communicationView,
       AppPermission.eventsView,
+    };
+
+    const leadership = <String>{
+      AppPermission.wildcard,
     };
 
     switch (this) {
       case UserRole.superAdmin:
       case UserRole.schoolOwner:
       case UserRole.principal:
-        return const <String>{AppPermission.wildcard};
       case UserRole.vicePrincipal:
-        return <String>{
-          ...common,
-          AppPermission.attendanceView,
-          AppPermission.attendanceManage,
-          AppPermission.examsView,
-          AppPermission.examsManage,
-          AppPermission.examResultsPublish,
-          AppPermission.admissionsView,
-          AppPermission.admissionsManage,
-          AppPermission.studentsView,
-          AppPermission.studentsCreate,
-          AppPermission.studentsUpdate,
-          AppPermission.studentsPromote,
-          AppPermission.teachersView,
-          AppPermission.teachersManage,
-          AppPermission.activitiesView,
-          AppPermission.activitiesManage,
-          AppPermission.eventsManage,
-          AppPermission.reportsView,
-          AppPermission.leaveView,
-          AppPermission.leaveManage,
-        };
+        return leadership;
+
       case UserRole.adminStaff:
         return <String>{
           ...common,
+          AppPermission.schoolSetupView,
+          AppPermission.schoolSetupManage,
           AppPermission.admissionsView,
           AppPermission.admissionsManage,
           AppPermission.studentsView,
           AppPermission.studentsCreate,
           AppPermission.studentsUpdate,
+          AppPermission.studentsManage,
+          AppPermission.parentsView,
+          AppPermission.parentsManage,
+          AppPermission.teachersView,
+          AppPermission.employeesView,
           AppPermission.attendanceView,
+          AppPermission.attendanceManage,
+          AppPermission.academicsView,
+          AppPermission.examsView,
           AppPermission.feesView,
+          AppPermission.libraryView,
           AppPermission.transportView,
+          AppPermission.hostelView,
+          AppPermission.inventoryView,
+          AppPermission.communicationManage,
           AppPermission.eventsManage,
+          AppPermission.documentsView,
+          AppPermission.documentsManage,
+          AppPermission.welfareView,
+          AppPermission.welfareManage,
+          AppPermission.complianceView,
           AppPermission.reportsView,
+          AppPermission.helpdeskView,
+          AppPermission.helpdeskManage,
         };
+
       case UserRole.accountant:
         return <String>{
           ...common,
+          AppPermission.studentsView,
+          AppPermission.parentsView,
           AppPermission.feesView,
           AppPermission.feesManage,
           AppPermission.feesCollect,
+          AppPermission.feesRefund,
           AppPermission.accountingView,
           AppPermission.accountingManage,
+          AppPermission.payrollManage,
+          AppPermission.inventoryView,
           AppPermission.reportsView,
+          AppPermission.documentsView,
         };
+
       case UserRole.teacher:
         return <String>{
           ...common,
+          AppPermission.studentsView,
           AppPermission.attendanceView,
           AppPermission.attendanceMark,
+          AppPermission.academicsView,
+          AppPermission.academicsManage,
           AppPermission.examsView,
-          AppPermission.examsManage,
-          AppPermission.studentsView,
+          AppPermission.examsMarksEnter,
+          AppPermission.activitiesView,
+          AppPermission.activitiesManage,
           AppPermission.leaveView,
           AppPermission.leaveApply,
-          AppPermission.activitiesView,
-          AppPermission.eventsManage,
+          AppPermission.libraryView,
+          AppPermission.documentsView,
         };
+
       case UserRole.classTeacher:
         return <String>{
           ...common,
-          AppPermission.attendanceView,
-          AppPermission.attendanceMark,
-          AppPermission.examsView,
-          AppPermission.examsManage,
           AppPermission.studentsView,
           AppPermission.studentsUpdate,
+          AppPermission.parentsView,
+          AppPermission.attendanceView,
+          AppPermission.attendanceMark,
+          AppPermission.attendanceManage,
+          AppPermission.academicsView,
+          AppPermission.academicsManage,
+          AppPermission.examsView,
+          AppPermission.examsMarksEnter,
+          AppPermission.communicationManage,
+          AppPermission.activitiesView,
+          AppPermission.activitiesManage,
           AppPermission.leaveView,
           AppPermission.leaveApply,
-          AppPermission.activitiesView,
-          AppPermission.eventsManage,
+          AppPermission.libraryView,
           AppPermission.reportsView,
+          AppPermission.documentsView,
         };
+
       case UserRole.student:
         return <String>{
           ...common,
+          AppPermission.studentsView,
+          AppPermission.academicsView,
+          AppPermission.welfareView,
+          AppPermission.helpdeskView,
           AppPermission.attendanceView,
           AppPermission.examsView,
           AppPermission.feesView,
           AppPermission.libraryView,
           AppPermission.transportView,
+          AppPermission.hostelView,
+          AppPermission.activitiesView,
           AppPermission.leaveView,
           AppPermission.leaveApply,
-          AppPermission.activitiesView,
+          AppPermission.documentsView,
         };
+
       case UserRole.parent:
         return <String>{
           ...common,
+          AppPermission.parentsView,
+          AppPermission.academicsView,
+          AppPermission.libraryView,
+          AppPermission.hostelView,
+          AppPermission.welfareView,
+          AppPermission.helpdeskView,
+          AppPermission.studentsView,
           AppPermission.attendanceView,
           AppPermission.examsView,
           AppPermission.feesView,
           AppPermission.transportView,
+          AppPermission.activitiesView,
           AppPermission.leaveView,
           AppPermission.leaveApply,
-          AppPermission.activitiesView,
+          AppPermission.documentsView,
         };
+
       case UserRole.librarian:
         return <String>{
           ...common,
           AppPermission.libraryView,
           AppPermission.libraryManage,
           AppPermission.studentsView,
+          AppPermission.teachersView,
+          AppPermission.employeesView,
           AppPermission.reportsView,
         };
+
       case UserRole.hrManager:
         return <String>{
           ...common,
+          AppPermission.teachersView,
+          AppPermission.teachersManage,
+          AppPermission.employeesView,
+          AppPermission.employeesManage,
           AppPermission.hrView,
           AppPermission.hrManage,
           AppPermission.payrollManage,
-          AppPermission.teachersView,
-          AppPermission.teachersManage,
+          AppPermission.attendanceView,
+          AppPermission.attendanceManage,
           AppPermission.leaveView,
           AppPermission.leaveManage,
           AppPermission.reportsView,
+          AppPermission.documentsView,
+          AppPermission.documentsManage,
+          AppPermission.welfareView,
+          AppPermission.complianceView,
+          AppPermission.complianceManage,
         };
+
       case UserRole.receptionist:
         return <String>{
           ...common,
@@ -199,32 +264,56 @@ extension UserRoleX on UserRole {
           AppPermission.admissionsManage,
           AppPermission.studentsView,
           AppPermission.studentsCreate,
+          AppPermission.parentsView,
           AppPermission.transportView,
+          AppPermission.helpdeskView,
+          AppPermission.helpdeskManage,
         };
+
       case UserRole.transportManager:
         return <String>{
           ...common,
           AppPermission.transportView,
           AppPermission.transportManage,
           AppPermission.studentsView,
+          AppPermission.parentsView,
+          AppPermission.employeesView,
           AppPermission.reportsView,
         };
+
       case UserRole.hostelManager:
         return <String>{
           ...common,
           AppPermission.hostelView,
           AppPermission.hostelManage,
           AppPermission.studentsView,
+          AppPermission.parentsView,
           AppPermission.feesView,
+          AppPermission.inventoryView,
           AppPermission.reportsView,
         };
+
       case UserRole.itAdmin:
         return <String>{
           ...common,
+          AppPermission.schoolSetupView,
           AppPermission.settingsView,
+          AppPermission.settingsManage,
           AppPermission.usersManage,
           AppPermission.tenantManage,
+          AppPermission.subscriptionManage,
+          AppPermission.auditView,
+          AppPermission.integrationsView,
+          AppPermission.integrationsManage,
+          AppPermission.complianceView,
+          AppPermission.complianceManage,
+          AppPermission.aiView,
+          AppPermission.aiManage,
+          AppPermission.saasAdminView,
+          AppPermission.saasAdminManage,
           AppPermission.reportsView,
+          AppPermission.helpdeskView,
+          AppPermission.helpdeskManage,
         };
     }
   }

@@ -97,44 +97,493 @@ service cloud.firestore {
       ]);
     }
 
-    function canCreateStudents(tenantId) {
-      return isLeadership(tenantId) ||
-        hasPermission(tenantId, 'students.create') ||
-        hasAnyRole(tenantId, ['adminStaff', 'receptionist']);
+    function isRelatedToSignedInUser(data) {
+      return signedIn() &&
+        (
+          data.get('authUid', '') == request.auth.uid ||
+          data.get('studentAuthUid', '') == request.auth.uid ||
+          (
+            data.get('guardianUids', []) is list &&
+            request.auth.uid in data.get('guardianUids', [])
+          ) ||
+          data.get('requesterUid', '') == request.auth.uid ||
+          data.get('createdBy', '') == request.auth.uid
+        );
     }
 
-    function canUpdateStudents(tenantId) {
-      return isLeadership(tenantId) ||
-        hasPermission(tenantId, 'students.update') ||
-        hasAnyRole(tenantId, ['adminStaff', 'classTeacher']);
+    function schoolSetupCollections(collection) {
+      return collection in [
+        'campuses', 'academic_years', 'departments', 'classes', 'sections',
+        'subjects', 'grading_schemes', 'holidays'
+      ];
     }
 
-    function canArchiveStudents(tenantId) {
-      return isLeadership(tenantId) ||
-        hasPermission(tenantId, 'students.archive');
+    function admissionCollections(collection) {
+      return collection in [
+        'admission_inquiries', 'admission_applications', 'admission_offers'
+      ];
     }
 
-    function canViewStudents(tenantId) {
-      return canCreateStudents(tenantId) ||
-        canUpdateStudents(tenantId) ||
-        canArchiveStudents(tenantId) ||
-        hasPermission(tenantId, 'students.view') ||
-        hasAnyRole(tenantId, [
-          'teacher',
-          'librarian',
-          'transportManager',
-          'hostelManager'
-        ]);
+    function studentCollections(collection) {
+      return collection in [
+        'students', 'student_enrollments', 'student_promotions',
+        'student_transfers', 'discipline_records', 'student_achievements',
+        'alumni'
+      ];
     }
 
-    function canManageEvents(tenantId) {
+    function parentCollections(collection) {
+      return collection in ['guardians', 'student_guardians', 'parent_meetings'];
+    }
+
+    function teacherCollections(collection) {
+      return collection in ['teachers', 'teacher_assignments', 'teacher_evaluations'];
+    }
+
+    function hrCollections(collection) {
+      return collection in [
+        'employees', 'employee_contracts', 'leave_requests', 'payroll_runs',
+        'payslips'
+      ];
+    }
+
+    function attendanceCollections(collection) {
+      return collection in [
+        'attendance_sessions', 'student_attendance', 'student_leave_requests',
+        'staff_attendance', 'attendance_devices'
+      ];
+    }
+
+    function academicCollections(collection) {
+      return collection in [
+        'syllabus_units', 'lesson_plans', 'assignments', 'study_materials'
+      ];
+    }
+
+    function examinationCollections(collection) {
+      return collection in [
+        'exams', 'exam_schedules', 'mark_entries', 'exam_results', 'transcripts'
+      ];
+    }
+
+    function feeCollections(collection) {
+      return collection in [
+        'fee_structures', 'fee_invoices', 'payments', 'scholarships',
+        'fee_refunds'
+      ];
+    }
+
+    function accountingCollections(collection) {
+      return collection in [
+        'chart_of_accounts', 'journal_entries', 'bank_accounts', 'expenses',
+        'budgets'
+      ];
+    }
+
+    function libraryCollections(collection) {
+      return collection in ['books', 'book_loans', 'library_reservations'];
+    }
+
+    function transportCollections(collection) {
+      return collection in [
+        'transport_routes', 'vehicles', 'drivers', 'transport_assignments'
+      ];
+    }
+
+    function hostelCollections(collection) {
+      return collection in ['hostel_rooms', 'hostel_allocations', 'hostel_visitors'];
+    }
+
+    function inventoryCollections(collection) {
+      return collection in [
+        'inventory_items', 'purchase_orders', 'stock_movements', 'assets'
+      ];
+    }
+
+    function communicationCollections(collection) {
+      return collection in ['announcements', 'circulars', 'message_campaigns'];
+    }
+
+    function eventCollections(collection) {
+      return collection in ['events', 'competitions', 'event_registrations'];
+    }
+
+    function documentCollections(collection) {
+      return collection in [
+        'document_templates', 'certificate_requests', 'issued_certificates'
+      ];
+    }
+
+    function timetableCollections(collection) {
+      return collection in [
+        'timetable_entries', 'teacher_substitutions', 'timetable_conflicts'
+      ];
+    }
+
+    function reportCollections(collection) {
+      return collection in ['report_definitions', 'scheduled_reports', 'export_jobs'];
+    }
+
+    function helpdeskCollections(collection) {
+      return collection in [
+        'support_tickets', 'complaints', 'visitor_log', 'appointments'
+      ];
+    }
+
+    function welfareCollections(collection) {
+      return collection in [
+        'student_medical_profiles', 'clinic_visits', 'counseling_cases',
+        'safeguarding_cases', 'learning_accommodations'
+      ];
+    }
+
+    function administrationCollections(collection) {
+      return collection in [
+        'user_access', 'role_templates', 'subscription_billing',
+        'integration_connections', 'feature_flags', 'data_import_jobs',
+        'backup_jobs', 'audit_reviews', 'consents', 'retention_policies'
+      ];
+    }
+
+    function aiCollections(collection) {
+      return collection in [
+        'ai_insights', 'automation_rules', 'chatbot_knowledge',
+        'generated_reports'
+      ];
+    }
+
+    function knownErpCollection(collection) {
+      return schoolSetupCollections(collection) ||
+        admissionCollections(collection) ||
+        studentCollections(collection) ||
+        parentCollections(collection) ||
+        teacherCollections(collection) ||
+        hrCollections(collection) ||
+        attendanceCollections(collection) ||
+        academicCollections(collection) ||
+        examinationCollections(collection) ||
+        feeCollections(collection) ||
+        accountingCollections(collection) ||
+        libraryCollections(collection) ||
+        transportCollections(collection) ||
+        hostelCollections(collection) ||
+        inventoryCollections(collection) ||
+        communicationCollections(collection) ||
+        eventCollections(collection) ||
+        documentCollections(collection) ||
+        timetableCollections(collection) ||
+        reportCollections(collection) ||
+        helpdeskCollections(collection) ||
+        welfareCollections(collection) ||
+        administrationCollections(collection) ||
+        aiCollections(collection);
+    }
+
+    function canViewCollection(tenantId, collection) {
       return isLeadership(tenantId) ||
-        hasPermission(tenantId, 'events.manage') ||
-        hasAnyRole(tenantId, [
-          'adminStaff',
-          'teacher',
-          'classTeacher'
-        ]);
+        (
+          schoolSetupCollections(collection) &&
+          (
+            hasPermission(tenantId, 'school_setup.view') ||
+            hasPermission(tenantId, 'school_setup.manage') ||
+            hasAnyRole(tenantId, ['adminStaff', 'itAdmin'])
+          )
+        ) ||
+        (
+          admissionCollections(collection) &&
+          (
+            hasPermission(tenantId, 'admissions.view') ||
+            hasPermission(tenantId, 'admissions.manage') ||
+            hasAnyRole(tenantId, ['adminStaff', 'receptionist'])
+          )
+        ) ||
+        (
+          studentCollections(collection) &&
+          (
+            hasPermission(tenantId, 'students.view') ||
+            hasPermission(tenantId, 'students.manage') ||
+            hasAnyRole(tenantId, [
+              'adminStaff', 'teacher', 'classTeacher', 'receptionist',
+              'librarian', 'transportManager', 'hostelManager'
+            ])
+          )
+        ) ||
+        (
+          parentCollections(collection) &&
+          (
+            hasPermission(tenantId, 'parents.view') ||
+            hasPermission(tenantId, 'parents.manage') ||
+            hasAnyRole(tenantId, ['adminStaff', 'classTeacher', 'receptionist'])
+          )
+        ) ||
+        (
+          teacherCollections(collection) &&
+          (
+            hasPermission(tenantId, 'teachers.view') ||
+            hasPermission(tenantId, 'teachers.manage') ||
+            hasAnyRole(tenantId, ['adminStaff', 'hrManager'])
+          )
+        ) ||
+        (
+          hrCollections(collection) &&
+          (
+            hasPermission(tenantId, 'hr.view') ||
+            hasPermission(tenantId, 'hr.manage') ||
+            hasPermission(tenantId, 'employees.view') ||
+            hasPermission(tenantId, 'payroll.manage') ||
+            hasAnyRole(tenantId, ['hrManager', 'accountant'])
+          )
+        ) ||
+        (
+          attendanceCollections(collection) &&
+          (
+            hasPermission(tenantId, 'attendance.view') ||
+            hasPermission(tenantId, 'attendance.manage') ||
+            hasPermission(tenantId, 'attendance.mark') ||
+            hasAnyRole(tenantId, ['teacher', 'classTeacher', 'hrManager'])
+          )
+        ) ||
+        (
+          academicCollections(collection) &&
+          (
+            hasPermission(tenantId, 'academics.view') ||
+            hasPermission(tenantId, 'academics.manage') ||
+            hasAnyRole(tenantId, ['teacher', 'classTeacher']) ||
+            (collection in ['assignments', 'study_materials'] &&
+              hasAnyRole(tenantId, ['student', 'parent']))
+          )
+        ) ||
+        (
+          examinationCollections(collection) &&
+          (
+            hasPermission(tenantId, 'exams.view') ||
+            hasPermission(tenantId, 'exams.manage') ||
+            hasPermission(tenantId, 'exams.marks.enter') ||
+            hasAnyRole(tenantId, ['teacher', 'classTeacher']) ||
+            (collection in ['exams', 'exam_schedules'] &&
+              hasAnyRole(tenantId, ['student', 'parent']))
+          )
+        ) ||
+        (
+          feeCollections(collection) &&
+          (
+            hasPermission(tenantId, 'fees.view') ||
+            hasPermission(tenantId, 'fees.manage') ||
+            hasPermission(tenantId, 'fees.collect') ||
+            hasAnyRole(tenantId, ['accountant', 'adminStaff'])
+          )
+        ) ||
+        (
+          accountingCollections(collection) &&
+          (
+            hasPermission(tenantId, 'accounting.view') ||
+            hasPermission(tenantId, 'accounting.manage') ||
+            hasAnyRole(tenantId, ['accountant'])
+          )
+        ) ||
+        (
+          libraryCollections(collection) &&
+          (
+            hasPermission(tenantId, 'library.view') ||
+            hasPermission(tenantId, 'library.manage') ||
+            hasAnyRole(tenantId, ['librarian', 'teacher', 'classTeacher']) ||
+            (collection == 'books' && hasAnyRole(tenantId, ['student', 'parent']))
+          )
+        ) ||
+        (
+          transportCollections(collection) &&
+          (
+            hasPermission(tenantId, 'transport.view') ||
+            hasPermission(tenantId, 'transport.manage') ||
+            hasAnyRole(tenantId, ['transportManager']) ||
+            (collection == 'transport_routes' &&
+              hasAnyRole(tenantId, ['student', 'parent']))
+          )
+        ) ||
+        (
+          hostelCollections(collection) &&
+          (
+            hasPermission(tenantId, 'hostel.view') ||
+            hasPermission(tenantId, 'hostel.manage') ||
+            hasAnyRole(tenantId, ['hostelManager'])
+          )
+        ) ||
+        (
+          inventoryCollections(collection) &&
+          (
+            hasPermission(tenantId, 'inventory.view') ||
+            hasPermission(tenantId, 'inventory.manage') ||
+            hasAnyRole(tenantId, ['adminStaff', 'accountant'])
+          )
+        ) ||
+        (
+          communicationCollections(collection) &&
+          (
+            hasPermission(tenantId, 'communication.view') ||
+            hasPermission(tenantId, 'communication.manage') ||
+            isActiveMember(tenantId)
+          )
+        ) ||
+        (
+          eventCollections(collection) &&
+          (
+            hasPermission(tenantId, 'events.view') ||
+            hasPermission(tenantId, 'events.manage') ||
+            isActiveMember(tenantId)
+          )
+        ) ||
+        (
+          documentCollections(collection) &&
+          (
+            hasPermission(tenantId, 'documents.view') ||
+            hasPermission(tenantId, 'documents.manage') ||
+            hasAnyRole(tenantId, ['student', 'parent'])
+          )
+        ) ||
+        (
+          timetableCollections(collection) &&
+          (
+            hasPermission(tenantId, 'timetable.view') ||
+            hasPermission(tenantId, 'timetable.manage') ||
+            isActiveMember(tenantId)
+          )
+        ) ||
+        (
+          reportCollections(collection) &&
+          (
+            hasPermission(tenantId, 'reports.view') ||
+            hasPermission(tenantId, 'reports.manage')
+          )
+        ) ||
+        (
+          helpdeskCollections(collection) &&
+          (
+            hasPermission(tenantId, 'helpdesk.view') ||
+            hasPermission(tenantId, 'helpdesk.manage') ||
+            hasAnyRole(tenantId, ['receptionist', 'itAdmin'])
+          )
+        ) ||
+        (
+          welfareCollections(collection) &&
+          (
+            hasPermission(tenantId, 'welfare.view') ||
+            hasPermission(tenantId, 'welfare.manage') ||
+            (collection == 'safeguarding_cases' && hasPermission(tenantId, 'compliance.view'))
+          )
+        ) ||
+        (
+          administrationCollections(collection) &&
+          (
+            hasPermission(tenantId, 'saas_admin.view') ||
+            hasPermission(tenantId, 'saas_admin.manage') ||
+            (collection in ['user_access', 'role_templates'] && hasPermission(tenantId, 'users.manage')) ||
+            (collection == 'subscription_billing' && hasPermission(tenantId, 'subscription.manage')) ||
+            (collection == 'integration_connections' && hasPermission(tenantId, 'integrations.view')) ||
+            (collection in ['audit_reviews'] && hasPermission(tenantId, 'audit.view')) ||
+            (collection in ['consents', 'retention_policies'] && hasPermission(tenantId, 'compliance.view'))
+          )
+        ) ||
+        (
+          aiCollections(collection) &&
+          (
+            hasPermission(tenantId, 'ai.view') ||
+            hasPermission(tenantId, 'ai.manage')
+          )
+        );
+    }
+
+    function canManageCollection(tenantId, collection) {
+      return isLeadership(tenantId) ||
+        (schoolSetupCollections(collection) && hasPermission(tenantId, 'school_setup.manage')) ||
+        (admissionCollections(collection) && hasPermission(tenantId, 'admissions.manage')) ||
+        (studentCollections(collection) && (
+          hasPermission(tenantId, 'students.manage') ||
+          hasPermission(tenantId, 'students.create') ||
+          hasPermission(tenantId, 'students.update') ||
+          (collection == 'student_promotions' && hasPermission(tenantId, 'students.promote'))
+        )) ||
+        (parentCollections(collection) && hasPermission(tenantId, 'parents.manage')) ||
+        (teacherCollections(collection) && hasPermission(tenantId, 'teachers.manage')) ||
+        (hrCollections(collection) && (
+          hasPermission(tenantId, 'hr.manage') ||
+          hasPermission(tenantId, 'employees.manage') ||
+          (collection in ['payroll_runs', 'payslips'] && hasPermission(tenantId, 'payroll.manage')) ||
+          (collection == 'leave_requests' && hasPermission(tenantId, 'leave.manage'))
+        )) ||
+        (attendanceCollections(collection) && (
+          hasPermission(tenantId, 'attendance.manage') ||
+          (collection == 'student_attendance' && hasPermission(tenantId, 'attendance.mark'))
+        )) ||
+        (academicCollections(collection) && hasPermission(tenantId, 'academics.manage')) ||
+        (examinationCollections(collection) && (
+          hasPermission(tenantId, 'exams.manage') ||
+          (collection == 'mark_entries' && hasPermission(tenantId, 'exams.marks.enter'))
+        )) ||
+        (feeCollections(collection) && (
+          hasPermission(tenantId, 'fees.manage') ||
+          (collection == 'payments' && hasPermission(tenantId, 'fees.collect')) ||
+          (collection == 'fee_refunds' && hasPermission(tenantId, 'fees.refund'))
+        )) ||
+        (accountingCollections(collection) && hasPermission(tenantId, 'accounting.manage')) ||
+        (libraryCollections(collection) && hasPermission(tenantId, 'library.manage')) ||
+        (transportCollections(collection) && hasPermission(tenantId, 'transport.manage')) ||
+        (hostelCollections(collection) && hasPermission(tenantId, 'hostel.manage')) ||
+        (inventoryCollections(collection) && hasPermission(tenantId, 'inventory.manage')) ||
+        (communicationCollections(collection) && hasPermission(tenantId, 'communication.manage')) ||
+        (eventCollections(collection) && hasPermission(tenantId, 'events.manage')) ||
+        (documentCollections(collection) && hasPermission(tenantId, 'documents.manage')) ||
+        (timetableCollections(collection) && hasPermission(tenantId, 'timetable.manage')) ||
+        (reportCollections(collection) && hasPermission(tenantId, 'reports.manage')) ||
+        (helpdeskCollections(collection) && hasPermission(tenantId, 'helpdesk.manage')) ||
+        (welfareCollections(collection) && (
+          hasPermission(tenantId, 'welfare.manage') ||
+          (collection == 'safeguarding_cases' && hasPermission(tenantId, 'compliance.manage'))
+        )) ||
+        (administrationCollections(collection) && (
+          hasPermission(tenantId, 'saas_admin.manage') ||
+          (collection in ['user_access', 'role_templates'] && hasPermission(tenantId, 'users.manage')) ||
+          (collection == 'subscription_billing' && hasPermission(tenantId, 'subscription.manage')) ||
+          (collection == 'integration_connections' && hasPermission(tenantId, 'integrations.manage')) ||
+          (collection == 'data_import_jobs' && hasPermission(tenantId, 'settings.manage')) ||
+          (collection in ['audit_reviews', 'consents', 'retention_policies'] && hasPermission(tenantId, 'compliance.manage'))
+        )) ||
+        (aiCollections(collection) && hasPermission(tenantId, 'ai.manage'));
+    }
+
+    function selfServiceCollections(collection) {
+      return collection in [
+        'library_reservations', 'event_registrations',
+        'certificate_requests', 'student_leave_requests', 'leave_requests',
+        'parent_meetings', 'support_tickets', 'complaints'
+      ];
+    }
+
+    function canCreateSelfService(tenantId, collection) {
+      return isActiveMember(tenantId) &&
+        selfServiceCollections(collection) &&
+        (
+          hasAnyRole(tenantId, ['student', 'parent']) ||
+          (
+            collection == 'leave_requests' &&
+            (
+              hasPermission(tenantId, 'leave.apply') ||
+              hasAnyRole(tenantId, ['teacher', 'classTeacher'])
+            )
+          )
+        ) &&
+        isRelatedToSignedInUser(request.resource.data);
+    }
+
+    function validCreate(tenantId) {
+      return request.resource.data.tenantId == tenantId &&
+        request.resource.data.get('createdBy', '') == request.auth.uid &&
+        request.resource.data.get('isArchived', false) == false;
+    }
+
+    function validUpdate(tenantId) {
+      return request.resource.data.tenantId == tenantId &&
+        request.resource.data.tenantId == resource.data.tenantId &&
+        request.resource.data.get('createdBy', '') == resource.data.get('createdBy', '');
     }
 
     match /users/{userId} {
@@ -143,12 +592,8 @@ service cloud.firestore {
       allow update: if signedIn() &&
         request.auth.uid == userId &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'activeTenantId',
-          'activeCampusId',
-          'activeAcademicYearId',
-          'displayName',
-          'photoUrl',
-          'updatedAt'
+          'activeTenantId', 'activeCampusId', 'activeAcademicYearId',
+          'displayName', 'photoUrl', 'updatedAt'
         ]) &&
         (
           !request.resource.data.diff(resource.data).affectedKeys()
@@ -162,67 +607,61 @@ service cloud.firestore {
 
     match /tenants/{tenantId} {
       allow read: if isActiveMember(tenantId);
-      allow create, update, delete: if false;
+      allow update: if isLeadership(tenantId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'code', 'logoUrl', 'brandColor', 'timezone', 'currency',
+          'activeAcademicYearId', 'updatedAt', 'updatedBy'
+        ]);
+      allow create, delete: if false;
 
       match /members/{memberId} {
         allow read: if isActiveMember(tenantId) &&
-          (request.auth.uid == memberId || isLeadership(tenantId));
+          (
+            request.auth.uid == memberId ||
+            isLeadership(tenantId) ||
+            hasPermission(tenantId, 'users.manage')
+          );
         allow create, update, delete: if false;
       }
 
-      match /students/{studentId} {
-        allow read: if canViewStudents(tenantId) ||
-          (
-            isActiveMember(tenantId) &&
-            resource.data.get('authUid', '') == request.auth.uid
-          ) ||
-          (
-            isActiveMember(tenantId) &&
-            request.auth.uid in resource.data.get('guardianUids', [])
-          );
+      match /audit_logs/{logId} {
+        allow read: if isLeadership(tenantId) ||
+          hasPermission(tenantId, 'audit.view') ||
+          hasAnyRole(tenantId, ['itAdmin']);
+        allow write: if false;
+      }
 
-        allow create: if canCreateStudents(tenantId) &&
-          request.resource.data.tenantId == tenantId &&
-          request.resource.data.get('createdBy', '') == request.auth.uid &&
-          request.resource.data.get('isArchived', false) == false;
-
-        allow update: if
-          request.resource.data.tenantId == tenantId &&
-          request.resource.data.tenantId == resource.data.tenantId &&
-          request.resource.data.get('createdBy', '') == resource.data.get('createdBy', '') &&
+      match /{collection}/{documentId} {
+        allow read: if knownErpCollection(collection) &&
           (
+            canViewCollection(tenantId, collection) ||
             (
-              !request.resource.data.diff(resource.data).affectedKeys()
-                .hasAny(['isArchived', 'archivedAt', 'archivedBy']) &&
-              canUpdateStudents(tenantId)
-            ) ||
-            (
-              canArchiveStudents(tenantId) &&
-              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                'isArchived',
-                'archivedAt',
-                'archivedBy',
-                'updatedAt',
-                'updatedBy'
-              ]) &&
-              resource.data.get('isArchived', false) == false &&
-              request.resource.data.get('isArchived', false) == true
+              collection in [
+                'students', 'student_attendance', 'student_leave_requests',
+                'fee_invoices', 'payments', 'exam_results', 'transcripts',
+                'book_loans', 'library_reservations',
+                'transport_assignments', 'hostel_allocations',
+                'certificate_requests', 'issued_certificates',
+                'student_medical_profiles', 'learning_accommodations',
+                'parent_meetings', 'event_registrations', 'leave_requests',
+                'support_tickets', 'complaints'
+              ] &&
+              isActiveMember(tenantId) &&
+              isRelatedToSignedInUser(resource.data)
             )
           );
 
-        allow delete: if false;
-      }
+        allow create: if knownErpCollection(collection) &&
+          (
+            canManageCollection(tenantId, collection) ||
+            canCreateSelfService(tenantId, collection)
+          ) &&
+          validCreate(tenantId);
 
-      match /events/{eventId} {
-        allow read: if isActiveMember(tenantId);
-        allow create: if canManageEvents(tenantId) &&
-          request.resource.data.tenantId == tenantId &&
-          request.resource.data.get('createdBy', '') == request.auth.uid &&
-          request.resource.data.get('isArchived', false) == false;
-        allow update: if canManageEvents(tenantId) &&
-          request.resource.data.tenantId == tenantId &&
-          request.resource.data.tenantId == resource.data.tenantId &&
-          request.resource.data.get('createdBy', '') == resource.data.get('createdBy', '');
+        allow update: if knownErpCollection(collection) &&
+          canManageCollection(tenantId, collection) &&
+          validUpdate(tenantId);
+
         allow delete: if false;
       }
 
@@ -234,14 +673,8 @@ service cloud.firestore {
     match /accessRequests/{requestId} {
       allow create: if
         request.resource.data.keys().hasOnly([
-          'schoolCode',
-          'name',
-          'rollNumber',
-          'className',
-          'email',
-          'phone',
-          'status',
-          'createdAt'
+          'schoolCode', 'name', 'rollNumber', 'className', 'email', 'phone',
+          'status', 'createdAt'
         ]) &&
         request.resource.data.schoolCode is string &&
         request.resource.data.schoolCode.size() >= 2 &&

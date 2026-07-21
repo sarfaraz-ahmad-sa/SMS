@@ -1,15 +1,19 @@
 # Windows CMD setup
 
-All Flutter commands must be executed from the project root:
+Run the full demo from the project root:
 
 ```bat
 cd /d C:\SMS
-flutter clean
-flutter pub get
+start-demo.cmd
+```
+
+For Firebase configuration and validation, run:
+
+```bat
+cd /d C:\SMS
 flutterfire configure
 flutter analyze
 flutter test
-flutter run -d chrome
 ```
 
 `flutterfire configure` does not work from `C:\SMS\tools\firebase_admin` because that folder is not the Flutter project root.
@@ -71,3 +75,18 @@ npm run seed:tenant
 ```
 
 Do not add trailing `\` characters. Those are Linux shell line continuations and are not valid CMD syntax.
+
+
+## Missing Android Gradle wrapper
+
+```bat
+cd /d C:\SMS
+repair-android-wrapper.cmd
+```
+
+## Print Android SHA-1
+
+```bat
+cd /d C:\SMS
+android-sha1.cmd
+```

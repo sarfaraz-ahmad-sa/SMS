@@ -224,6 +224,42 @@ class TenantService {
     return Tenant.fromMap(document.id, data);
   }
 
+  Future<Tenant> updateTenantProfile({
+    required Tenant current,
+    required String name,
+    required String code,
+    required String timezone,
+    required String currency,
+    String? activeAcademicYearId,
+    String? logoUrl,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final updated = current.copyWith(
+      name: name.trim(),
+      code: code.trim().toUpperCase(),
+      timezone: timezone.trim(),
+      currency: currency.trim().toUpperCase(),
+      activeAcademicYearId: activeAcademicYearId?.trim(),
+      logoUrl: logoUrl?.trim(),
+    );
+
+    if (user == null) return updated;
+
+    await _db.collection('tenants').doc(current.id).update(
+      <String, dynamic>{
+        'name': updated.name,
+        'code': updated.code,
+        'timezone': updated.timezone,
+        'currency': updated.currency,
+        'activeAcademicYearId': updated.activeAcademicYearId,
+        'logoUrl': updated.logoUrl,
+        'updatedBy': user.uid,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+    );
+    return updated;
+  }
+
   Future<void> createTenant(Tenant tenant) {
     throw UnsupportedError(
       'Tenant provisioning must run through a trusted Laravel API or Cloud Function.',

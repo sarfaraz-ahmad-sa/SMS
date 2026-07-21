@@ -9,20 +9,49 @@ tenants/{tenantId}/members/{uid}
 accessRequests/{requestId}
 ```
 
-## Tenant collections currently implemented
+## Tenant operational collections
+
+All ERP data is stored below the active tenant:
+
+```text
+tenants/{tenantId}/{collection}/{recordId}
+```
+
+The current catalog contains 105 known operational collections. The complete list is generated in `ENTERPRISE_MODULES.md`.
+
+Examples:
 
 ```text
 tenants/{tenantId}/students/{studentId}
-tenants/{tenantId}/events/{eventId}
+tenants/{tenantId}/student_attendance/{attendanceId}
+tenants/{tenantId}/fee_invoices/{invoiceId}
+tenants/{tenantId}/payments/{paymentId}
+tenants/{tenantId}/exams/{examId}
+tenants/{tenantId}/employees/{employeeId}
+tenants/{tenantId}/books/{bookId}
+tenants/{tenantId}/integration_connections/{connectionId}
 ```
 
-All future Firebase-phase operational collections must remain under the tenant document.
+## Standard operational metadata
+
+Every client-created ERP record includes:
+
+```text
+tenantId
+campusId
+academicYearId
+createdBy
+createdAt
+updatedBy
+updatedAt
+isArchived
+archivedBy
+archivedAt
+```
+
+Records are archived rather than hard deleted. Financial, academic-publication and legal records should additionally use immutable server-side events and reversals.
 
 ## User document
-
-The user document stores only identity preferences and the IDs of schools the user can select. It must not be used as the only source of role authority.
-
-Recommended fields:
 
 ```text
 email
@@ -37,9 +66,9 @@ createdAt
 updatedAt
 ```
 
-## Membership document
+The user document is a platform identity profile. It is not the sole source of tenant authorization.
 
-Roles and permissions are tenant-specific:
+## Membership document
 
 ```text
 status: active | inactive | suspended
@@ -53,26 +82,22 @@ createdAt
 updatedAt
 ```
 
-## Data creation policy
+Roles and permission changes must be performed by a trusted backend or Firebase Admin process.
 
-The following operations must run through a trusted backend:
+## Sensitive records
 
-- Tenant creation
+Medical, counseling, safeguarding, payroll, financial, marks and identity records require narrower backend policies than general school records. The Flutter UI already filters them by permission, but live deployments must test Firestore rules with representative user roles and should move sensitive operations to the trusted API.
+
+## Trusted-only operations
+
+- Tenant creation and suspension
 - Subscription activation
-- Membership creation
-- Role and permission assignment
-- Cross-tenant reporting
-- Bulk user provisioning
-- Permanent record deletion
-
-## Student records
-
-Student deletion is implemented as archiving:
-
-```text
-isArchived
-archivedAt
-archivedBy
-```
-
-This keeps history and avoids accidental destructive removal.
+- Firebase Authentication user provisioning
+- Membership and role assignment
+- Financial posting and reconciliation
+- Payroll approval and disbursement
+- Final result publication
+- Certificate signing
+- Immutable audit events
+- Backup, restore, retention and legal hold execution
+- Permanent deletion or anonymization

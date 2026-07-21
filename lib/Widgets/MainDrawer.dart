@@ -1,27 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../Screens/Activity.dart';
-import '../Screens/Attendance/Attendance.dart';
-import '../Screens/Exam/Exam_Rseult.dart';
-import '../Screens/Fees.dart';
-import '../Screens/Leave_Apply/LeaveApply.dart';
-import '../Screens/Library.dart';
+import '../Screens/Enterprise/ErpEntityListScreen.dart';
+import '../Screens/Enterprise/ErpModuleScreen.dart';
 import '../Screens/LoginPage.dart';
-import '../Screens/Management/Accounting.dart';
-import '../Screens/Management/Admissions.dart';
-import '../Screens/Management/Events.dart';
-import '../Screens/Management/HR.dart';
-import '../Screens/Management/Hostel.dart';
-import '../Screens/Management/Inventory.dart';
-import '../Screens/Management/StudentManagement.dart';
-import '../Screens/Management/TeacherManagement.dart';
 import '../Screens/Notifications.dart';
 import '../Screens/Profile.dart';
-import '../Screens/Reports.dart';
 import '../Screens/Settings.dart';
-import '../Screens/TimeTable.dart';
-import '../Screens/Transport.dart';
 import '../Screens/home.dart';
+import '../core/erp/erp_access_policy.dart';
+import '../core/erp/erp_catalog.dart';
+import '../core/erp/erp_entity.dart';
+import '../core/erp/erp_module.dart';
+import '../core/erp/tenant_erp_service.dart';
 import '../services/Auth_services.dart';
 import '../services/models/app_permission.dart';
 import '../services/session_state.dart';
@@ -29,29 +19,7 @@ import '../theme/app_theme.dart';
 import 'TenantSwitcher.dart';
 
 class MainDrawer extends StatelessWidget {
-  const MainDrawer({Key? key}) : super(key: key);
-
-  void _go(BuildContext context, Widget screen) {
-    Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute<void>(builder: (_) => screen),
-    );
-  }
-
-  Future<void> _logout(BuildContext context) async {
-    Navigator.pop(context);
-    await AuthService().signOut();
-    SessionState.instance.clear();
-    if (!context.mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute<void>(
-        builder: (_) => const MyHomePage(title: 'CARTZ Link SMS'),
-      ),
-      (Route<dynamic> route) => false,
-    );
-  }
+  const MainDrawer({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -62,147 +30,59 @@ class MainDrawer extends StatelessWidget {
         final user = state.user;
         final tenant = state.tenant;
 
-        final quickItems = <_DrawerItem>[
-          _DrawerItem(
-            icon: Icons.home_outlined,
-            label: 'Home',
-            permission: AppPermission.profileView,
-            screen: const Home(),
-          ),
-          _DrawerItem(
-            icon: Icons.person_outline,
-            label: 'Profile',
-            permission: AppPermission.profileView,
-            screen: const ProfileScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.fact_check_outlined,
-            label: 'Attendance',
-            permission: AppPermission.attendanceView,
-            screen: Attendance(),
-          ),
-          _DrawerItem(
-            icon: Icons.assignment_outlined,
-            label: 'Examination',
-            permission: AppPermission.examsView,
-            screen: ExamResult(),
-          ),
-          _DrawerItem(
-            icon: Icons.calendar_month_outlined,
-            label: 'Time Table',
-            permission: AppPermission.timetableView,
-            screen: const TimeTableScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.menu_book_outlined,
-            label: 'Library',
-            permission: AppPermission.libraryView,
-            screen: const LibraryScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.payments_outlined,
-            label: 'Fees',
-            permission: AppPermission.feesView,
-            screen: const FeesScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.directions_bus_outlined,
-            label: 'Transport',
-            permission: AppPermission.transportView,
-            screen: const TransportScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.event_busy_outlined,
-            label: 'Leave Apply',
-            permission: AppPermission.leaveView,
-            screen: LeaveApply(),
-          ),
-          _DrawerItem(
-            icon: Icons.emoji_events_outlined,
-            label: 'Activities',
-            permission: AppPermission.activitiesView,
-            screen: const ActivityScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.notifications_none_rounded,
-            label: 'Notifications',
-            permission: AppPermission.notificationsView,
-            screen: const NotificationsScreen(),
-          ),
-        ].where((item) => state.hasPermission(item.permission)).toList();
-
-        final managementItems = <_DrawerItem>[
-          _DrawerItem(
-            icon: Icons.how_to_reg_outlined,
-            label: 'Admissions',
-            permission: AppPermission.admissionsView,
-            screen: const AdmissionsScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.groups_outlined,
-            label: 'Students',
-            permission: AppPermission.studentsView,
-            screen: const StudentManagementScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.co_present_outlined,
-            label: 'Teachers',
-            permission: AppPermission.teachersView,
-            screen: const TeacherManagementScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.badge_outlined,
-            label: 'HR & Payroll',
-            permission: AppPermission.hrView,
-            screen: const HRScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.account_balance_outlined,
-            label: 'Accounting',
-            permission: AppPermission.accountingView,
-            screen: const AccountingScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.event_outlined,
-            label: 'Events',
-            permission: AppPermission.eventsView,
-            screen: const EventsScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.bed_outlined,
-            label: 'Hostel',
-            permission: AppPermission.hostelView,
-            screen: const HostelScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.inventory_2_outlined,
-            label: 'Inventory',
-            permission: AppPermission.inventoryView,
-            screen: const InventoryScreen(),
-          ),
-          _DrawerItem(
-            icon: Icons.bar_chart_rounded,
-            label: 'Reports',
-            permission: AppPermission.reportsView,
-            screen: const ReportsScreen(),
-          ),
-        ].where((item) => state.hasPermission(item.permission)).toList();
+        final modules = ErpCatalog.modules
+            .where(
+              (ErpModule module) => ErpAccessPolicy.canViewModule(
+                module,
+                user,
+                state.hasPermission,
+              ),
+            )
+            .toList(growable: false);
 
         return Column(
           children: <Widget>[
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(20, 54, 20, 20),
+              padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
               decoration: const BoxDecoration(
                 gradient: AppColors.brandGradient,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const CircleAvatar(
-                    radius: 28,
-                    backgroundColor: Colors.white24,
-                    child: Icon(Icons.person, color: Colors.white, size: 30),
+                  Row(
+                    children: <Widget>[
+                      const CircleAvatar(
+                        radius: 28,
+                        backgroundColor: Colors.white24,
+                        child: Icon(
+                          Icons.person,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (TenantErpService().isDemoMode)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.16),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text(
+                            'DEMO',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -222,7 +102,9 @@ class MainDrawer extends StatelessWidget {
                     tenant?.name ?? 'CARTZ Link SMS',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.white.withOpacity(0.88)),
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.88),
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -245,23 +127,43 @@ class MainDrawer extends StatelessWidget {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: <Widget>[
-                  ...quickItems.map(
-                    (_DrawerItem item) => _tile(
-                      context,
-                      item.icon,
-                      item.label,
-                      () => _go(context, item.screen),
-                    ),
+                  _tile(
+                    context,
+                    Icons.dashboard_outlined,
+                    'Dashboard',
+                    () => _replace(context, const Home()),
                   ),
-                  if (managementItems.isNotEmpty) ...<Widget>[
+                  if (state.hasPermission(AppPermission.profileView))
+                    _tile(
+                      context,
+                      Icons.person_outline,
+                      'My Profile',
+                      () => _go(context, const ProfileScreen()),
+                    ),
+                  if (state.hasPermission(AppPermission.notificationsView))
+                    _tile(
+                      context,
+                      Icons.notifications_none_rounded,
+                      'Notifications',
+                      () => _go(context, const NotificationsScreen()),
+                    ),
+                  if (modules.isNotEmpty) ...<Widget>[
                     const Divider(),
-                    _section('Management'),
-                    ...managementItems.map(
-                      (_DrawerItem item) => _tile(
+                    _section('School ERP'),
+                    ...modules.map(
+                      (ErpModule module) => _moduleMenu(
                         context,
-                        item.icon,
-                        item.label,
-                        () => _go(context, item.screen),
+                        module,
+                        module.entities
+                            .where(
+                              (ErpEntity entity) =>
+                                  ErpAccessPolicy.canViewEntity(
+                                entity,
+                                user,
+                                state.hasPermission,
+                              ),
+                            )
+                            .toList(growable: false),
                       ),
                     ),
                   ],
@@ -278,13 +180,62 @@ class MainDrawer extends StatelessWidget {
                     Icons.logout,
                     'Logout',
                     () => _logout(context),
+                    color: AppColors.danger,
                   ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _moduleMenu(
+    BuildContext context,
+    ErpModule module,
+    List<ErpEntity> entities,
+  ) {
+    return ExpansionTile(
+      tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+      childrenPadding: const EdgeInsets.only(left: 12, bottom: 4),
+      leading: Icon(module.icon, color: module.color),
+      title: Text(
+        module.title,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      children: <Widget>[
+        ListTile(
+          dense: true,
+          leading: Icon(
+            Icons.dashboard_customize_outlined,
+            color: module.color,
+            size: 20,
+          ),
+          title: const Text('Module Overview'),
+          onTap: () => _go(
+            context,
+            ErpModuleScreen(module: module),
+          ),
+        ),
+        ...entities.map(
+          (ErpEntity entity) => ListTile(
+            dense: true,
+            leading: Icon(
+              entity.icon,
+              color: entity.color,
+              size: 20,
+            ),
+            title: Text(entity.title),
+            trailing: const Icon(Icons.chevron_right, size: 17),
+            onTap: () => _go(
+              context,
+              ErpEntityListScreen(entity: entity),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -307,29 +258,49 @@ class MainDrawer extends StatelessWidget {
     BuildContext context,
     IconData icon,
     String label,
-    VoidCallback onTap,
-  ) {
+    VoidCallback onTap, {
+    Color color = AppColors.primary,
+  }) {
     return ListTile(
-      leading: Icon(icon, color: AppColors.primary),
+      dense: true,
+      leading: Icon(icon, color: color),
       title: Text(
         label,
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
+      trailing: const Icon(Icons.chevron_right, size: 18),
       onTap: onTap,
     );
   }
-}
 
-class _DrawerItem {
-  final IconData icon;
-  final String label;
-  final String permission;
-  final Widget screen;
+  void _go(BuildContext context, Widget screen) {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (_) => screen),
+    );
+  }
 
-  const _DrawerItem({
-    required this.icon,
-    required this.label,
-    required this.permission,
-    required this.screen,
-  });
+  void _replace(BuildContext context, Widget screen) {
+    Navigator.pop(context);
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute<void>(builder: (_) => screen),
+      (Route<dynamic> route) => false,
+    );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    Navigator.pop(context);
+    await AuthService().signOut();
+    SessionState.instance.clear();
+    if (!context.mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => const MyHomePage(title: 'CARTZ Link SMS'),
+      ),
+      (Route<dynamic> route) => false,
+    );
+  }
 }

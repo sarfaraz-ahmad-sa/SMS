@@ -29,6 +29,34 @@ class Tenant {
     this.createdAt,
   });
 
+  Tenant copyWith({
+    String? name,
+    String? code,
+    String? logoUrl,
+    int? brandColor,
+    String? timezone,
+    String? currency,
+    String? activeAcademicYearId,
+    bool? isActive,
+    Subscription? subscription,
+    DateTime? createdAt,
+  }) {
+    return Tenant(
+      id: id,
+      name: name ?? this.name,
+      code: code ?? this.code,
+      logoUrl: logoUrl ?? this.logoUrl,
+      brandColor: brandColor ?? this.brandColor,
+      timezone: timezone ?? this.timezone,
+      currency: currency ?? this.currency,
+      activeAcademicYearId:
+          activeAcademicYearId ?? this.activeAcademicYearId,
+      isActive: isActive ?? this.isActive,
+      subscription: subscription ?? this.subscription,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
   factory Tenant.fromMap(String id, Map<String, dynamic> map) {
     final rawSubscription = map['subscription'];
     final subscriptionMap = rawSubscription is Map

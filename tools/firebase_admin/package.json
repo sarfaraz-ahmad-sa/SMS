@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "seed:tenant": "node seed-tenant.mjs",
-    "migrate:flat": "node migrate-flat-collections.mjs"
+    "migrate:flat": "node migrate-flat-collections.mjs",
+    "seed:enterprise": "node seed-enterprise-data.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.4.0"

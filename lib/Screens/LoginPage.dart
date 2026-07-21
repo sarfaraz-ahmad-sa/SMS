@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../services/Auth_services.dart';
 import '../services/UserModel.dart';
+import '../services/session_state.dart';
 import '../services/models/subscription.dart';
 import '../services/models/tenant.dart';
 import '../services/models/user_role.dart';
-import '../services/session_state.dart';
 import '../services/tenant_service.dart';
 import '../theme/app_theme.dart';
 import 'ForgetPassword.dart';
@@ -33,7 +33,6 @@ class _MyHomePageState extends State<MyHomePage>
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-
   final AuthService _authService = AuthService();
   final TenantService _tenantService = TenantService();
 
@@ -45,35 +44,33 @@ class _MyHomePageState extends State<MyHomePage>
   bool _loading = false;
   bool _googleLoading = false;
 
+  static const bool _enableDeveloperLogin = bool.fromEnvironment(
+    'ENABLE_DEV_LOGIN',
+    defaultValue: true,
+  );
+
   @override
   void initState() {
     super.initState();
-
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
     )..forward();
-
     _fade = CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeOut,
     );
-
     _slide = Tween<Offset>(
       begin: const Offset(0, 0.06),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
 
     if (widget.initialMessage?.trim().isNotEmpty == true) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _showError(widget.initialMessage!);
-        }
+        if (mounted) _showError(widget.initialMessage!);
       });
     }
   }
@@ -87,10 +84,7 @@ class _MyHomePageState extends State<MyHomePage>
   }
 
   Future<void> _signIn() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
 
     try {
@@ -98,7 +92,6 @@ class _MyHomePageState extends State<MyHomePage>
         email: _emailController.text,
         password: _passwordController.text,
       );
-
       await _completeSignIn(credential);
     } on TenantAccessException catch (error) {
       await _authService.signOut();
@@ -108,15 +101,12 @@ class _MyHomePageState extends State<MyHomePage>
     } catch (_) {
       _showError('Something went wrong. Please try again.');
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _signInWithGoogle() async {
     setState(() => _googleLoading = true);
-
     try {
       final credential = await _authService.signInWithGoogle();
       await _completeSignIn(credential);
@@ -130,15 +120,12 @@ class _MyHomePageState extends State<MyHomePage>
     } catch (_) {
       _showError('Google sign-in failed. Please try again.');
     } finally {
-      if (mounted) {
-        setState(() => _googleLoading = false);
-      }
+      if (mounted) setState(() => _googleLoading = false);
     }
   }
 
   Future<void> _completeSignIn(UserCredential credential) async {
     final firebaseUser = credential.user;
-
     if (firebaseUser == null) {
       throw FirebaseAuthException(
         code: 'user-not-available',
@@ -147,10 +134,8 @@ class _MyHomePageState extends State<MyHomePage>
     }
 
     final session = await _tenantService.loadSession(firebaseUser);
-
     final accessibleTenants =
         await _tenantService.getAccessibleTenants(firebaseUser);
-
     SessionState.instance.setSession(
       user: session.user,
       tenant: session.tenant,
@@ -161,10 +146,7 @@ class _MyHomePageState extends State<MyHomePage>
       activeAcademicYearId: session.activeAcademicYearId,
     );
 
-    if (!mounted) {
-      return;
-    }
-
+    if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const Home()),
@@ -172,17 +154,14 @@ class _MyHomePageState extends State<MyHomePage>
     );
   }
 
-  // Temporary developer login.
-  // Sirf debug mode mein show aur execute hoga.
+
   void _developerLogin() {
-    if (!kDebugMode) {
-      return;
-    }
+    if (!kDebugMode || !_enableDeveloperLogin) return;
 
     const tenant = Tenant(
       id: 'school_demo',
-      name: 'Demo Public School',
-      code: 'DPS',
+      name: 'CARTZ Link Demo School',
+      code: 'DEMO',
       timezone: 'Asia/Karachi',
       currency: 'PKR',
       activeAcademicYearId: '2026-2027',
@@ -194,18 +173,12 @@ class _MyHomePageState extends State<MyHomePage>
 
     const user = UserModel(
       uid: 'debug-school-owner',
-      email: 'debug@local.test',
+      email: 'owner@demo.local',
       displayName: 'School Owner',
       tenantId: 'school_demo',
-      roles: <UserRole>[
-        UserRole.schoolOwner,
-      ],
-      permissions: <String>{
-        '*',
-      },
-      campusIds: <String>[
-        'main_campus',
-      ],
+      roles: <UserRole>[UserRole.schoolOwner],
+      permissions: <String>{'*'},
+      campusIds: <String>['main_campus'],
       isActive: true,
     );
 
@@ -219,8 +192,8 @@ class _MyHomePageState extends State<MyHomePage>
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const Home()),
-      (_) => false,
+      MaterialPageRoute<void>(builder: (_) => const Home()),
+      (Route<dynamic> route) => false,
     );
   }
 
@@ -228,38 +201,28 @@ class _MyHomePageState extends State<MyHomePage>
     switch (error.code) {
       case 'user-not-found':
         return 'No account was found for this email address.';
-
       case 'wrong-password':
       case 'invalid-credential':
         return 'Incorrect email address or password.';
-
       case 'invalid-email':
         return 'Enter a valid email address.';
-
       case 'user-disabled':
         return 'This account has been disabled.';
-
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
-
       case 'network-request-failed':
         return 'Network error. Check your internet connection.';
-
       case 'popup-closed-by-user':
       case 'cancelled-popup-request':
       case 'google-sign-in-cancelled':
         return 'Sign-in was cancelled.';
-
       default:
         return error.message ?? 'Sign-in failed. Please try again.';
     }
   }
 
   void _showError(String message) {
-    if (!mounted) {
-      return;
-    }
-
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -288,12 +251,7 @@ class _MyHomePageState extends State<MyHomePage>
                   child: Card(
                     elevation: 0,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        28,
-                        32,
-                        28,
-                        28,
-                      ),
+                      padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
                       child: Form(
                         key: _formKey,
                         child: Column(
@@ -322,35 +280,27 @@ class _MyHomePageState extends State<MyHomePage>
                             const SizedBox(height: 6),
                             const Text(
                               'Sign in with the account assigned by your school.',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                              ),
+                              style: TextStyle(color: AppColors.textSecondary),
                             ),
                             const SizedBox(height: 28),
                             TextFormField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
-                              autofillHints: const [
-                                AutofillHints.email,
-                              ],
+                              autofillHints: const [AutofillHints.email],
                               decoration: const InputDecoration(
                                 labelText: 'Email address',
                                 prefixIcon: Icon(Icons.mail_outline),
                               ),
                               validator: (value) {
                                 final email = value?.trim() ?? '';
-
                                 if (email.isEmpty) {
                                   return 'Enter your email address';
                                 }
-
-                                if (!RegExp(
-                                  r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                                ).hasMatch(email)) {
+                                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                                    .hasMatch(email)) {
                                   return 'Enter a valid email address';
                                 }
-
                                 return null;
                               },
                             ),
@@ -359,19 +309,11 @@ class _MyHomePageState extends State<MyHomePage>
                               controller: _passwordController,
                               obscureText: !_passwordVisible,
                               textInputAction: TextInputAction.done,
-                              autofillHints: const [
-                                AutofillHints.password,
-                              ],
-                              onFieldSubmitted: (_) {
-                                if (!_loading && !_googleLoading) {
-                                  _signIn();
-                                }
-                              },
+                              autofillHints: const [AutofillHints.password],
+                              onFieldSubmitted: (_) => _loading ? null : _signIn(),
                               decoration: InputDecoration(
                                 labelText: 'Password',
-                                prefixIcon: const Icon(
-                                  Icons.lock_outline,
-                                ),
+                                prefixIcon: const Icon(Icons.lock_outline),
                                 suffixIcon: IconButton(
                                   tooltip: _passwordVisible
                                       ? 'Hide password'
@@ -381,34 +323,25 @@ class _MyHomePageState extends State<MyHomePage>
                                         ? Icons.visibility_off_outlined
                                         : Icons.visibility_outlined,
                                   ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _passwordVisible =
-                                          !_passwordVisible;
-                                    });
-                                  },
+                                  onPressed: () => setState(
+                                    () => _passwordVisible = !_passwordVisible,
+                                  ),
                                 ),
                               ),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Enter your password';
-                                }
-
-                                return null;
-                              },
+                              validator: (value) =>
+                                  value == null || value.isEmpty
+                                      ? 'Enter your password'
+                                      : null,
                             ),
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          const ForgetPassword(),
-                                    ),
-                                  );
-                                },
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ForgetPassword(),
+                                  ),
+                                ),
                                 child: const Text('Forgot password?'),
                               ),
                             ),
@@ -429,13 +362,11 @@ class _MyHomePageState extends State<MyHomePage>
                                   : const Text('Sign in'),
                             ),
                             const SizedBox(height: 16),
-                            const Row(
-                              children: [
+                            Row(
+                              children: const [
                                 Expanded(child: Divider()),
                                 Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
+                                  padding: EdgeInsets.symmetric(horizontal: 12),
                                   child: Text(
                                     'OR',
                                     style: TextStyle(
@@ -461,42 +392,30 @@ class _MyHomePageState extends State<MyHomePage>
                                       ),
                                     )
                                   : const Icon(Icons.login_rounded),
-                              label: const Text(
-                                'Continue with Google',
-                              ),
+                              label: const Text('Continue with Google'),
                             ),
-
-                            // Temporary bypass button.
-                            if (kDebugMode) ...[
+                            if (kDebugMode && _enableDeveloperLogin) ...<Widget>[
                               const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                onPressed: _developerLogin,
-                                icon: const Icon(
-                                  Icons.developer_mode_rounded,
-                                ),
-                                label: const Text(
-                                  'Temporary Developer Login',
-                                ),
+                              FilledButton.tonalIcon(
+                                onPressed: _loading || _googleLoading
+                                    ? null
+                                    : _developerLogin,
+                                icon: const Icon(Icons.developer_mode_rounded),
+                                label: const Text('Open Full ERP Demo'),
                               ),
                             ],
-
                             const SizedBox(height: 12),
                             TextButton.icon(
                               onPressed: _loading || _googleLoading
                                   ? null
-                                  : () {
-                                      Navigator.push(
+                                  : () => Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (_) =>
-                                              const RequestLogin(),
+                                          builder: (_) => const RequestLogin(),
                                         ),
-                                      );
-                                    },
+                                      ),
                               icon: const Icon(Icons.badge_outlined),
-                              label: const Text(
-                                'Request a school login ID',
-                              ),
+                              label: const Text('Request a school login ID'),
                             ),
                             const SizedBox(height: 12),
                             const Text(

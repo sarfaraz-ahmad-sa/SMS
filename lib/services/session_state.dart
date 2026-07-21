@@ -51,6 +51,18 @@ class SessionState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateTenant(Tenant tenant) {
+    if (_tenant?.id != tenant.id) {
+      throw StateError('Cannot replace the active school with another tenant.');
+    }
+    _tenant = tenant;
+    _availableTenants = _availableTenants
+        .map((Tenant item) => item.id == tenant.id ? tenant : item)
+        .toList(growable: false);
+    _activeAcademicYearId = tenant.activeAcademicYearId;
+    notifyListeners();
+  }
+
   void updateUser(UserModel user) {
     if (_user?.uid != user.uid) {
       throw StateError('Cannot replace the active session with another user.');

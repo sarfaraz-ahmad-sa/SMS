@@ -1,149 +1,93 @@
-# CARTZ Link School Management System
+# CARTZ Link School Management SaaS
 
-A Flutter + Firebase multi-tenant foundation for a School Management SaaS platform.
+Production-oriented Flutter + Firebase School ERP foundation for schools, colleges and education groups.
 
-## What is implemented
+## Current build
 
+- **24 role-authorized ERP modules**
+- **105 tenant-scoped operational workflows**
+- Responsive desktop, tablet and mobile interface
 - Firebase email/password and Google authentication
-- Session restoration from Firebase Authentication
-- School/tenant membership validation
-- Multiple roles per user
-- Explicit and denied permissions
-- Role-based dashboard and navigation drawer
-- Multiple-school account switching
-- Tenant-scoped Firestore paths for students and events
-- Student archiving instead of destructive deletion
-- Firebase password reset and school-access request workflow
-- Firestore and Storage security rules with default-deny behavior
-- Material 3 responsive dashboard, dark mode, profile editing
-- Modern Android Gradle Plugin DSL and Flutter web bootstrap
+- Multi-school membership and school switching
+- 16 school/platform roles with explicit and denied permissions
+- Campus and academic-year context
+- Live Firestore data with an in-memory full ERP demo
+- Search, status filters, create, update, details and archive on every configured workflow
+- Default-deny Firestore and Storage rules
+- Firebase Admin onboarding and enterprise master-data seed tools
+- Light/dark themes and role-preview mode in the demo
 
-## Architecture
+Full inventory: [`docs/ENTERPRISE_MODULES.md`](docs/ENTERPRISE_MODULES.md)
 
-```text
-Flutter application
-        |
-Firebase Authentication
-        |
-Firestore membership and tenant context
-        |
-tenants/{tenantId}/...
+## Run immediately on Windows
+
+```bat
+cd /d C:\SMS
+start-demo.cmd
 ```
 
-For the commercial ERP phase, Laravel/MySQL should become the authoritative transactional backend. Firebase can remain responsible for identity, push notifications, App Check, and selected realtime features.
+On the login screen select **Open Full ERP Demo**. The button exists only in Flutter debug builds.
 
-## Required local setup
+## Connect the live Firebase project
 
-1. Install a current stable Flutter SDK and Java 17.
-2. Install Firebase CLI and FlutterFire CLI.
-3. Run:
+Run from `C:\SMS`, not from `tools\firebase_admin`:
 
-```bash
-flutter clean
-flutter pub get
+```bat
 flutterfire configure
-```
-
-`flutterfire configure` must generate/update:
-
-- `lib/firebase_options.dart`
-- `android/app/google-services.json`
-- `ios/Runner/GoogleService-Info.plist`
-
-4. Enable these Firebase Authentication providers:
-
-- Email/Password
-- Google
-
-5. Deploy security rules and indexes:
-
-```bash
 firebase deploy --only firestore:rules,firestore:indexes,storage
 ```
 
-6. Create the first tenant, user profile, and membership using the trusted scripts in `tools/firebase_admin`, a Cloud Function, or the Laravel backend. Do not allow tenant creation or role assignment from the Flutter client.
+Enable Email/Password and Google in Firebase Authentication before testing real login.
 
-## Firestore minimum records
+## Create the first real school
 
-### `users/{firebaseUid}`
+The trusted admin scripts require a Firebase service-account JSON stored outside the repository.
 
-```json
-{
-  "email": "owner@school.edu.pk",
-  "displayName": "School Owner",
-  "tenantIds": ["school_demo"],
-  "activeTenantId": "school_demo",
-  "isActive": true
-}
+```bat
+cd /d C:\SMS\tools\firebase_admin
+set "GOOGLE_APPLICATION_CREDENTIALS=C:\secure\firebase-service-account.json"
+seed-tenant.cmd
+seed-enterprise-data.cmd
 ```
 
-### `tenants/school_demo`
+The scripts create the first school owner membership and seed safe master records. Tenant creation, user role elevation and platform administration are intentionally blocked from the Flutter client.
 
-```json
-{
-  "name": "Demo Public School",
-  "code": "DPS",
-  "timezone": "Asia/Karachi",
-  "currency": "PKR",
-  "isActive": true,
-  "activeAcademicYearId": "2026-2027",
-  "subscription": {
-    "tier": "trial",
-    "status": "trialing"
-  }
-}
+## Data architecture
+
+```text
+Firebase Authentication
+        |
+users/{uid}
+        |
+tenants/{tenantId}/members/{uid}
+        |
+tenants/{tenantId}/{erpCollection}/{recordId}
 ```
 
-### `tenants/school_demo/members/{firebaseUid}`
+Every operational record carries tenant, campus, academic-year, actor, timestamps and archive metadata.
 
-```json
-{
-  "status": "active",
-  "isActive": true,
-  "roles": ["schoolOwner"],
-  "permissions": [],
-  "deniedPermissions": [],
-  "campusIds": ["main-campus"],
-  "activeCampusId": "main-campus",
-  "activeAcademicYearId": "2026-2027"
-}
-```
+## Production boundary
 
-## Run
+This repository provides the complete responsive ERP interface, tenant data model and authorization foundation. Before accepting live money or publishing legally significant records, connect a trusted Laravel API or Firebase Cloud Functions for:
 
-```bash
-flutter run
-```
+- payment callbacks, idempotency, settlement and reconciliation;
+- double-entry posting, reversals and period close;
+- payroll approval and bank disbursement;
+- final examination locking and result publication;
+- privileged user provisioning and role changes;
+- signed certificates and public verification;
+- immutable audit events, backups and retention enforcement;
+- external SMS, WhatsApp, email, GPS, biometric and SSO credentials.
 
-Web:
+Flutter permission checks shape the UI; Firestore rules and the trusted backend remain the authorization boundaries.
 
-```bash
-flutter run -d chrome
-```
+## Validation commands
 
-Release web build:
-
-```bash
+```bat
+cd /d C:\SMS
+flutter analyze
+flutter test
 flutter build web --release
 ```
 
-## Important security notes
-
-- Flutter permission checks only control presentation.
-- Firestore rules are the current authorization boundary.
-- When Laravel APIs are introduced, every API must independently validate tenant membership and permission.
-- Never commit service-account keys, `.env` files, signing keystores, database passwords, or private API credentials.
-- Replace Android debug signing before Play Store publication.
-
-## Documents
-
-- `SAAS_ARCHITECTURE.md`
-- `MERGE_REPORT.md`
-- `docs/FIRESTORE_DATA_MODEL.md`
-- `docs/MIGRATION_GUIDE.md`
-- `docs/FIRESTORE_RULES_TESTING.md`
-- `docs/MODULE_STATUS.md`
-- `docs/LARAVEL_HANDOFF.md`
-- `docs/PRODUCTION_CHECKLIST.md`
-- `tools/firebase_admin/README.md`
-- `DEPLOY_VERCEL.md`
+Do not commit `.env`, service-account JSON, private API keys, signing keystores or database credentials.

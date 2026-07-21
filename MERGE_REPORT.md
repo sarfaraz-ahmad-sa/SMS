@@ -1,44 +1,44 @@
-# Enterprise Merge Report
+# Enterprise SaaS Upgrade Report
 
-## Completed in this repository
+## Delivered
 
-- Removed production guest-role authentication bypass.
-- Added Firebase email/password and Google sign-in flow with school membership validation.
-- Added authenticated session restore on app start.
-- Added multi-tenant school switching.
-- Added multi-role users, explicit permissions, denied permissions, campus scope, and active academic-year context.
-- Converted the dashboard and drawer to permission-based navigation.
-- Moved student and event access to tenant-scoped Firestore subcollections.
-- Added immutable archive flows instead of client hard deletion.
-- Added default-deny Firestore and Storage rules.
-- Added Firestore composite indexes.
-- Added profile editing, password reset, and access-request handling.
-- Fixed the Events screen duplicate-widget compile blocker.
-- Removed unused and obsolete package dependencies.
-- Removed the stale lockfile; `flutter pub get` will generate a clean lockfile for the installed Flutter SDK.
-- Modernized Android Gradle plugin configuration and Flutter web bootstrap.
-- Added model and permission tests.
-- Added trusted Firebase Admin scripts to seed the first tenant and migrate legacy flat collections.
-- Added Firebase data model, migration, Laravel handoff, architecture, and production checklist documentation.
+- Replaced the static dashboard with a responsive, role-filtered enterprise ERP workspace.
+- Added 24 modules and 105 tenant-scoped workflows through a reusable schema-driven engine.
+- Added School Setup, Admissions, Students, Parents, Teachers, Welfare, HR/Payroll, Attendance, Academics, Examinations, Fees, Accounting, Library, Transport, Hostel, Inventory, Communication, Events, Documents, Timetable, Reports, Helpdesk, SaaS Administration and AI/Automation.
+- Added dynamic forms, validation, desktop tables, mobile cards, search, status filters, record details, edit and archive.
+- Added live Firestore persistence and a complete local debug demo store.
+- Added tenant, campus, academic year, user, created/updated and archive metadata to records.
+- Added multiple roles, effective permissions, denied permissions and module/entity visibility.
+- Added tenant switching, session restoration, profile management, live announcements/events and production-control settings.
+- Added demo role preview for every supported school role.
+- Expanded Firestore rules to cover all enterprise collections with default-deny behavior.
+- Added onboarding, enterprise master-data seed and legacy migration tools for Windows.
+- Added catalog integrity tests and updated deployment/architecture documentation.
 
-## Validation performed here
+## Static validation performed
 
-- Parsed every Dart source and test file with a Dart syntax parser.
-- Verified all relative imports resolve to existing files.
-- Verified every imported third-party package is declared in `pubspec.yaml`.
-- Checked tenant-scoped service paths and permission constants for consistency.
+- All relative Dart imports resolve.
+- Every `AppPermission` reference exists.
+- Module IDs and all 105 Firestore collection names are unique.
+- Every entity primary, secondary and status field resolves to a declared schema field.
+- Node admin scripts pass `node --check`.
+- JSON configuration files parse successfully.
+- Dart delimiter/string/comment structure was checked across all source files.
 
-## Validation still required on a Flutter workstation
+## Workstation validation required
 
-This execution environment does not include the Flutter SDK, Android SDK, Xcode, or Firebase Emulator Suite. Run:
+The build environment used for this merge does not include Flutter, Android SDK or Xcode. Run from the project root:
 
-```bash
+```bat
 flutter clean
 flutter pub get
 flutter analyze
 flutter test
-flutter run
-firebase emulators:exec --only firestore,storage "flutter test"
+flutter run -d chrome
 ```
 
-Also perform Android, iOS, and web release builds before deployment.
+Then run Android, iOS and web release builds and Firebase Emulator security tests before deployment.
+
+## Production qualification
+
+The delivered repository is a production-oriented SaaS application foundation and fully navigable ERP system. Financial settlement, privileged identity administration, final academic publication, signed documents, immutable auditing and third-party secrets still require trusted server-side implementation before a school goes live.
