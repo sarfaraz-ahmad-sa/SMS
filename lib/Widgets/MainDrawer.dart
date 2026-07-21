@@ -99,7 +99,7 @@ class MainDrawer extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    tenant?.name ?? 'CARTZ Link SMS',
+                    tenant?.name ?? 'SEEF SMS',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

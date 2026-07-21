@@ -23,9 +23,13 @@ class AuthService {
     );
   }
 
-  Future<UserCredential> signInWithGoogle() async {
+  // Web pe redirect se sign in shuru karta hai; result app reload ke baad
+  // getRedirectResult() se milta hai. Isliye web pe UserCredential nahi lautata.
+  Future<UserCredential?> signInWithGoogle() async {
     if (kIsWeb) {
-      return _firebaseAuth.signInWithPopup(GoogleAuthProvider());
+      // Popup COOP ki wajah se atakta hai, isliye redirect use karte hain.
+      await _firebaseAuth.signInWithRedirect(GoogleAuthProvider());
+      return null;
     }
 
     final account = await _googleSignIn.signIn();
@@ -42,6 +46,17 @@ class AuthService {
       idToken: authentication.idToken,
     );
     return _firebaseAuth.signInWithCredential(credential);
+  }
+
+  // Web pe redirect ke baad app dobara load hone par ye call karo
+  // taaki sign-in ka result mil jaaye.
+  Future<UserCredential?> getRedirectResultIfAny() async {
+    if (!kIsWeb) return null;
+    try {
+      return await _firebaseAuth.getRedirectResult();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> sendPasswordResetEmail(String email) {

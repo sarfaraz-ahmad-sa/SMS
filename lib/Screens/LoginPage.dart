@@ -73,6 +73,13 @@ class _MyHomePageState extends State<MyHomePage>
         if (mounted) _showError(widget.initialMessage!);
       });
     }
+
+    // Web: Google redirect ke baad wapas aane par result handle karo.
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleGoogleRedirectResult();
+      });
+    }
   }
 
   @override
@@ -109,7 +116,11 @@ class _MyHomePageState extends State<MyHomePage>
     setState(() => _googleLoading = true);
     try {
       final credential = await _authService.signInWithGoogle();
-      await _completeSignIn(credential);
+      // Web pe yahan credential null hoga kyunki redirect ho raha hai —
+      // asli result reload ke baad _handleGoogleRedirectResult() se milega.
+      if (credential?.user != null) {
+        await _completeSignIn(credential!);
+      }
     } on TenantAccessException catch (error) {
       await _authService.signOut();
       _showError(error.message);
@@ -119,6 +130,31 @@ class _MyHomePageState extends State<MyHomePage>
       }
     } catch (_) {
       _showError('Google sign-in failed. Please try again.');
+    } finally {
+      // Web pe page redirect ho jayega isliye finally shayad na chale;
+      // non-web pe loading band karna zaroori hai.
+      if (mounted) setState(() => _googleLoading = false);
+    }
+  }
+
+  // Web: redirect ke baad app dobara load hone par result pakadta hai.
+  Future<void> _handleGoogleRedirectResult() async {
+    setState(() => _googleLoading = true);
+    try {
+      final credential = await _authService.getRedirectResultIfAny();
+      // credential null ho sakta hai agar user abhi redirect se nahi aaya.
+      if (credential?.user != null) {
+        await _completeSignIn(credential!);
+      }
+    } on TenantAccessException catch (error) {
+      await _authService.signOut();
+      _showError(error.message);
+    } on FirebaseAuthException catch (error) {
+      if (error.code != 'google-sign-in-cancelled') {
+        _showError(_messageForFirebaseError(error));
+      }
+    } catch (_) {
+      // redirect result nahi tha, chup rahe.
     } finally {
       if (mounted) setState(() => _googleLoading = false);
     }
@@ -154,13 +190,12 @@ class _MyHomePageState extends State<MyHomePage>
     );
   }
 
-
   void _developerLogin() {
     if (!kDebugMode || !_enableDeveloperLogin) return;
 
     const tenant = Tenant(
       id: 'school_demo',
-      name: 'CARTZ Link Demo School',
+      name: 'SEEF Demo School',
       code: 'DEMO',
       timezone: 'Asia/Karachi',
       currency: 'PKR',
@@ -419,7 +454,7 @@ class _MyHomePageState extends State<MyHomePage>
                             ),
                             const SizedBox(height: 12),
                             const Text(
-                              'Powered by CARTZ Link',
+                              'Powered by SEEF',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: AppColors.textSecondary,

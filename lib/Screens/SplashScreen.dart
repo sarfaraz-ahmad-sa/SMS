@@ -78,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     await _waitForBrandAnimation(startedAt);
     _replace(MyHomePage(
-      title: 'CARTZ Link SMS',
+      title: 'SMS',
       initialMessage: loginMessage,
     ));
   }
@@ -130,7 +130,7 @@ class _SplashScreenState extends State<SplashScreen>
               ),
               const SizedBox(height: 24),
               const Text(
-                'CARTZ Link',
+                'SEEF',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 30,

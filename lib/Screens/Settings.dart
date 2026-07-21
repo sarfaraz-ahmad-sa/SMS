@@ -221,7 +221,7 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 28),
                   const Center(
                     child: Text(
-                      'CARTZ Link School Management SaaS',
+                      'SEEF School Management SaaS',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontWeight: FontWeight.w600,

@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
       listenable: SessionState.instance,
       builder: (context, _) {
         return MaterialApp(
-          title: 'CARTZ Link SMS',
+          title: 'SMS',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
