@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum SubscriptionTier { trial, starter, pro, enterprise }
+enum SubscriptionTier { trial, starter, pro, enterprise, custom }
 
 enum SubscriptionStatus { trialing, active, pastDue, suspended, cancelled }
 
@@ -12,9 +12,11 @@ extension SubscriptionTierX on SubscriptionTier {
       case SubscriptionTier.starter:
         return 'Starter';
       case SubscriptionTier.pro:
-        return 'Pro';
+        return 'Professional';
       case SubscriptionTier.enterprise:
         return 'Enterprise';
+      case SubscriptionTier.custom:
+        return 'Custom';
     }
   }
 
@@ -29,6 +31,7 @@ extension SubscriptionTierX on SubscriptionTier {
       case SubscriptionTier.pro:
         return 2000;
       case SubscriptionTier.enterprise:
+      case SubscriptionTier.custom:
         return 0;
     }
   }
@@ -53,19 +56,29 @@ class Subscription {
   final SubscriptionStatus status;
   final DateTime? currentPeriodEnd;
   final DateTime? trialEndsAt;
+  final DateTime? gracePeriodEndsAt;
+  final bool cancelAtPeriodEnd;
+  final Set<String> enabledFeatures;
+  final Map<String, int> limits;
 
   const Subscription({
     required this.tier,
     this.status = SubscriptionStatus.trialing,
     this.currentPeriodEnd,
     this.trialEndsAt,
+    this.gracePeriodEndsAt,
+    this.cancelAtPeriodEnd = false,
+    this.enabledFeatures = const <String>{},
+    this.limits = const <String, int>{},
   });
 
   bool get isExpired {
+    final now = DateTime.now();
     final end = status == SubscriptionStatus.trialing
         ? trialEndsAt ?? currentPeriodEnd
         : currentPeriodEnd;
-    return end != null && end.isBefore(DateTime.now());
+    if (end == null || !end.isBefore(now)) return false;
+    return gracePeriodEndsAt == null || gracePeriodEndsAt!.isBefore(now);
   }
 
   bool get isUsable =>
@@ -73,9 +86,15 @@ class Subscription {
       status != SubscriptionStatus.cancelled &&
       status != SubscriptionStatus.suspended;
 
-  /// Display label exposed directly by the model so callers do not depend on
-  /// extension-import resolution.
+  bool get requiresAttention =>
+      status == SubscriptionStatus.pastDue ||
+      status == SubscriptionStatus.suspended ||
+      status == SubscriptionStatus.cancelled ||
+      isExpired;
+
   String get planLabel => tier.label;
+
+  int? limit(String key) => limits[key];
 
   factory Subscription.fromMap(Map<String, dynamic> map) {
     final legacyActive = map['active'];
@@ -83,11 +102,35 @@ class Subscription {
         ? SubscriptionStatus.suspended
         : subscriptionStatusFromString(map['status']?.toString());
 
+    Set<String> parseFeatures(dynamic value) {
+      if (value is! Iterable) return <String>{};
+      return value
+          .map((dynamic item) => item?.toString().trim() ?? '')
+          .where((String item) => item.isNotEmpty)
+          .toSet();
+    }
+
+    Map<String, int> parseLimits(dynamic value) {
+      if (value is! Map) return <String, int>{};
+      final result = <String, int>{};
+      value.forEach((dynamic key, dynamic rawValue) {
+        final parsed = rawValue is num
+            ? rawValue.toInt()
+            : int.tryParse(rawValue?.toString() ?? '');
+        if (parsed != null) result[key.toString()] = parsed;
+      });
+      return result;
+    }
+
     return Subscription(
       tier: subscriptionTierFromString(map['tier']?.toString()),
       status: inferredStatus,
       currentPeriodEnd: _dateFromValue(map['currentPeriodEnd']),
       trialEndsAt: _dateFromValue(map['trialEndsAt']),
+      gracePeriodEndsAt: _dateFromValue(map['gracePeriodEndsAt']),
+      cancelAtPeriodEnd: map['cancelAtPeriodEnd'] == true,
+      enabledFeatures: parseFeatures(map['enabledFeatures']),
+      limits: parseLimits(map['limits']),
     );
   }
 
@@ -100,6 +143,12 @@ class Subscription {
             : Timestamp.fromDate(currentPeriodEnd!),
         'trialEndsAt':
             trialEndsAt == null ? null : Timestamp.fromDate(trialEndsAt!),
+        'gracePeriodEndsAt': gracePeriodEndsAt == null
+            ? null
+            : Timestamp.fromDate(gracePeriodEndsAt!),
+        'cancelAtPeriodEnd': cancelAtPeriodEnd,
+        'enabledFeatures': enabledFeatures.toList()..sort(),
+        'limits': limits,
       };
 }
 

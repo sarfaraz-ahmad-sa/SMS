@@ -12,6 +12,10 @@ class UserModel {
   final Set<String> deniedPermissions;
   final List<String> campusIds;
   final bool isActive;
+  final bool mustChangePassword;
+  final String? linkedRecordType;
+  final String? linkedRecordId;
+  final String themeMode;
 
   const UserModel({
     required this.uid,
@@ -24,6 +28,10 @@ class UserModel {
     this.deniedPermissions = const <String>{},
     this.campusIds = const <String>[],
     this.isActive = true,
+    this.mustChangePassword = false,
+    this.linkedRecordType,
+    this.linkedRecordId,
+    this.themeMode = 'system',
   });
 
   UserRole get role => roles.isNotEmpty ? roles.first : UserRole.student;
@@ -38,6 +46,11 @@ class UserModel {
     Set<String>? deniedPermissions,
     List<String>? campusIds,
     bool? isActive,
+    bool? mustChangePassword,
+    String? linkedRecordType,
+    String? linkedRecordId,
+    String? themeMode,
+    bool clearLinkedRecord = false,
   }) {
     return UserModel(
       uid: uid,
@@ -50,6 +63,12 @@ class UserModel {
       deniedPermissions: deniedPermissions ?? this.deniedPermissions,
       campusIds: campusIds ?? this.campusIds,
       isActive: isActive ?? this.isActive,
+      mustChangePassword: mustChangePassword ?? this.mustChangePassword,
+      linkedRecordType:
+          clearLinkedRecord ? null : (linkedRecordType ?? this.linkedRecordType),
+      linkedRecordId:
+          clearLinkedRecord ? null : (linkedRecordId ?? this.linkedRecordId),
+      themeMode: themeMode ?? this.themeMode,
     );
   }
 
@@ -120,6 +139,11 @@ class UserModel {
           .toList();
     }
 
+    String? optionalText(dynamic value) {
+      final text = value?.toString().trim();
+      return text == null || text.isEmpty ? null : text;
+    }
+
     final mappedTenantId = map['tenantId']?.toString().trim();
 
     return UserModel(
@@ -135,6 +159,13 @@ class UserModel {
       deniedPermissions: parseSet(map['deniedPermissions']),
       campusIds: parseList(map['campusIds']),
       isActive: map['isActive'] is bool ? map['isActive'] as bool : true,
+      mustChangePassword: map['mustChangePassword'] == true,
+      linkedRecordType: optionalText(map['linkedRecordType']),
+      linkedRecordId: optionalText(map['linkedRecordId']),
+      themeMode: const <String>{'light', 'dark', 'system'}
+              .contains(map['themeMode']?.toString())
+          ? map['themeMode'].toString()
+          : 'system',
     );
   }
 
@@ -148,5 +179,9 @@ class UserModel {
         'deniedPermissions': deniedPermissions.toList(),
         'campusIds': campusIds,
         'isActive': isActive,
+        'mustChangePassword': mustChangePassword,
+        'linkedRecordType': linkedRecordType,
+        'linkedRecordId': linkedRecordId,
+        'themeMode': themeMode,
       };
 }

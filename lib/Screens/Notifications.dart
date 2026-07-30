@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../Widgets/saas_scaffold.dart';
+
 import '../core/erp/erp_catalog.dart';
 import '../core/erp/erp_entity.dart';
 import '../core/erp/erp_record.dart';
@@ -18,46 +20,56 @@ class NotificationsScreen extends StatelessWidget {
     final event = ErpCatalog.entityByCollection('events');
 
     if (announcement == null || event == null) {
-      return const Scaffold(
+      return const SaasScaffold(
+        title: 'Notifications & Updates',
+        activeRoute: '/notifications',
         body: Center(child: Text('Notification modules are unavailable.')),
       );
     }
 
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Notifications & Updates'),
-          bottom: const TabBar(
-            tabs: <Widget>[
-              Tab(text: 'Announcements', icon: Icon(Icons.campaign_outlined)),
-              Tab(text: 'Events', icon: Icon(Icons.event_outlined)),
-            ],
-          ),
-          actions: <Widget>[
-            if (SessionState.instance
-                .hasPermission(AppPermission.communicationManage))
-              IconButton(
-                tooltip: 'Manage announcements',
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => ErpEntityListScreen(entity: announcement),
-                  ),
+      child: SaasScaffold(
+        title: 'Notifications & Updates',
+        activeRoute: '/notifications',
+        actions: <Widget>[
+          if (SessionState.instance
+              .hasPermission(AppPermission.communicationManage))
+            IconButton(
+              tooltip: 'Manage announcements',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => ErpEntityListScreen(entity: announcement),
                 ),
-                icon: const Icon(Icons.edit_notifications_outlined),
               ),
-          ],
-        ),
-        body: TabBarView(
-          children: <Widget>[
-            _RecordFeed(
-              entity: announcement,
-              emptyMessage: 'No announcements have been published yet.',
+              icon: const Icon(Icons.edit_notifications_outlined),
             ),
-            _RecordFeed(
-              entity: event,
-              emptyMessage: 'No upcoming events are available.',
+        ],
+        body: Column(
+          children: <Widget>[
+            const Material(
+              color: Colors.transparent,
+              child: TabBar(
+                tabs: <Widget>[
+                  Tab(text: 'Announcements', icon: Icon(Icons.campaign_outlined)),
+                  Tab(text: 'Events', icon: Icon(Icons.event_outlined)),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: <Widget>[
+                  _RecordFeed(
+                    entity: announcement,
+                    emptyMessage: 'No announcements have been published yet.',
+                  ),
+                  _RecordFeed(
+                    entity: event,
+                    emptyMessage: 'No upcoming events are available.',
+                  ),
+                ],
+              ),
             ),
           ],
         ),

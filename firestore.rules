@@ -18,6 +18,38 @@ service cloud.firestore {
       return /databases/$(database)/documents/tenants/$(tenantId)/members/$(request.auth.uid);
     }
 
+    function tenantPath(tenantId) {
+      return /databases/$(database)/documents/tenants/$(tenantId);
+    }
+
+    function tenantData(tenantId) {
+      return get(tenantPath(tenantId)).data;
+    }
+
+    function isTenantUsable(tenantId) {
+      let subscription = tenantData(tenantId).get('subscription', {});
+      let status = subscription.get('status', 'active');
+      let currentPeriodEnd = subscription.get('currentPeriodEnd', null);
+      let trialEndsAt = subscription.get('trialEndsAt', null);
+      let gracePeriodEndsAt = subscription.get('gracePeriodEndsAt', null);
+      let inGracePeriod = gracePeriodEndsAt != null &&
+        gracePeriodEndsAt > request.time;
+      return exists(tenantPath(tenantId)) &&
+        tenantData(tenantId).get('isActive', true) == true &&
+        !(status in ['inactive', 'expired', 'cancelled', 'suspended']) &&
+        (
+          currentPeriodEnd == null ||
+          currentPeriodEnd > request.time ||
+          inGracePeriod
+        ) &&
+        (
+          status != 'trialing' ||
+          trialEndsAt == null ||
+          trialEndsAt > request.time ||
+          inGracePeriod
+        );
+    }
+
     function hasMembershipDocument(tenantId) {
       return signedIn() && exists(memberPath(tenantId));
     }
@@ -39,13 +71,17 @@ service cloud.firestore {
 
     function isActiveMember(tenantId) {
       return signedIn() &&
+        isTenantUsable(tenantId) &&
         (
           (
             hasMembershipDocument(tenantId) &&
             memberData(tenantId).get('isActive', true) == true &&
             memberData(tenantId).get('status', 'active') == 'active'
           ) ||
-          legacyTenantAccess(tenantId)
+          (
+            !hasMembershipDocument(tenantId) &&
+            legacyTenantAccess(tenantId)
+          )
         );
     }
 
@@ -69,10 +105,12 @@ service cloud.firestore {
 
     function hasPermission(tenantId, permission) {
       return isActiveMember(tenantId) &&
-        !(permission in deniedPermissions(tenantId)) &&
         (
           '*' in memberPermissions(tenantId) ||
-          permission in memberPermissions(tenantId)
+          (
+            !(permission in deniedPermissions(tenantId)) &&
+            permission in memberPermissions(tenantId)
+          )
         );
     }
 
@@ -97,7 +135,16 @@ service cloud.firestore {
       ]);
     }
 
-    function isRelatedToSignedInUser(data) {
+    function studentPath(tenantId, studentRecordId) {
+      return /databases/$(database)/documents/tenants/$(tenantId)/students/$(studentRecordId);
+    }
+
+    function linkedStudentData(tenantId, studentRecordId) {
+      return get(studentPath(tenantId, studentRecordId)).data;
+    }
+
+    function isRelatedToSignedInUser(tenantId, data) {
+      let studentRecordId = data.get('studentRecordId', '');
       return signedIn() &&
         (
           data.get('authUid', '') == request.auth.uid ||
@@ -107,8 +154,59 @@ service cloud.firestore {
             request.auth.uid in data.get('guardianUids', [])
           ) ||
           data.get('requesterUid', '') == request.auth.uid ||
-          data.get('createdBy', '') == request.auth.uid
+          data.get('createdBy', '') == request.auth.uid ||
+          (
+            studentRecordId is string &&
+            studentRecordId.size() > 0 &&
+            exists(studentPath(tenantId, studentRecordId)) &&
+            (
+              linkedStudentData(tenantId, studentRecordId).get('authUid', '') ==
+                request.auth.uid ||
+              (
+                linkedStudentData(tenantId, studentRecordId)
+                  .get('guardianUids', []) is list &&
+                request.auth.uid in linkedStudentData(tenantId, studentRecordId)
+                  .get('guardianUids', [])
+              )
+            )
+          )
         );
+    }
+
+    function validStudentRelation(tenantId, data) {
+      let studentRecordId = data.get('studentRecordId', '');
+      return !(studentRecordId is string) ||
+        studentRecordId.size() == 0 ||
+        (
+          exists(studentPath(tenantId, studentRecordId)) &&
+          (
+            data.get('authUid', '') == '' ||
+            data.get('authUid', '') ==
+              linkedStudentData(tenantId, studentRecordId).get('authUid', '')
+          ) &&
+          data.get('guardianUids', []) is list &&
+          data.get('guardianUids', []).hasOnly(
+            linkedStudentData(tenantId, studentRecordId).get('guardianUids', [])
+          )
+        );
+    }
+
+    function requiresPersonalScope(tenantId, collection) {
+      return hasAnyRole(tenantId, ['student', 'parent']) &&
+        collection in [
+          'students', 'student_enrollments', 'student_promotions',
+          'student_transfers', 'discipline_records', 'student_achievements',
+          'guardians', 'student_guardians',
+          'student_attendance', 'student_leave_requests',
+          'fee_invoices', 'payments', 'mark_entries', 'exam_results',
+          'transcripts', 'book_loans', 'library_reservations',
+          'transport_assignments', 'hostel_allocations',
+          'certificate_requests', 'issued_certificates',
+          'student_medical_profiles', 'clinic_visits', 'counseling_cases',
+          'learning_accommodations', 'parent_meetings',
+          'event_registrations', 'leave_requests', 'support_tickets',
+          'complaints'
+        ];
     }
 
     function schoolSetupCollections(collection) {
@@ -277,6 +375,78 @@ service cloud.firestore {
         welfareCollections(collection) ||
         administrationCollections(collection) ||
         aiCollections(collection);
+    }
+
+    function featureEnabled(tenantId, feature) {
+      let subscription = tenantData(tenantId).get('subscription', {});
+      let configured = subscription.get('enabledFeatures', []);
+      let tier = subscription.get('tier', 'trial');
+      return
+        (configured is list && configured.size() > 0 && feature in configured) ||
+        (
+          (!(configured is list) || configured.size() == 0) &&
+          (
+            tier in ['enterprise', 'custom'] ||
+            (
+              tier == 'pro' &&
+              feature in [
+                'core_school', 'admissions', 'attendance', 'academics',
+                'examinations', 'fees', 'accounting', 'hr_payroll',
+                'library', 'transport', 'hostel', 'inventory',
+                'communication', 'documents', 'helpdesk', 'welfare',
+                'reporting', 'integrations', 'multi_campus', 'advanced_audit'
+              ]
+            ) ||
+            (
+              tier == 'starter' &&
+              feature in [
+                'core_school', 'admissions', 'attendance', 'academics',
+                'examinations', 'fees', 'library', 'transport',
+                'communication', 'documents', 'helpdesk', 'reporting'
+              ]
+            ) ||
+            (
+              tier == 'trial' &&
+              feature in [
+                'core_school', 'admissions', 'attendance', 'academics',
+                'examinations', 'fees', 'library', 'communication',
+                'documents', 'helpdesk'
+              ]
+            )
+          )
+        );
+    }
+
+    function collectionEntitled(tenantId, collection) {
+      return
+        (
+          (
+            schoolSetupCollections(collection) || studentCollections(collection) ||
+            parentCollections(collection) || teacherCollections(collection) ||
+            eventCollections(collection)
+          ) && featureEnabled(tenantId, 'core_school')
+        ) ||
+        (admissionCollections(collection) && featureEnabled(tenantId, 'admissions')) ||
+        (attendanceCollections(collection) && featureEnabled(tenantId, 'attendance')) ||
+        (
+          (academicCollections(collection) || timetableCollections(collection)) &&
+          featureEnabled(tenantId, 'academics')
+        ) ||
+        (examinationCollections(collection) && featureEnabled(tenantId, 'examinations')) ||
+        (feeCollections(collection) && featureEnabled(tenantId, 'fees')) ||
+        (accountingCollections(collection) && featureEnabled(tenantId, 'accounting')) ||
+        (hrCollections(collection) && featureEnabled(tenantId, 'hr_payroll')) ||
+        (libraryCollections(collection) && featureEnabled(tenantId, 'library')) ||
+        (transportCollections(collection) && featureEnabled(tenantId, 'transport')) ||
+        (hostelCollections(collection) && featureEnabled(tenantId, 'hostel')) ||
+        (inventoryCollections(collection) && featureEnabled(tenantId, 'inventory')) ||
+        (communicationCollections(collection) && featureEnabled(tenantId, 'communication')) ||
+        (documentCollections(collection) && featureEnabled(tenantId, 'documents')) ||
+        (helpdeskCollections(collection) && featureEnabled(tenantId, 'helpdesk')) ||
+        (welfareCollections(collection) && featureEnabled(tenantId, 'welfare')) ||
+        (reportCollections(collection) && featureEnabled(tenantId, 'reporting')) ||
+        (administrationCollections(collection) && featureEnabled(tenantId, 'advanced_audit')) ||
+        (aiCollections(collection) && featureEnabled(tenantId, 'ai_automation'));
     }
 
     function canViewCollection(tenantId, collection) {
@@ -466,9 +636,17 @@ service cloud.firestore {
         (
           welfareCollections(collection) &&
           (
-            hasPermission(tenantId, 'welfare.view') ||
-            hasPermission(tenantId, 'welfare.manage') ||
-            (collection == 'safeguarding_cases' && hasPermission(tenantId, 'compliance.view'))
+            (
+              collection == 'safeguarding_cases' &&
+              hasPermission(tenantId, 'compliance.view')
+            ) ||
+            (
+              collection != 'safeguarding_cases' &&
+              (
+                hasPermission(tenantId, 'welfare.view') ||
+                hasPermission(tenantId, 'welfare.manage')
+              )
+            )
           )
         ) ||
         (
@@ -571,19 +749,48 @@ service cloud.firestore {
             )
           )
         ) &&
-        isRelatedToSignedInUser(request.resource.data);
+        isRelatedToSignedInUser(tenantId, request.resource.data);
+    }
+
+    function validSelfServiceCreate(collection) {
+      return request.resource.data.get('requesterUid', request.auth.uid) ==
+          request.auth.uid &&
+        (
+          (collection == 'library_reservations' &&
+            request.resource.data.get('status', '') == 'Waiting') ||
+          (collection == 'event_registrations' &&
+            request.resource.data.get('status', '') == 'Registered' &&
+            request.resource.data.get('feePaid', false) == false &&
+            request.resource.data.get('attendanceMarked', false) == false) ||
+          (collection == 'certificate_requests' &&
+            request.resource.data.get('status', '') == 'Requested') ||
+          (collection in ['student_leave_requests', 'leave_requests'] &&
+            request.resource.data.get('status', '') == 'Pending') ||
+          (collection == 'parent_meetings' &&
+            request.resource.data.get('status', '') == 'Requested') ||
+          (collection == 'support_tickets' &&
+            request.resource.data.get('status', '') == 'Open') ||
+          (collection == 'complaints' &&
+            request.resource.data.get('status', '') == 'Received')
+        );
+    }
+
+    function meteredCollection(collection) {
+      return collection in ['students', 'campuses'];
     }
 
     function validCreate(tenantId) {
       return request.resource.data.tenantId == tenantId &&
         request.resource.data.get('createdBy', '') == request.auth.uid &&
-        request.resource.data.get('isArchived', false) == false;
+        request.resource.data.get('isArchived', false) == false &&
+        validStudentRelation(tenantId, request.resource.data);
     }
 
     function validUpdate(tenantId) {
       return request.resource.data.tenantId == tenantId &&
         request.resource.data.tenantId == resource.data.tenantId &&
-        request.resource.data.get('createdBy', '') == resource.data.get('createdBy', '');
+        request.resource.data.get('createdBy', '') == resource.data.get('createdBy', '') &&
+        validStudentRelation(tenantId, request.resource.data);
     }
 
     match /users/{userId} {
@@ -593,7 +800,7 @@ service cloud.firestore {
         request.auth.uid == userId &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'activeTenantId', 'activeCampusId', 'activeAcademicYearId',
-          'displayName', 'photoUrl', 'updatedAt'
+          'displayName', 'photoUrl', 'themeMode', 'updatedAt'
         ]) &&
         (
           !request.resource.data.diff(resource.data).affectedKeys()
@@ -619,7 +826,8 @@ service cloud.firestore {
           (
             request.auth.uid == memberId ||
             isLeadership(tenantId) ||
-            hasPermission(tenantId, 'users.manage')
+            hasPermission(tenantId, 'users.manage') ||
+            hasAnyRole(tenantId, ['adminStaff', 'itAdmin'])
           );
         allow create, update, delete: if false;
       }
@@ -631,36 +839,74 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      match /saas_usage/{usageId} {
+        allow read: if isLeadership(tenantId) ||
+          hasPermission(tenantId, 'saas_admin.view') ||
+          hasPermission(tenantId, 'subscription.manage') ||
+          hasAnyRole(tenantId, ['itAdmin']);
+        allow write: if false;
+      }
+
+      match /approval_requests/{approvalId} {
+        allow read: if isActiveMember(tenantId) &&
+          (
+            isLeadership(tenantId) ||
+            hasPermission(tenantId, 'saas_admin.manage') ||
+            hasPermission(tenantId, 'accounting.manage') ||
+            hasPermission(tenantId, 'fees.manage') ||
+            hasPermission(tenantId, 'payroll.manage') ||
+            hasPermission(tenantId, 'exams.manage') ||
+            hasPermission(tenantId, 'students.manage') ||
+            hasPermission(tenantId, 'leave.manage') ||
+            resource.data.get('requesterUid', '') == request.auth.uid ||
+            resource.data.get('assignedToUid', '') == request.auth.uid
+          );
+        allow create, update, delete: if false;
+      }
+
+      match /onboarding_state/{stateId} {
+        allow read: if isLeadership(tenantId) ||
+          hasPermission(tenantId, 'school_setup.view') ||
+          hasPermission(tenantId, 'saas_admin.view');
+        allow write: if false;
+      }
+
       match /{collection}/{documentId} {
         allow read: if knownErpCollection(collection) &&
+          collectionEntitled(tenantId, collection) &&
           (
-            canViewCollection(tenantId, collection) ||
             (
-              collection in [
-                'students', 'student_attendance', 'student_leave_requests',
-                'fee_invoices', 'payments', 'exam_results', 'transcripts',
-                'book_loans', 'library_reservations',
-                'transport_assignments', 'hostel_allocations',
-                'certificate_requests', 'issued_certificates',
-                'student_medical_profiles', 'learning_accommodations',
-                'parent_meetings', 'event_registrations', 'leave_requests',
-                'support_tickets', 'complaints'
-              ] &&
+              canViewCollection(tenantId, collection) &&
+              !requiresPersonalScope(tenantId, collection)
+            ) ||
+            (
+              requiresPersonalScope(tenantId, collection) &&
               isActiveMember(tenantId) &&
-              isRelatedToSignedInUser(resource.data)
+              isRelatedToSignedInUser(tenantId, resource.data)
             )
           );
 
         allow create: if knownErpCollection(collection) &&
+          !meteredCollection(collection) &&
+          collectionEntitled(tenantId, collection) &&
+          validCreate(tenantId) &&
           (
             canManageCollection(tenantId, collection) ||
-            canCreateSelfService(tenantId, collection)
-          ) &&
-          validCreate(tenantId);
+            (
+              canCreateSelfService(tenantId, collection) &&
+              validSelfServiceCreate(collection)
+            )
+          );
 
         allow update: if knownErpCollection(collection) &&
+          collectionEntitled(tenantId, collection) &&
           canManageCollection(tenantId, collection) &&
-          validUpdate(tenantId);
+          validUpdate(tenantId) &&
+          (
+            !meteredCollection(collection) ||
+            request.resource.data.get('isArchived', false) ==
+              resource.data.get('isArchived', false)
+          );
 
         allow delete: if false;
       }

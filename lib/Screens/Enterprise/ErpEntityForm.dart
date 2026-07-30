@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/erp/erp_entity.dart';
@@ -157,6 +158,8 @@ class _ErpEntityFormState extends State<ErpEntityForm> {
 
       if (!mounted) return;
       Navigator.pop(context, true);
+    } on FirebaseFunctionsException catch (error) {
+      _showError(error.message ?? 'The trusted backend rejected this operation.');
     } on FirebaseException catch (error) {
       _showError(error.message ?? 'The record could not be saved.');
     } catch (error) {

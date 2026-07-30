@@ -63,6 +63,67 @@ class AuthService {
     return _firebaseAuth.sendPasswordResetEmail(email: email.trim());
   }
 
+  Future<void> reauthenticateWithPassword({
+    required String currentPassword,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    final email = user?.email;
+    if (user == null || email == null || email.trim().isEmpty) {
+      throw FirebaseAuthException(
+        code: 'user-not-available',
+        message: 'No email/password account is currently signed in.',
+      );
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: currentPassword,
+    );
+    await user.reauthenticateWithCredential(credential);
+    await user.getIdToken(true);
+  }
+
+  Future<void> refreshCurrentUser() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return;
+    await user.reload();
+    await _firebaseAuth.currentUser?.getIdToken(true);
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    final email = user?.email;
+    if (user == null || email == null || email.trim().isEmpty) {
+      throw FirebaseAuthException(
+        code: 'user-not-available',
+        message: 'No email/password account is currently signed in.',
+      );
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: currentPassword,
+    );
+    await user.reauthenticateWithCredential(credential);
+    await user.updatePassword(newPassword);
+    await user.reload();
+    await user.getIdToken(true);
+  }
+
+  Future<void> sendEmailVerification() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-available',
+        message: 'No authenticated account is available.',
+      );
+    }
+    if (!user.emailVerified) await user.sendEmailVerification();
+  }
+
   Future<void> signOut() async {
     try {
       await _googleSignIn.signOut();

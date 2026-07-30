@@ -4,9 +4,11 @@ import '../../core/erp/erp_access_policy.dart';
 import '../../core/erp/erp_entity.dart';
 import '../../core/erp/erp_module.dart';
 import '../../core/erp/tenant_erp_service.dart';
+import '../../services/plan_entitlement_service.dart';
 import '../../services/session_state.dart';
 import '../../theme/app_theme.dart';
-import '../../Widgets/TenantSwitcher.dart';
+import '../../Widgets/PermissionGate.dart';
+import '../../Widgets/saas_scaffold.dart';
 import 'ErpEntityListScreen.dart';
 import 'SchoolProfileScreen.dart';
 
@@ -25,6 +27,20 @@ class _ErpModuleScreenState extends State<ErpModuleScreen> {
   @override
   Widget build(BuildContext context) {
     final state = SessionState.instance;
+    final entitlement = PlanEntitlementService(tenant: state.tenant);
+    final canViewModule = entitlement.canAccessModule(widget.module.id) &&
+        ErpAccessPolicy.canViewModule(
+          widget.module,
+          state.user,
+          state.hasPermission,
+        );
+    if (!canViewModule) {
+      return SaasScaffold(
+        title: widget.module.title,
+        activeRoute: '/erp-module',
+        body: const PermissionDeniedView(),
+      );
+    }
     final entities = widget.module.entities
         .where(
           (ErpEntity entity) => ErpAccessPolicy.canViewEntity(
@@ -40,11 +56,9 @@ class _ErpModuleScreenState extends State<ErpModuleScreen> {
         })
         .toList();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.module.title),
-        actions: const <Widget>[TenantSwitcher(compact: true)],
-      ),
+    return SaasScaffold(
+      title: widget.module.title,
+      activeRoute: '/erp-module',
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1220),

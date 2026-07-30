@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../../Widgets/saas_scaffold.dart';
+
 import '../../core/erp/tenant_erp_service.dart';
 import '../../services/models/app_permission.dart';
 import '../../services/session_state.dart';
@@ -103,13 +105,16 @@ class _SchoolProfileScreenState extends State<SchoolProfileScreen> {
   Widget build(BuildContext context) {
     final tenant = SessionState.instance.tenant;
     if (tenant == null) {
-      return const Scaffold(
+      return const SaasScaffold(
+        title: 'School Profile',
+        activeRoute: '/erp-module',
         body: Center(child: Text('No active school session.')),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('School Profile')),
+    return SaasScaffold(
+      title: 'School Profile',
+      activeRoute: '/erp-module',
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 820),
@@ -119,7 +124,7 @@ class _SchoolProfileScreenState extends State<SchoolProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: AppColors.brandGradient,
+                  gradient: AppColors.tenantGradient(tenant),
                   borderRadius: BorderRadius.circular(22),
                 ),
                 child: Row(

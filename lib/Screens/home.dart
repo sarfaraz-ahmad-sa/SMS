@@ -1,29 +1,25 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../Widgets/FeatureCard.dart';
-import '../Widgets/MainDrawer.dart';
-import '../Widgets/TenantSwitcher.dart';
+import '../Widgets/saas_scaffold.dart';
 import '../core/erp/erp_access_policy.dart';
 import '../core/erp/erp_catalog.dart';
-import '../core/erp/erp_entity.dart';
 import '../core/erp/tenant_erp_service.dart';
 import '../services/models/app_permission.dart';
 import '../services/models/user_role.dart';
+import '../services/models/tenant.dart';
+import '../services/plan_entitlement_service.dart';
+import '../services/Auth_services.dart';
 import '../services/session_state.dart';
 import '../theme/app_theme.dart';
-import 'Activity.dart';
-import 'Attendance/Attendance.dart';
 import 'Enterprise/ErpEntityListScreen.dart';
 import 'Enterprise/ErpModuleScreen.dart';
-import 'Exam/Exam_Rseult.dart';
-import 'Fees.dart';
-import 'GlobalSearch.dart';
-import 'Leave_Apply/LeaveApply.dart';
-import 'Library.dart';
-import 'Notifications.dart';
 import 'Profile.dart';
-import 'TimeTable.dart';
-import 'Transport.dart';
+import 'Saas/saas_control_center_screen.dart';
+import 'Saas/tenant_onboarding_screen.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -34,6 +30,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   late Future<_DashboardSummaryData> _summaryFuture;
+  late final StreamSubscription<User?> _authSubscription;
   String? _dashboardContextKey;
 
   @override
@@ -42,12 +39,30 @@ class _HomeState extends State<Home> {
     _dashboardContextKey = _currentDashboardContextKey();
     _refreshDashboard();
     SessionState.instance.addListener(_handleSessionChange);
+    _authSubscription = AuthService().authStateChanges.listen(_handleAuthChange);
   }
 
   @override
   void dispose() {
     SessionState.instance.removeListener(_handleSessionChange);
+    _authSubscription.cancel();
     super.dispose();
+  }
+
+  void _handleAuthChange(User? firebaseUser) {
+    if (firebaseUser != null || !mounted) return;
+    final sessionUser = SessionState.instance.user;
+    if (sessionUser?.uid == 'debug-school-owner') return;
+
+    SessionState.instance.clear();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login',
+        (Route<dynamic> route) => false,
+      );
+    });
   }
 
   String _currentDashboardContextKey() {
@@ -79,6 +94,7 @@ class _HomeState extends State<Home> {
     final state = SessionState.instance;
     final user = state.user;
     final service = TenantErpService();
+    final entitlement = PlanEntitlementService(tenant: state.tenant);
 
     var students = 0;
     var totalAdmissions = 0;
@@ -91,12 +107,14 @@ class _HomeState extends State<Home> {
         ErpCatalog.entityByCollection('admission_applications');
 
     final canViewStudents = studentEntity != null &&
+        entitlement.canAccessModule('students') &&
         ErpAccessPolicy.canViewEntity(
           studentEntity,
           user,
           state.hasPermission,
         );
     final canViewAdmissions = admissionEntity != null &&
+        entitlement.canAccessModule('admissions') &&
         ErpAccessPolicy.canViewEntity(
           admissionEntity,
           user,
@@ -161,35 +179,9 @@ class _HomeState extends State<Home> {
           );
         }
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Dashboard'),
-            actions: <Widget>[
-              const TenantSwitcher(compact: true),
-              IconButton(
-                tooltip: 'Global Search',
-                icon: const Icon(Icons.search_rounded),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => const GlobalSearchScreen(),
-                  ),
-                ),
-              ),
-              if (state.hasPermission(AppPermission.notificationsView))
-                IconButton(
-                  tooltip: 'Notifications',
-                  icon: const Icon(Icons.notifications_none_rounded),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => const NotificationsScreen(),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          drawer: const Drawer(child: MainDrawer()),
+        return SaasScaffold(
+          title: 'Dashboard',
+          activeRoute: '/home',
           body: RefreshIndicator(
             onRefresh: () async {
               setState(_refreshDashboard);
@@ -197,10 +189,10 @@ class _HomeState extends State<Home> {
             },
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1180),
+                constraints: const BoxConstraints(maxWidth: 1240),
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
                   children: <Widget>[
                     _GreetingCard(
                       name: user.displayName?.trim().isNotEmpty == true
@@ -210,7 +202,10 @@ class _HomeState extends State<Home> {
                       tenantName: tenant.name,
                       academicYearId: state.activeAcademicYearId,
                       demoMode: TenantErpService().isDemoMode,
+                      tenant: tenant,
                     ),
+                    const SizedBox(height: 14),
+                    _SubscriptionNotice(state: state),
                     const SizedBox(height: 18),
                     _DashboardSummary(
                       future: _summaryFuture,
@@ -219,7 +214,7 @@ class _HomeState extends State<Home> {
                     const SizedBox(height: 24),
                     const _SectionTitle(
                       title: 'Quick Access',
-                      subtitle: 'Your frequently used school services',
+                      subtitle: 'Role-based shortcuts for daily school operations',
                     ),
                     const SizedBox(height: 12),
                     _OldQuickAccess(state: state),
@@ -230,6 +225,83 @@ class _HomeState extends State<Home> {
           ),
         );
       },
+    );
+  }
+}
+
+class _SubscriptionNotice extends StatelessWidget {
+  final SessionState state;
+
+  const _SubscriptionNotice({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final tenant = state.tenant;
+    if (tenant == null) return const SizedBox.shrink();
+    final subscription = tenant.subscription;
+    final canOpenSaas = state.hasAnyPermission(const <String>[
+      AppPermission.saasAdminView,
+      AppPermission.subscriptionManage,
+      AppPermission.tenantManage,
+    ]);
+    if (!canOpenSaas &&
+        (state.user?.role.isLearner == true ||
+            state.user?.role.isGuardian == true)) {
+      return const SizedBox.shrink();
+    }
+    final color = subscription.requiresAttention
+        ? AppColors.warning
+        : AppColors.success;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                subscription.requiresAttention
+                    ? Icons.warning_amber_rounded
+                    : Icons.verified_outlined,
+                color: color,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    '${subscription.planLabel} plan • ${subscription.status.name}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subscription.requiresAttention
+                        ? 'Subscription needs attention. Some SaaS features may be restricted.'
+                        : 'Tenant services and plan entitlements are active.',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (canOpenSaas)
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/saas'),
+                child: const Text('Manage'),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -580,6 +652,30 @@ class _OldQuickAccess extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = <_QuickAccessItem>[
       _QuickAccessItem(
+        title: 'SaaS Center',
+        icon: Icons.grid_view_rounded,
+        color: AppColors.primary,
+        moduleId: 'administration-saas',
+        permissions: const <String>[
+          AppPermission.saasAdminView,
+          AppPermission.subscriptionManage,
+          AppPermission.tenantManage,
+        ],
+        builder: (_) => const SaasControlCenterScreen(),
+      ),
+      _QuickAccessItem(
+        title: 'Onboarding',
+        icon: Icons.rocket_launch_outlined,
+        color: AppColors.accent,
+        moduleId: 'school-setup',
+        permissions: const <String>[
+          AppPermission.schoolSetupView,
+          AppPermission.schoolSetupManage,
+          AppPermission.saasAdminView,
+        ],
+        builder: (_) => const TenantOnboardingScreen(),
+      ),
+      _QuickAccessItem(
         title: 'Profile',
         icon: Icons.person_outline,
         color: AppColors.primary,
@@ -590,66 +686,100 @@ class _OldQuickAccess extends StatelessWidget {
         title: 'Attendance',
         icon: Icons.fact_check_outlined,
         color: AppColors.success,
+        moduleId: 'attendance',
         permissions: const <String>[AppPermission.attendanceView],
-        builder: (_) => Attendance(),
+        builder: (_) => ErpEntityListScreen(
+          entity: ErpCatalog.entityByCollection('student_attendance')!,
+        ),
       ),
       _QuickAccessItem(
         title: 'Exam Results',
         icon: Icons.assignment_outlined,
         color: AppColors.secondary,
+        moduleId: 'examinations',
         permissions: const <String>[AppPermission.examsView],
-        builder: (_) => const ExamResult(),
+        builder: (_) => ErpEntityListScreen(
+          entity: ErpCatalog.entityByCollection('exam_results')!,
+        ),
       ),
       _QuickAccessItem(
         title: 'Time Table',
         icon: Icons.calendar_month_outlined,
         color: AppColors.warning,
+        moduleId: 'timetable',
         permissions: const <String>[AppPermission.timetableView],
-        builder: (_) => const TimeTableScreen(),
+        builder: (_) => ErpEntityListScreen(
+          entity: ErpCatalog.entityByCollection('timetable_entries')!,
+        ),
       ),
       _QuickAccessItem(
         title: 'Library',
         icon: Icons.menu_book_outlined,
         color: const Color(0xFF8B5CF6),
+        moduleId: 'library',
         permissions: const <String>[AppPermission.libraryView],
-        builder: (_) => const LibraryScreen(),
+        builder: (_) => ErpModuleScreen(
+          module: ErpCatalog.byId('library')!,
+        ),
       ),
       _QuickAccessItem(
         title: 'Fees',
         icon: Icons.payments_outlined,
         color: const Color(0xFF0EA5E9),
+        moduleId: 'fees',
         permissions: const <String>[AppPermission.feesView],
-        builder: (_) => const FeesScreen(),
+        builder: (_) => ErpEntityListScreen(
+          entity: ErpCatalog.entityByCollection('fee_invoices')!,
+        ),
       ),
       _QuickAccessItem(
         title: 'Transport',
         icon: Icons.directions_bus_outlined,
         color: const Color(0xFFF97316),
+        moduleId: 'transport',
         permissions: const <String>[AppPermission.transportView],
-        builder: (_) => const TransportScreen(),
+        builder: (_) => ErpEntityListScreen(
+          entity: ErpCatalog.entityByCollection('transport_assignments')!,
+        ),
       ),
       _QuickAccessItem(
         title: 'Apply Leave',
         icon: Icons.event_busy_outlined,
         color: AppColors.danger,
+        moduleId: state.user?.role.isLearner == true
+            ? 'attendance'
+            : 'hr-payroll',
         permissions: const <String>[
           AppPermission.leaveApply,
           AppPermission.leaveView,
         ],
-        builder: (_) => const LeaveApply(),
+        builder: (_) => ErpEntityListScreen(
+          entity: ErpCatalog.entityByCollection(
+            state.user?.role.isLearner == true
+                ? 'student_leave_requests'
+                : 'leave_requests',
+          )!,
+        ),
       ),
       _QuickAccessItem(
         title: 'Activities',
         icon: Icons.emoji_events_outlined,
         color: const Color(0xFFEC4899),
+        moduleId: 'events',
         permissions: const <String>[AppPermission.activitiesView],
-        builder: (_) => const ActivityScreen(),
+        builder: (_) => ErpModuleScreen(
+          module: ErpCatalog.byId('events')!,
+        ),
       ),
-    ].where((_QuickAccessItem item) {
-      return state.hasAnyPermission(item.permissions);
+    ];
+    final entitlement = PlanEntitlementService(tenant: state.tenant);
+    final visibleItems = items.where((_QuickAccessItem item) {
+      final moduleAllowed = item.moduleId == null ||
+          entitlement.canAccessModule(item.moduleId!);
+      return moduleAllowed && state.hasAnyPermission(item.permissions);
     }).toList(growable: false);
 
-    if (items.isEmpty) {
+    if (visibleItems.isEmpty) {
       return const Card(
         elevation: 0,
         child: Padding(
@@ -678,9 +808,9 @@ class _OldQuickAccess extends StatelessWidget {
             crossAxisSpacing: 12,
             childAspectRatio: columns == 2 ? 0.96 : 1.02,
           ),
-          itemCount: items.length,
+          itemCount: visibleItems.length,
           itemBuilder: (BuildContext context, int index) {
-            final item = items[index];
+            final item = visibleItems[index];
             return FeatureCard(
               title: item.title,
               icon: item.icon,
@@ -703,6 +833,7 @@ class _QuickAccessItem {
   final String title;
   final IconData icon;
   final Color color;
+  final String? moduleId;
   final List<String> permissions;
   final WidgetBuilder builder;
 
@@ -710,6 +841,7 @@ class _QuickAccessItem {
     required this.title,
     required this.icon,
     required this.color,
+    this.moduleId,
     required this.permissions,
     required this.builder,
   });
@@ -755,6 +887,7 @@ class _GreetingCard extends StatelessWidget {
   final String tenantName;
   final String? academicYearId;
   final bool demoMode;
+  final Tenant tenant;
 
   const _GreetingCard({
     required this.name,
@@ -762,6 +895,7 @@ class _GreetingCard extends StatelessWidget {
     required this.tenantName,
     required this.academicYearId,
     required this.demoMode,
+    required this.tenant,
   });
 
   @override
@@ -769,11 +903,11 @@ class _GreetingCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: AppColors.brandGradient,
+        gradient: AppColors.tenantGradient(tenant),
         borderRadius: BorderRadius.circular(22),
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.22),
+            color: AppColors.tenantPrimary(tenant).withOpacity(0.22),
             blurRadius: 24,
             offset: const Offset(0, 10),
           ),

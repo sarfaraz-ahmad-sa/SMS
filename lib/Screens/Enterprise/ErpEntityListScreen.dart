@@ -1,11 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../../Widgets/PermissionGate.dart';
+import '../../Widgets/saas_scaffold.dart';
+
 import '../../core/erp/erp_access_policy.dart';
+import '../../core/erp/erp_catalog.dart';
 import '../../core/erp/erp_entity.dart';
 import '../../core/erp/erp_field.dart';
 import '../../core/erp/erp_record.dart';
 import '../../core/erp/tenant_erp_service.dart';
+import '../../services/plan_entitlement_service.dart';
 import '../../services/session_state.dart';
 import '../../theme/app_theme.dart';
 import 'ErpEntityForm.dart';
@@ -115,18 +120,33 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.entity.title),
-        actions: <Widget>[
-          if (_canCreate)
-            IconButton(
-              tooltip: 'Add ${widget.entity.singularTitle}',
-              onPressed: _openForm,
-              icon: const Icon(Icons.add_circle_outline),
-            ),
-        ],
-      ),
+    final state = SessionState.instance;
+    final module = ErpCatalog.moduleForCollection(widget.entity.collection);
+    final entitlement = PlanEntitlementService(tenant: state.tenant);
+    final canView = (module == null || entitlement.canAccessModule(module.id)) &&
+        ErpAccessPolicy.canViewEntity(
+          widget.entity,
+          state.user,
+          state.hasPermission,
+        );
+    if (!canView) {
+      return SaasScaffold(
+        title: widget.entity.title,
+        activeRoute: '/erp-entity',
+        body: const PermissionDeniedView(),
+      );
+    }
+    return SaasScaffold(
+      title: widget.entity.title,
+      activeRoute: '/erp-entity',
+      actions: <Widget>[
+        if (_canCreate)
+          IconButton(
+            tooltip: 'Add ${widget.entity.singularTitle}',
+            onPressed: _openForm,
+            icon: const Icon(Icons.add_circle_outline),
+          ),
+      ],
       floatingActionButton: _canCreate
           ? FloatingActionButton.extended(
               onPressed: _openForm,

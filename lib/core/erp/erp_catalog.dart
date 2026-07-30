@@ -51,6 +51,17 @@ class ErpCatalog {
     return null;
   }
 
+  static ErpModule? moduleForCollection(String collection) {
+    for (final module in modules) {
+      if (module.entities.any(
+        (ErpEntity entity) => entity.collection == collection,
+      )) {
+        return module;
+      }
+    }
+    return null;
+  }
+
   static const ErpModule _schoolSetup = ErpModule(
     id: 'school-setup',
     title: 'School Setup',

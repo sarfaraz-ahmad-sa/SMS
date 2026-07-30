@@ -101,3 +101,40 @@ Medical, counseling, safeguarding, payroll, financial, marks and identity record
 - Immutable audit events
 - Backup, restore, retention and legal hold execution
 - Permanent deletion or anonymization
+
+## SaaS control-plane collections
+
+```text
+tenants/{tenantId}/saas_usage/current
+tenants/{tenantId}/approval_requests/{approvalId}
+tenants/{tenantId}/audit_logs/{logId}
+tenants/{tenantId}/onboarding_state/current
+```
+
+`saas_usage/current` is written only by trusted backend code. It stores current
+student, staff, campus, storage, SMS, email and AI usage.
+
+`approval_requests` is also backend-controlled. The requester and authorized
+approvers may read relevant requests, but direct client writes are denied.
+
+`audit_logs` is append-only from trusted code and read-only for authorized
+leadership, audit and IT roles.
+
+The tenant document subscription map may contain:
+
+```text
+subscription.tier
+subscription.status
+subscription.currentPeriodEnd
+subscription.trialEndsAt
+subscription.gracePeriodEndsAt
+subscription.cancelAtPeriodEnd
+subscription.enabledFeatures[]
+subscription.limits.students
+subscription.limits.staffUsers
+subscription.limits.campuses
+subscription.limits.storageMb
+subscription.limits.smsPerMonth
+subscription.limits.emailPerMonth
+subscription.limits.aiActionsPerMonth
+```

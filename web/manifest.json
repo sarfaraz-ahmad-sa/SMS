@@ -1,12 +1,11 @@
 {
-  "name": "CARTZ Link School Management System",
-  "short_name": "CARTZ Link SMS",
+  "name": "CARTZ Link School ERP",
+  "short_name": "CARTZ Link School ERP",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#F8FAFC",
-  "theme_color": "#4F46E5",
+  "theme_color": "#2563EB",
   "description": "Multi-tenant school management for students, parents, teachers and administrators.",
-  "orientation": "portrait-primary",
   "prefer_related_applications": false,
   "icons": [
     {

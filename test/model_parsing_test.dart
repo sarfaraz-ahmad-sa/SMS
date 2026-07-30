@@ -31,4 +31,37 @@ void main() {
       UserRole.classTeacher,
     ]));
   });
+
+  test('secure account and linked ERP identity fields are parsed', () {
+    final user = UserModel.fromMap(
+      'uid-3',
+      <String, dynamic>{
+        'tenantId': 'school-1',
+        'roles': <String>['student'],
+        'mustChangePassword': true,
+        'linkedRecordType': 'student',
+        'linkedRecordId': 'student-doc-1',
+        'themeMode': 'dark',
+      },
+    );
+
+    expect(user.mustChangePassword, isTrue);
+    expect(user.linkedRecordType, 'student');
+    expect(user.linkedRecordId, 'student-doc-1');
+    expect(user.themeMode, 'dark');
+  });
+
+  test('unsupported saved theme falls back to system mode', () {
+    final user = UserModel.fromMap(
+      'uid-4',
+      <String, dynamic>{
+        'tenantId': 'school-1',
+        'roles': <String>['teacher'],
+        'themeMode': 'unknown',
+      },
+    );
+
+    expect(user.themeMode, 'system');
+  });
+
 }

@@ -5,7 +5,9 @@ import '../services/Auth_services.dart';
 import '../services/session_state.dart';
 import '../services/models/tenant.dart';
 import '../services/tenant_service.dart';
+import '../services/school_account_service.dart';
 import '../theme/app_theme.dart';
+import 'FirstLoginPasswordScreen.dart';
 import 'LoginPage.dart';
 import 'home.dart';
 
@@ -43,7 +45,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (firebaseUser == null) {
         SessionState.instance.markInitialized();
         await _waitForBrandAnimation(startedAt);
-        _replace(const MyHomePage(title: 'CARTZ Link SMS'));
+        _replace(const MyHomePage(title: 'CARTZ Link School ERP'));
         return;
       }
 
@@ -60,8 +62,18 @@ class _SplashScreenState extends State<SplashScreen>
         activeAcademicYearId: session.activeAcademicYearId,
       );
 
+      try {
+        await SchoolAccountService().recordSuccessfulLogin(session.tenant.id);
+      } catch (_) {
+        // Session restore remains valid if login activity tracking is unavailable.
+      }
+
       await _waitForBrandAnimation(startedAt);
-      _replace(const Home());
+      _replace(
+        session.user.mustChangePassword
+            ? const FirstLoginPasswordScreen()
+            : const Home(),
+      );
       return;
     } on TenantAccessException catch (error) {
       loginMessage = error.message;
@@ -130,7 +142,7 @@ class _SplashScreenState extends State<SplashScreen>
               ),
               const SizedBox(height: 24),
               const Text(
-                'SEEF',
+                'CARTZ Link',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 30,
@@ -140,7 +152,7 @@ class _SplashScreenState extends State<SplashScreen>
               ),
               const SizedBox(height: 6),
               Text(
-                'School Management System',
+                'School ERP & SaaS',
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.85),
                   fontSize: 15,

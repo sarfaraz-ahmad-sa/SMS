@@ -125,6 +125,8 @@ extension UserRoleX on UserRole {
           AppPermission.reportsView,
           AppPermission.helpdeskView,
           AppPermission.helpdeskManage,
+          AppPermission.settingsView,
+          AppPermission.usersManage,
         };
 
       case UserRole.accountant:

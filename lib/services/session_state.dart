@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'UserModel.dart';
@@ -15,7 +19,7 @@ class SessionState extends ChangeNotifier {
   String? _activeAcademicYearId;
   bool _initialized = false;
   bool _switchingTenant = false;
-  ThemeMode _themeMode = ThemeMode.light;
+  ThemeMode _themeMode = ThemeMode.system;
 
   UserModel? get user => _user;
   Tenant? get tenant => _tenant;
@@ -46,6 +50,7 @@ class SessionState extends ChangeNotifier {
     _activeCampusId = activeCampusId ??
         (user.campusIds.isNotEmpty ? user.campusIds.first : null);
     _activeAcademicYearId = activeAcademicYearId ?? tenant.activeAcademicYearId;
+    _themeMode = _themeModeFromName(user.themeMode);
     _initialized = true;
     _switchingTenant = false;
     notifyListeners();
@@ -117,13 +122,36 @@ class SessionState extends ChangeNotifier {
   }
 
   void toggleTheme() {
-    _themeMode =
-        _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
-    notifyListeners();
+    setThemeMode(
+      _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark,
+    );
   }
 
   void setThemeMode(ThemeMode mode) {
     _themeMode = mode;
+    if (_user != null) {
+      _user = _user!.copyWith(themeMode: mode.name);
+    }
     notifyListeners();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      unawaited(
+        FirebaseFirestore.instance.collection('users').doc(uid).set(
+          <String, dynamic>{
+            'themeMode': mode.name,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        ).catchError((Object _) {}),
+      );
+    }
+  }
+
+  ThemeMode _themeModeFromName(String value) {
+    return switch (value) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
   }
 }

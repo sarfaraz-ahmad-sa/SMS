@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../Widgets/saas_scaffold.dart';
+
 import '../core/erp/erp_access_policy.dart';
 import '../core/erp/erp_catalog.dart';
 import '../core/erp/erp_entity.dart';
 import '../core/erp/erp_module.dart';
+import '../services/plan_entitlement_service.dart';
 import '../services/session_state.dart';
 import '../theme/app_theme.dart';
 import 'Enterprise/ErpEntityListScreen.dart';
@@ -44,7 +47,11 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
         final state = SessionState.instance;
         final user = state.user;
 
+        final entitlement = PlanEntitlementService(tenant: state.tenant);
         final modules = ErpCatalog.modules
+            .where(
+              (ErpModule module) => entitlement.canAccessModule(module.id),
+            )
             .where(
               (ErpModule module) => ErpAccessPolicy.canViewModule(
                 module,
@@ -88,8 +95,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
           }
         }
 
-        return Scaffold(
-          appBar: AppBar(title: const Text('Global Search')),
+        return SaasScaffold(
+          title: 'Global Search',
+          activeRoute: '/search',
           body: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 920),

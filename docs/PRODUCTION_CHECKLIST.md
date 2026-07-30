@@ -1,58 +1,91 @@
 # Production Checklist
 
-## Firebase
+## Delivered application controls
 
-- [ ] Run `flutterfire configure`
+- [x] Multi-tenant memberships and school switching
+- [x] Server-derived role permissions and campus scope
+- [x] Administrator-created student, parent, teacher and staff accounts
+- [x] Temporary password and email-link setup methods
+- [x] Mandatory first-login password replacement
+- [x] Student and guardian personal-scope Firestore access
+- [x] Portal-account versus paid staff-seat classification
+- [x] Account suspension, reactivation and password reset
+- [x] SaaS plans, feature entitlements and quota enforcement
+- [x] Approval inbox and append-only audit records for trusted operations
+- [x] Responsive tenant-branded light/dark UI shell
+- [x] Firestore default-deny collection coverage for all 105 workflows
+
+## Firebase environment
+
+- [ ] Back up the existing Firebase project
+- [ ] Run `flutterfire configure` for the production application IDs
 - [ ] Enable Email/Password authentication
-- [ ] Enable and configure Google authentication
-- [ ] Deploy Firestore rules
-- [ ] Deploy indexes
+- [ ] Enable Google authentication only when the organisation requires it
+- [ ] Configure authorized web domains and password-reset redirect URLs
+- [ ] Customise authentication email templates and sender domain
+- [ ] Deploy Cloud Functions
+- [ ] Deploy Firestore rules and indexes
 - [ ] Deploy Storage rules
-- [ ] Configure authorized web domains
-- [ ] Test rules with Firebase Emulator Suite
-- [ ] Create the first tenant through trusted tooling
-- [ ] Create memberships for all test accounts
+- [ ] Run Firestore Emulator Suite tenant-isolation tests
+- [ ] Create the first tenant through trusted Admin tooling
+- [ ] Run SaaS and portal-link migrations for existing tenants
+- [ ] Store provider secrets in Secret Manager, not Flutter or Firestore
 
-## Flutter
+## Flutter release
 
+- [ ] Run `flutter clean`
+- [ ] Run `flutter pub get`
 - [ ] Run `flutter analyze`
 - [ ] Run `flutter test`
-- [ ] Run Android debug and release builds
+- [ ] Run `flutter build web --release --no-wasm-dry-run`
+- [ ] Run Android debug and signed release builds
 - [ ] Run iOS build and signing validation
-- [ ] Run web release build
-- [ ] Replace app icons and splash assets
-- [ ] Add Urdu localization and RTL verification
-- [ ] Add accessibility testing
-- [ ] Add crash and performance monitoring
-- [ ] Add push notification implementation
+- [ ] Replace app icons and splash assets with approved production branding
+- [ ] Add Urdu localisation and RTL verification when required
+- [ ] Complete accessibility, keyboard and screen-reader testing
+- [ ] Configure crash and performance monitoring
 
-## Android
+## Account acceptance tests
+
+- [ ] School admin can create a student login with a temporary password
+- [ ] Student is forced to replace the password at first login
+- [ ] Student can read only their linked attendance, fees and results
+- [ ] Parent account creation is blocked until at least one child is linked
+- [ ] Parent can read every linked child and no unlinked child
+- [ ] Teacher sees only assigned role modules and campus scope
+- [ ] Suspended membership cannot access tenant data
+- [ ] Direct module URLs cannot bypass role or plan entitlements
+- [ ] Portal accounts do not increase paid `staffUsers`
+- [ ] Teacher and administrative accounts do increase paid `staffUsers`
+- [ ] Role changes, suspension and password operations generate audit events
+
+## External providers
+
+- [ ] Payment gateway callbacks, idempotency and reconciliation
+- [ ] SMS sender ID, templates, callbacks and quota accounting
+- [ ] Transactional email SPF/DKIM/DMARC, templates and bounce handling
+- [ ] WhatsApp Business templates and webhook verification
+- [ ] Push notification device-token lifecycle
+- [ ] GPS and biometric device integration
+- [ ] Payroll bank integration and maker-checker approval
+- [ ] Signed certificate verification and key rotation
+- [ ] Scheduled encrypted backups and restore drills
+
+## Android and iOS identity
 
 - [ ] Replace `com.example.school_management` with the production application ID
-- [ ] Re-run `flutterfire configure` after changing application ID
-- [ ] Configure Play App Signing
+- [ ] Re-run `flutterfire configure` after changing application IDs
+- [ ] Configure Play App Signing and iOS distribution certificates
 - [ ] Remove debug release signing
-- [ ] Add privacy policy URL
+- [ ] Add privacy policy, terms and support URLs
 
-## SaaS security
+## Security and operations
 
 - [ ] MFA for privileged roles
-- [ ] Access reviews
-- [ ] Tenant isolation tests
-- [ ] Audit logs
-- [ ] Backup and restore tests
-- [ ] Rate limiting
+- [ ] Quarterly access reviews
+- [ ] Rate limiting and abuse monitoring
 - [ ] Malware scanning for uploaded documents
-- [ ] Data retention and consent policies
-- [ ] Incident response plan
-
-## Laravel transition
-
-- [ ] Central SaaS database
-- [ ] Tenant database provisioning
-- [ ] Firebase token exchange endpoint
-- [ ] Server-enforced RBAC
-- [ ] Redis queues and cache
-- [ ] Object storage
-- [ ] Payment reconciliation
-- [ ] Monitoring and alerting
+- [ ] Data retention, consent and deletion procedures
+- [ ] Incident response and breach-notification plan
+- [ ] Backup restore test with documented recovery objectives
+- [ ] Monitoring and alerting for failed Functions and provider callbacks

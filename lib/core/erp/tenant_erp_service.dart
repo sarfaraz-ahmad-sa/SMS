@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/session_state.dart';
@@ -12,11 +13,20 @@ class TenantErpService {
   TenantErpService({
     FirebaseFirestore? firestore,
     FirebaseAuth? firebaseAuth,
+    FirebaseFunctions? functions,
   })  : _db = firestore ?? FirebaseFirestore.instance,
-        _auth = firebaseAuth ?? FirebaseAuth.instance;
+        _auth = firebaseAuth ?? FirebaseAuth.instance,
+        _functions = functions ??
+            FirebaseFunctions.instanceFor(region: 'asia-south1');
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
+  final FirebaseFunctions _functions;
+
+  static const Set<String> _meteredCollections = <String>{
+    'students',
+    'campuses',
+  };
 
   bool get isDemoMode => _auth.currentUser == null;
 
@@ -58,7 +68,16 @@ class TenantErpService {
       query = query.where('createdBy', isEqualTo: user.uid);
     } else if (user != null && user.role.isLearner &&
         ErpAccessPolicy.personalStudentCollections.contains(entity.collection)) {
-      query = query.where('authUid', isEqualTo: user.uid);
+      if (entity.collection == 'students' ||
+          user.linkedRecordId == null ||
+          user.linkedRecordId!.isEmpty) {
+        query = query.where('authUid', isEqualTo: user.uid);
+      } else {
+        query = query.where(
+          'studentRecordId',
+          isEqualTo: user.linkedRecordId,
+        );
+      }
     } else if (user != null && user.role.isGuardian &&
         ErpAccessPolicy.personalStudentCollections.contains(entity.collection)) {
       query = query.where('guardianUids', arrayContains: user.uid);
@@ -160,16 +179,29 @@ class TenantErpService {
   ) async {
     final state = SessionState.instance;
     final user = state.user;
+    final isSelfService = user != null &&
+        entity.allowSelfServiceCreate &&
+        !user.hasPermission(entity.managePermission);
     final selfServiceMetadata = <String, dynamic>{
-      if (user != null &&
-          entity.allowSelfServiceCreate &&
-          !user.hasPermission(entity.managePermission))
-        'requesterUid': user.uid,
+      if (isSelfService) ...<String, dynamic>{
+        'requesterUid': user!.uid,
+        ..._selfServiceDefaults(entity.collection),
+      },
       if (user != null && user.role.isLearner) 'authUid': user.uid,
       if (user != null && user.role.isGuardian)
         'guardianUids': <String>[user.uid],
     };
-    values = <String, dynamic>{...values, ...selfServiceMetadata};
+    values = <String, dynamic>{
+      ...values,
+      ...selfServiceMetadata,
+      if (isSelfService &&
+          user?.role.isLearner == true &&
+          user?.linkedRecordId?.isNotEmpty == true)
+        'studentRecordId': user!.linkedRecordId,
+    };
+    if (!isDemoMode && entity.collection != 'students') {
+      values = await _enrichStudentRelationship(values);
+    }
     if (isDemoMode) {
       return DemoErpStore.instance.create(
         tenantId: _tenantId,
@@ -179,6 +211,23 @@ class TenantErpService {
         campusId: state.activeCampusId,
         academicYearId: state.activeAcademicYearId,
       );
+    }
+
+    if (_meteredCollections.contains(entity.collection)) {
+      final result = await _functions
+          .httpsCallable('createMeteredErpRecord')
+          .call(<String, dynamic>{
+        'tenantId': _tenantId,
+        'collection': entity.collection,
+        'values': values,
+        'campusId': state.activeCampusId,
+        'academicYearId': state.activeAcademicYearId,
+      });
+      final data = result.data;
+      if (data is Map && data['recordId'] != null) {
+        return data['recordId'].toString();
+      }
+      throw StateError('The trusted backend did not return a record ID.');
     }
 
     final reference = _collection(entity.collection).doc();
@@ -196,11 +245,95 @@ class TenantErpService {
     return reference.id;
   }
 
+  Future<Map<String, dynamic>> _enrichStudentRelationship(
+    Map<String, dynamic> values,
+  ) async {
+    final explicitRecordId = values['studentRecordId']?.toString().trim();
+    final studentReference = values['studentId']?.toString().trim();
+    final admissionReference = values['admissionNo']?.toString().trim();
+    final lookup = explicitRecordId?.isNotEmpty == true
+        ? explicitRecordId!
+        : studentReference?.isNotEmpty == true
+            ? studentReference!
+            : admissionReference?.isNotEmpty == true
+                ? admissionReference!
+                : '';
+    if (lookup.isEmpty) return values;
+
+    DocumentSnapshot<Map<String, dynamic>>? student;
+    final direct = await _collection('students').doc(lookup).get();
+    if (direct.exists) {
+      student = direct;
+    } else {
+      final byAdmission = await _collection('students')
+          .where('admissionNo', isEqualTo: lookup)
+          .limit(2)
+          .get();
+      if (byAdmission.docs.length == 1) student = byAdmission.docs.first;
+    }
+    final data = student?.data();
+    if (student == null || data == null) return values;
+
+    final authUid = data['authUid']?.toString().trim();
+    final rawGuardians = data['guardianUids'];
+    final guardianUids = rawGuardians is Iterable
+        ? rawGuardians
+            .map((dynamic value) => value?.toString().trim() ?? '')
+            .where((String value) => value.isNotEmpty)
+            .toSet()
+            .toList(growable: false)
+        : const <String>[];
+
+    return <String, dynamic>{
+      ...values,
+      'studentRecordId': student.id,
+      if (authUid?.isNotEmpty == true) 'authUid': authUid,
+      if (guardianUids.isNotEmpty) 'guardianUids': guardianUids,
+    };
+  }
+
+  Map<String, dynamic> _selfServiceDefaults(String collection) {
+    switch (collection) {
+      case 'library_reservations':
+        return const <String, dynamic>{'status': 'Waiting'};
+      case 'event_registrations':
+        return const <String, dynamic>{
+          'status': 'Registered',
+          'feePaid': false,
+          'attendanceMarked': false,
+        };
+      case 'certificate_requests':
+        return const <String, dynamic>{'status': 'Requested'};
+      case 'student_leave_requests':
+      case 'leave_requests':
+        return const <String, dynamic>{'status': 'Pending'};
+      case 'parent_meetings':
+        return const <String, dynamic>{'status': 'Requested'};
+      case 'support_tickets':
+        return const <String, dynamic>{
+          'status': 'Open',
+          'assignedTo': '',
+          'resolution': '',
+        };
+      case 'complaints':
+        return const <String, dynamic>{'status': 'Received'};
+      default:
+        return const <String, dynamic>{};
+    }
+  }
+
   Future<void> update(
     ErpEntity entity,
     String recordId,
     Map<String, dynamic> values,
   ) async {
+    if (!isDemoMode &&
+        entity.collection != 'students' &&
+        (values.containsKey('studentId') ||
+            values.containsKey('admissionNo') ||
+            values.containsKey('studentRecordId'))) {
+      values = await _enrichStudentRelationship(values);
+    }
     if (isDemoMode) {
       return DemoErpStore.instance.update(
         tenantId: _tenantId,
@@ -228,6 +361,17 @@ class TenantErpService {
         recordId: recordId,
         actorId: _actorId,
       );
+    }
+
+    if (_meteredCollections.contains(entity.collection)) {
+      await _functions
+          .httpsCallable('archiveMeteredErpRecord')
+          .call(<String, dynamic>{
+        'tenantId': _tenantId,
+        'collection': entity.collection,
+        'recordId': recordId,
+      });
+      return;
     }
 
     await _collection(entity.collection).doc(recordId).update(

@@ -1,5 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../Widgets/saas_scaffold.dart';
+
+import '../services/Auth_services.dart';
 import '../services/profile_service.dart';
 import '../services/session_state.dart';
 import '../theme/app_theme.dart';
@@ -14,6 +18,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final ProfileService _profileService = ProfileService();
+  final AuthService _authService = AuthService();
   late final TextEditingController _nameController;
   bool _editing = false;
   bool _saving = false;
@@ -58,6 +63,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _sendVerification() async {
+    try {
+      await _authService.sendEmailVerification();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verification email sent. Check your inbox.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message ?? 'Verification email could not be sent.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
+  Future<void> _changePassword() async {
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final supportsPassword = firebaseUser?.providerData.any(
+          (UserInfo provider) => provider.providerId == 'password',
+        ) ==
+        true;
+    if (!supportsPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password is managed by your external sign-in provider.'),
+        ),
+      );
+      return;
+    }
+
+    final result = await showDialog<_PasswordChangeData>(
+      context: context,
+      builder: (BuildContext context) => const _PasswordChangeDialog(),
+    );
+    if (result == null) return;
+
+    try {
+      await _authService.changePassword(
+        currentPassword: result.currentPassword,
+        newPassword: result.newPassword,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password changed successfully.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message ?? 'Password could not be changed.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -66,26 +136,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final user = SessionState.instance.user;
         final tenant = SessionState.instance.tenant;
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Profile'),
-            actions: <Widget>[
-              IconButton(
-                tooltip: _editing ? 'Cancel editing' : 'Edit profile',
-                icon: Icon(_editing ? Icons.close : Icons.edit_outlined),
-                onPressed: _saving
-                    ? null
-                    : () {
-                        setState(() {
-                          _editing = !_editing;
-                          if (!_editing) {
-                            _nameController.text = user?.displayName ?? '';
-                          }
-                        });
-                      },
-              ),
-            ],
-          ),
+        return SaasScaffold(
+          title: 'Profile',
+          activeRoute: '/profile',
+          actions: <Widget>[
+            IconButton(
+              tooltip: _editing ? 'Cancel editing' : 'Edit profile',
+              icon: Icon(_editing ? Icons.close : Icons.edit_outlined),
+              onPressed: _saving
+                  ? null
+                  : () {
+                      setState(() {
+                        _editing = !_editing;
+                        if (!_editing) {
+                          _nameController.text = user?.displayName ?? '';
+                        }
+                      });
+                    },
+            ),
+          ],
           body: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
@@ -98,7 +167,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       vertical: 28,
                     ),
                     decoration: BoxDecoration(
-                      gradient: AppColors.brandGradient,
+                      gradient: AppColors.tenantGradient(tenant),
                       borderRadius: BorderRadius.circular(22),
                     ),
                     child: Column(
@@ -210,12 +279,195 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 18),
+                  Card(
+                    child: Column(
+                      children: <Widget>[
+                        ListTile(
+                          leading: Icon(
+                            FirebaseAuth.instance.currentUser?.emailVerified == true
+                                ? Icons.verified_rounded
+                                : Icons.mark_email_unread_outlined,
+                            color: FirebaseAuth.instance.currentUser?.emailVerified == true
+                                ? AppColors.success
+                                : AppColors.warning,
+                          ),
+                          title: const Text(
+                            'Email verification',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text(
+                            FirebaseAuth.instance.currentUser?.emailVerified == true
+                                ? 'Your email address is verified.'
+                                : 'Verify your email to secure recovery and notifications.',
+                          ),
+                          trailing: FirebaseAuth.instance.currentUser?.emailVerified == true
+                              ? const Icon(Icons.check_circle, color: AppColors.success)
+                              : TextButton(
+                                  onPressed: _sendVerification,
+                                  child: const Text('Send email'),
+                                ),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.password_rounded),
+                          title: const Text(
+                            'Password & sign-in',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: const Text(
+                            'Change your password after confirming the current one.',
+                          ),
+                          trailing: TextButton(
+                            onPressed: _changePassword,
+                            child: const Text('Change'),
+                          ),
+                        ),
+                        if (user?.linkedRecordId?.isNotEmpty == true) ...<Widget>[
+                          const Divider(height: 1),
+                          ListTile(
+                            leading: const Icon(Icons.link_rounded),
+                            title: const Text(
+                              'Linked ERP identity',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            subtitle: Text(
+                              '${user!.linkedRecordType ?? 'profile'} • ${user.linkedRecordId}',
+                            ),
+                            trailing: const Icon(Icons.lock_outline_rounded),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+
+class _PasswordChangeData {
+  const _PasswordChangeData({
+    required this.currentPassword,
+    required this.newPassword,
+  });
+
+  final String currentPassword;
+  final String newPassword;
+}
+
+class _PasswordChangeDialog extends StatefulWidget {
+  const _PasswordChangeDialog();
+
+  @override
+  State<_PasswordChangeDialog> createState() => _PasswordChangeDialogState();
+}
+
+class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _currentController = TextEditingController();
+  final _newController = TextEditingController();
+  final _confirmController = TextEditingController();
+  bool _visible = false;
+
+  @override
+  void dispose() {
+    _currentController.dispose();
+    _newController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  String? _validateNewPassword(String? value) {
+    final password = value ?? '';
+    if (password.length < 10) return 'Use at least 10 characters';
+    if (!RegExp(r'[A-Z]').hasMatch(password)) return 'Add an uppercase letter';
+    if (!RegExp(r'[a-z]').hasMatch(password)) return 'Add a lowercase letter';
+    if (!RegExp(r'[0-9]').hasMatch(password)) return 'Add a number';
+    if (!RegExp(r'[^A-Za-z0-9]').hasMatch(password)) {
+      return 'Add a special character';
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Change password'),
+      content: SizedBox(
+        width: 440,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextFormField(
+                controller: _currentController,
+                obscureText: !_visible,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Current password',
+                  prefixIcon: Icon(Icons.lock_outline),
+                ),
+                validator: (String? value) => value == null || value.isEmpty
+                    ? 'Enter your current password'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _newController,
+                obscureText: !_visible,
+                decoration: const InputDecoration(
+                  labelText: 'New password',
+                  prefixIcon: Icon(Icons.password_rounded),
+                ),
+                validator: _validateNewPassword,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _confirmController,
+                obscureText: !_visible,
+                decoration: InputDecoration(
+                  labelText: 'Confirm new password',
+                  prefixIcon: const Icon(Icons.lock_reset_rounded),
+                  suffixIcon: IconButton(
+                    tooltip: _visible ? 'Hide passwords' : 'Show passwords',
+                    onPressed: () => setState(() => _visible = !_visible),
+                    icon: Icon(_visible ? Icons.visibility_off : Icons.visibility),
+                  ),
+                ),
+                validator: (String? value) => value != _newController.text
+                    ? 'Passwords do not match'
+                    : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (!_formKey.currentState!.validate()) return;
+            Navigator.pop(
+              context,
+              _PasswordChangeData(
+                currentPassword: _currentController.text,
+                newPassword: _newController.text,
+              ),
+            );
+          },
+          child: const Text('Update password'),
+        ),
+      ],
     );
   }
 }

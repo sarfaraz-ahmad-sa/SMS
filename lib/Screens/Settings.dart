@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../Widgets/saas_scaffold.dart';
+
 import '../core/erp/tenant_erp_service.dart';
 import '../services/models/user_role.dart';
 import '../services/session_state.dart';
@@ -10,8 +12,9 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings & Administration')),
+    return SaasScaffold(
+      title: 'Settings & Administration',
+      activeRoute: '/settings',
       body: ListenableBuilder(
         listenable: SessionState.instance,
         builder: (BuildContext context, Widget? child) {
@@ -70,7 +73,7 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 24),
                   const _SectionTitle(
                     title: 'Appearance',
-                    subtitle: 'Choose the interface theme for this device.',
+                    subtitle: 'Choose the interface theme saved to your account.',
                   ),
                   const SizedBox(height: 8),
                   Card(
@@ -210,10 +213,10 @@ class SettingsScreen extends StatelessWidget {
                         Divider(height: 1),
                         _ControlTile(
                           icon: Icons.verified_user_outlined,
-                          title: 'Trusted approval backend',
+                          title: 'Trusted account and approval backend',
                           subtitle:
-                              'Required for payments, payroll, final results and user provisioning.',
-                          ready: false,
+                              'Cloud Functions protect user provisioning, quotas, approvals and audit events.',
+                          ready: true,
                         ),
                       ],
                     ),
@@ -221,7 +224,7 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 28),
                   const Center(
                     child: Text(
-                      'SEEF School Management SaaS',
+                      'CARTZ Link School ERP SaaS',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontWeight: FontWeight.w600,

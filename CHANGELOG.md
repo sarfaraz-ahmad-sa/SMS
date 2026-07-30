@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.3.0+7 — Secure Portals and Account Lifecycle
+
+- Added trusted administrator provisioning with temporary-password and email-link setup methods.
+- Added forced first-login password replacement, password reset, setup-email resend, account suspension and reactivation.
+- Added required ERP profile linking for student, parent, teacher and class-teacher accounts.
+- Added guardian-to-student access propagation and personal-scope Firestore authorization.
+- Added portal-link backfill migration for existing tenant data.
+- Added account-level persisted appearance and a complete tenant-aware enterprise dark theme.
+- Enforced plan entitlements across drawer navigation, global search, direct module/entity routes and Firestore rules.
+- Added stronger account lifecycle tests, static validation and deployment documentation.
+- Added recent-authentication enforcement for first-login password completion.
+- Separated student/parent portal accounts from paid staff-seat quotas across provisioning, role changes, suspension, usage refresh and migration.
+- Added parent-child prerequisite validation and corrected parent self-service relationship metadata.
+
+## 2.1.1 — Account Provisioning Error Handling
+
+- Separated account provisioning success from password-email delivery failure.
+- Added actionable Cloud Function errors and structured provisioning logs.
+- Kept optional student/teacher record fields valid when both values are empty.
+
 # Dashboard Navigation Update
 
 - Added top AppBar Global Search for authorized ERP modules and options.
@@ -30,3 +50,19 @@
 - Added permission-filtered dashboard and navigation.
 - Moved student and event data to tenant collections and replaced hard delete with archive.
 - Added secure profile update, password reset, rules, indexes and Windows tools.
+
+## 2.2.0+6 - SaaS foundation
+
+- Added adaptive desktop, tablet and mobile application shell.
+- Added tenant brand colour and logo application across the authenticated UI.
+- Added campus and academic-year context selector.
+- Added SaaS Control Center with plan status, usage quotas and feature matrix.
+- Added guided tenant onboarding and launch-readiness calculation.
+- Added subscription feature and limit overrides with grace-period support.
+- Added plan-based module filtering and Firestore collection entitlement checks.
+- Added trusted usage refresh and generic approval Cloud Functions with audit events.
+- Added responsive approval inbox with approve/reject decisions and mandatory rejection reasons.
+- Added backend-enforced student and campus quotas with trusted archive counters.
+- Added a migration tool for existing tenant subscriptions and SaaS usage counters.
+- Added staff-user subscription-limit enforcement during account provisioning.
+- Standardized product branding as CARTZ Link School ERP.
