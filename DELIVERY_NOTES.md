@@ -1,6 +1,6 @@
 # CARTZ Link School ERP SaaS — Delivery Notes
 
-## Delivered in version 2.3.0+7
+## Delivered in version 2.4.1+8
 
 - Secure administrator-created accounts using a temporary password or email setup link.
 - Mandatory first-login password change with strong-password validation and recent-authentication enforcement.
@@ -24,6 +24,18 @@
 - Plan-based module visibility and Firestore collection entitlement checks.
 - Standardized CARTZ Link School ERP branding.
 - Existing 24 modules and 105 tenant-scoped workflows retained and integrated.
+
+
+### Responsive navigation and interface
+
+- Web at 1024px and above uses a permanent side navigation.
+- At 1320px and above the side navigation opens with labels by default.
+- Between 1024px and 1319px it automatically uses a compact icon mode.
+- The expand/collapse preference remains available while navigating between screens.
+- Tablet uses an adaptive NavigationRail and a complete module drawer.
+- Mobile uses bottom navigation for Dashboard, Search, Alerts and Modules.
+- Campus, academic year and school switching remain accessible without crowding the mobile AppBar.
+- Dashboard shortcut tiles automatically resize according to available width.
 
 ## Existing Firebase project upgrade
 

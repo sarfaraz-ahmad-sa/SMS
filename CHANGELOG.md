@@ -1,6 +1,30 @@
+
+## 2.4.1 - Production login reliability
+
+- Added Firebase Web auth-state fallback when `UserCredential.user` is delayed.
+- Forces a fresh ID token before tenant and membership reads.
+- Added readable Firestore service, permission, and availability errors.
+- Preserves existing tenant, role, subscription, and first-login security checks.
 # Changelog
 
-## 2.3.0+7 — Secure Portals and Account Lifecycle
+## 2.4.1+8 — Adaptive Navigation and UI Polish
+
+- Added a persistent collapsible web sidebar with automatic sizing by viewport width.
+- Wide web screens show the full labeled menu; medium web screens automatically use the compact icon menu.
+- Added compact module popovers so every ERP workflow stays accessible without expanding the sidebar.
+- Added permission-aware active menu highlighting for routes, modules and entity screens.
+- Added module search inside the expanded web and tablet/mobile drawer.
+- Added an adaptive tablet NavigationRail with an expanded labeled mode on larger tablets.
+- Added a fixed mobile bottom navigation bar for Dashboard, Search, Alerts and Modules.
+- Moved campus, academic-year and school switching into a dedicated mobile/tablet context strip to prevent AppBar overflow.
+- Added responsive top-bar compaction for narrow browser windows.
+- Reworked dashboard shortcuts to use automatic tile sizing instead of fixed column counts.
+- Added dashboard hover animation, keyboard-friendly InkWell interaction and improved dark-theme surfaces.
+- Added consistent scrollbar, floating-action-button, icon-button and navigation-bar theming.
+- Added active-route metadata to ERP module/entity screens.
+- Fixed the duplicate named parameter declaration in `MainDrawer._named`.
+
+## 2.3.1+7 — Secure Portals and Account Lifecycle
 
 - Added trusted administrator provisioning with temporary-password and email-link setup methods.
 - Added forced first-login password replacement, password reset, setup-email resend, account suspension and reactivation.

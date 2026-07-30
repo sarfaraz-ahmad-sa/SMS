@@ -120,8 +120,14 @@ class AppTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
+        height: 68,
+        elevation: 0,
         backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
         indicatorColor: primary.withOpacity(0.12),
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
         labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
           (Set<WidgetState> states) => TextStyle(
             fontSize: 11,
@@ -137,6 +143,32 @@ class AppTheme {
       drawerTheme: const DrawerThemeData(
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        elevation: 1,
+        focusElevation: 2,
+        hoverElevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStateProperty.all<OutlinedBorder>(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        radius: const Radius.circular(999),
+        thickness: WidgetStateProperty.resolveWith<double?>((states) {
+          return states.contains(WidgetState.hovered) ? 8 : 5;
+        }),
+        thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          return states.contains(WidgetState.hovered)
+              ? primary.withOpacity(0.62)
+              : AppColors.textSecondary.withOpacity(0.32);
+        }),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -332,8 +364,14 @@ class AppTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
+        height: 68,
+        elevation: 0,
         backgroundColor: AppColors.darkSurface,
+        surfaceTintColor: Colors.transparent,
         indicatorColor: primary.withOpacity(0.22),
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
         labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((states) =>
             TextStyle(
               color: states.contains(WidgetState.selected)
@@ -344,6 +382,32 @@ class AppTheme {
                   : FontWeight.w500,
               fontSize: 11,
             )),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        elevation: 1,
+        focusElevation: 2,
+        hoverElevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: ButtonStyle(
+          shape: WidgetStateProperty.all<OutlinedBorder>(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        radius: const Radius.circular(999),
+        thickness: WidgetStateProperty.resolveWith<double?>((states) {
+          return states.contains(WidgetState.hovered) ? 8 : 5;
+        }),
+        thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          return states.contains(WidgetState.hovered)
+              ? primary.withOpacity(0.72)
+              : const Color(0xFF94A3B8).withOpacity(0.38);
+        }),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

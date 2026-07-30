@@ -1,7 +1,7 @@
 CARTZ Link School ERP static validation
-UTC: 2026-07-29 14:44:15
+UTC: 2026-07-30 14:32:26
 
-Dart source/test files: 95
+Dart source/test files: 96
 Dart lexical/delimiter validation: PASS
 Missing relative imports: 0
 ERP modules: 24
@@ -20,3 +20,11 @@ Flutter SDK validation is separate:
 flutter analyze
 flutter test
 flutter build web --release --no-wasm-dry-run
+
+Adaptive navigation checks:
+- Desktop sidebar breakpoint: 1024px
+- Expanded desktop default: 1320px
+- Tablet navigation rail: 720px-1023px
+- Mobile bottom navigation: below 720px
+- Active module/entity highlighting: enabled
+- Dashboard automatic tile sizing: enabled

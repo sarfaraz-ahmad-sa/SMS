@@ -1,4 +1,4 @@
-# CARTZ Link School ERP SaaS 2.3.0+7
+# CARTZ Link School ERP SaaS 2.4.1+8
 
 ## Release scope
 
@@ -52,3 +52,12 @@ Flutter SDK is not installed in the delivery container. Run the commands in `DEL
 ## External configuration boundary
 
 Payment, SMS, WhatsApp, transactional email, push notifications, GPS, biometric devices, bank payroll, signed certificates, custom domains and backups require the organisation's provider credentials and production callback configuration. See `docs/PRODUCTION_READINESS_AND_INTEGRATIONS.md`.
+
+
+## 2.4.1 UI navigation files
+
+- `lib/Widgets/saas_scaffold.dart` — desktop/tablet/mobile adaptive shell.
+- `lib/Widgets/MainDrawer.dart` — expanded and compact permission-aware navigation.
+- `lib/services/navigation_preferences.dart` — persistent in-app sidebar preference.
+- `lib/Widgets/FeatureCard.dart` — responsive dashboard shortcut interaction.
+- `lib/theme/app_theme.dart` — navigation, scrollbar and action styling.

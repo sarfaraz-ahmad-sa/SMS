@@ -13,6 +13,29 @@ class AuthService {
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
   User? get currentUser => _firebaseAuth.currentUser;
 
+  /// Firebase Web can briefly return a credential whose `user` has not yet
+  /// propagated to `currentUser`. Resolve the signed-in account from both
+  /// sources and wait for the auth-state stream before treating login as
+  /// failed.
+  Future<User?> resolveSignedInUser({
+    User? credentialUser,
+    Duration timeout = const Duration(seconds: 8),
+  }) async {
+    if (credentialUser != null) return credentialUser;
+
+    final immediateUser = _firebaseAuth.currentUser;
+    if (immediateUser != null) return immediateUser;
+
+    try {
+      return await _firebaseAuth
+          .authStateChanges()
+          .firstWhere((User? user) => user != null)
+          .timeout(timeout);
+    } catch (_) {
+      return _firebaseAuth.currentUser;
+    }
+  }
+
   Future<UserCredential> signInWithEmail({
     required String email,
     required String password,

@@ -1,7 +1,7 @@
 name: school_management
 description: CARTZ Link multi-tenant School Management SaaS application.
 publish_to: 'none'
-version: 2.3.0+7
+version: 2.4.0+8
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

@@ -147,3 +147,13 @@ flutter build web --release --no-wasm-dry-run
 ```
 
 Do not commit `.env`, service-account JSON, private API keys, signing keystores or database credentials.
+
+
+## Responsive interface
+
+- **Web ≥ 1320px:** expanded labeled sidebar.
+- **Web 1024–1319px:** compact icon sidebar with module popovers.
+- **Tablet 720–1023px:** adaptive NavigationRail plus full module drawer.
+- **Mobile < 720px:** bottom navigation plus complete Modules drawer.
+
+The layout follows the current browser width automatically and supports manual sidebar collapse/expand on desktop.

@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 
 import '../services/models/app_permission.dart';
+import '../services/navigation_preferences.dart';
 import '../services/session_state.dart';
-import '../theme/app_theme.dart';
 import 'MainDrawer.dart';
 import 'TenantSwitcher.dart';
 import 'school_context_switcher.dart';
 
-class SaasScaffold extends StatefulWidget {
+class SaasScaffold extends StatelessWidget {
+  static const double desktopBreakpoint = 1024;
+  static const double tabletBreakpoint = 720;
+  static const double expandedSidebarWidth = 288;
+  static const double compactSidebarWidth = 84;
+
   final String title;
   final Widget body;
   final List<Widget> actions;
   final Widget? floatingActionButton;
   final String activeRoute;
+  final String? activeModuleId;
+  final String? activeEntityCollection;
   final bool showContextSwitcher;
 
   const SaasScaffold({
@@ -22,123 +29,300 @@ class SaasScaffold extends StatefulWidget {
     this.actions = const <Widget>[],
     this.floatingActionButton,
     this.activeRoute = '',
+    this.activeModuleId,
+    this.activeEntityCollection,
     this.showContextSwitcher = true,
   });
-
-  @override
-  State<SaasScaffold> createState() => _SaasScaffoldState();
-}
-
-class _SaasScaffoldState extends State<SaasScaffold> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        if (constraints.maxWidth >= 1120) return _desktop(context);
-        if (constraints.maxWidth >= 720) return _tablet(context);
-        return _mobile(context);
+        final width = constraints.maxWidth;
+        if (width >= desktopBreakpoint) {
+          return _DesktopShell(
+            width: width,
+            title: title,
+            body: body,
+            actions: actions,
+            floatingActionButton: floatingActionButton,
+            activeRoute: activeRoute,
+            activeModuleId: activeModuleId,
+            activeEntityCollection: activeEntityCollection,
+            showContextSwitcher: showContextSwitcher,
+          );
+        }
+        if (width >= tabletBreakpoint) {
+          return _TabletShell(
+            width: width,
+            title: title,
+            body: body,
+            actions: actions,
+            floatingActionButton: floatingActionButton,
+            activeRoute: activeRoute,
+            activeModuleId: activeModuleId,
+            activeEntityCollection: activeEntityCollection,
+            showContextSwitcher: showContextSwitcher,
+          );
+        }
+        return _MobileShell(
+          title: title,
+          body: body,
+          actions: actions,
+          floatingActionButton: floatingActionButton,
+          activeRoute: activeRoute,
+          activeModuleId: activeModuleId,
+          activeEntityCollection: activeEntityCollection,
+          showContextSwitcher: showContextSwitcher,
+        );
       },
     );
   }
+}
 
-  Widget _desktop(BuildContext context) {
-    return Scaffold(
-      floatingActionButton: widget.floatingActionButton,
-      body: Row(
-        children: <Widget>[
-          SizedBox(
-  width: 292,
-  child: Material(
-    color: Theme.of(context).colorScheme.surface,
-    child: MainDrawer(embedded: true),
-  ),
-),
-          const VerticalDivider(width: 1),
-          Expanded(
-            child: Column(
+class _DesktopShell extends StatelessWidget {
+  final double width;
+  final String title;
+  final Widget body;
+  final List<Widget> actions;
+  final Widget? floatingActionButton;
+  final String activeRoute;
+  final String? activeModuleId;
+  final String? activeEntityCollection;
+  final bool showContextSwitcher;
+
+  const _DesktopShell({
+    required this.width,
+    required this.title,
+    required this.body,
+    required this.actions,
+    required this.floatingActionButton,
+    required this.activeRoute,
+    required this.activeModuleId,
+    required this.activeEntityCollection,
+    required this.showContextSwitcher,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: NavigationPreferences.instance,
+      builder: (BuildContext context, Widget? child) {
+        final expanded = NavigationPreferences.instance.desktopExpandedFor(width);
+        final sidebarWidth = expanded
+            ? SaasScaffold.expandedSidebarWidth
+            : SaasScaffold.compactSidebarWidth;
+
+        return Scaffold(
+          floatingActionButton: floatingActionButton,
+          body: SafeArea(
+            child: Row(
               children: <Widget>[
-                _TopBar(
-                  title: widget.title,
-                  actions: widget.actions,
-                  showContextSwitcher: widget.showContextSwitcher,
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  width: sidebarWidth,
+                  clipBehavior: Clip.hardEdge,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                  ),
+                  child: MainDrawer(
+                    embedded: true,
+                    compact: !expanded,
+                    activeRoute: activeRoute,
+                    activeModuleId: activeModuleId,
+                    activeEntityCollection: activeEntityCollection,
+                    onToggleCompact: () =>
+                        NavigationPreferences.instance.toggleDesktop(width),
+                  ),
                 ),
-                const Divider(height: 1),
-                Expanded(child: widget.body),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: Column(
+                    children: <Widget>[
+                      _TopBar(
+                        title: title,
+                        actions: actions,
+                        showContextSwitcher: showContextSwitcher,
+                      ),
+                      const Divider(height: 1),
+                      Expanded(child: body),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
+}
 
-  Widget _tablet(BuildContext context) {
+class _TabletShell extends StatefulWidget {
+  final double width;
+  final String title;
+  final Widget body;
+  final List<Widget> actions;
+  final Widget? floatingActionButton;
+  final String activeRoute;
+  final String? activeModuleId;
+  final String? activeEntityCollection;
+  final bool showContextSwitcher;
+
+  const _TabletShell({
+    required this.width,
+    required this.title,
+    required this.body,
+    required this.actions,
+    required this.floatingActionButton,
+    required this.activeRoute,
+    required this.activeModuleId,
+    required this.activeEntityCollection,
+    required this.showContextSwitcher,
+  });
+
+  @override
+  State<_TabletShell> createState() => _TabletShellState();
+}
+
+class _TabletShellState extends State<_TabletShell> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  @override
+  Widget build(BuildContext context) {
+    final extendedRail = widget.width >= 900;
     return Scaffold(
       key: _scaffoldKey,
-      drawer: const Drawer(child: MainDrawer()),
+      drawer: Drawer(
+        child: MainDrawer(
+          activeRoute: widget.activeRoute,
+          activeModuleId: widget.activeModuleId,
+          activeEntityCollection: widget.activeEntityCollection,
+        ),
+      ),
       appBar: AppBar(
-        title: Text(widget.title),
-        actions: _compactActions(context),
+        title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: _appBarActions(context, widget.actions),
       ),
       floatingActionButton: widget.floatingActionButton,
-      body: Row(
-        children: <Widget>[
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            labelType: NavigationRailLabelType.all,
-            leading: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: IconButton(
-                tooltip: 'All modules',
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                icon: const Icon(Icons.menu_rounded),
+      body: SafeArea(
+        top: false,
+        child: Row(
+          children: <Widget>[
+            NavigationRail(
+              extended: extendedRail,
+              minExtendedWidth: 188,
+              selectedIndex: _selectedIndex(widget.activeRoute),
+              labelType: extendedRail
+                  ? NavigationRailLabelType.none
+                  : NavigationRailLabelType.selected,
+              leading: Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: IconButton.filledTonal(
+                  tooltip: 'All modules',
+                  onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                  icon: const Icon(Icons.grid_view_rounded),
+                ),
+              ),
+              destinations: _railDestinations,
+              onDestinationSelected: (int index) {
+                _navigate(context, _tabletRoutes[index], widget.activeRoute);
+              },
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(
+              child: Column(
+                children: <Widget>[
+                  if (widget.showContextSwitcher) const _ContextStrip(),
+                  Expanded(child: widget.body),
+                ],
               ),
             ),
-            destinations: const <NavigationRailDestination>[
-              NavigationRailDestination(
-                icon: Icon(Icons.dashboard_outlined),
-                selectedIcon: Icon(Icons.dashboard_rounded),
-                label: Text('Home'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.search_outlined),
-                selectedIcon: Icon(Icons.search_rounded),
-                label: Text('Search'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.notifications_none_rounded),
-                selectedIcon: Icon(Icons.notifications_rounded),
-                label: Text('Alerts'),
-              ),
-              NavigationRailDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings_rounded),
-                label: Text('Settings'),
-              ),
-            ],
-            onDestinationSelected: _onDestinationSelected,
-          ),
-          const VerticalDivider(width: 1),
-          Expanded(child: widget.body),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _mobile(BuildContext context) {
+class _MobileShell extends StatefulWidget {
+  final String title;
+  final Widget body;
+  final List<Widget> actions;
+  final Widget? floatingActionButton;
+  final String activeRoute;
+  final String? activeModuleId;
+  final String? activeEntityCollection;
+  final bool showContextSwitcher;
+
+  const _MobileShell({
+    required this.title,
+    required this.body,
+    required this.actions,
+    required this.floatingActionButton,
+    required this.activeRoute,
+    required this.activeModuleId,
+    required this.activeEntityCollection,
+    required this.showContextSwitcher,
+  });
+
+  @override
+  State<_MobileShell> createState() => _MobileShellState();
+}
+
+class _MobileShellState extends State<_MobileShell> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = SessionState.instance;
     return Scaffold(
       key: _scaffoldKey,
-      drawer: const Drawer(child: MainDrawer()),
+      drawer: Drawer(
+        child: MainDrawer(
+          activeRoute: widget.activeRoute,
+          activeModuleId: widget.activeModuleId,
+          activeEntityCollection: widget.activeEntityCollection,
+        ),
+      ),
       appBar: AppBar(
-        title: Text(widget.title),
-        actions: _compactActions(context),
+        titleSpacing: 4,
+        title: Text(
+          widget.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: <Widget>[
+          ...widget.actions.take(1),
+          IconButton(
+            tooltip: 'Search',
+            onPressed: () => _navigate(context, '/search', widget.activeRoute),
+            icon: const Icon(Icons.search_rounded),
+          ),
+          if (state.hasPermission(AppPermission.notificationsView) &&
+              widget.activeRoute != '/notifications')
+            IconButton(
+              tooltip: 'Notifications',
+              onPressed: () =>
+                  _navigate(context, '/notifications', widget.activeRoute),
+              icon: const Icon(Icons.notifications_none_rounded),
+            ),
+        ],
       ),
       floatingActionButton: widget.floatingActionButton,
-      body: widget.body,
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: <Widget>[
+            if (widget.showContextSwitcher) const _ContextStrip(),
+            Expanded(child: widget.body),
+          ],
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
+        height: 68,
+        selectedIndex: _mobileSelectedIndex(widget.activeRoute),
         destinations: const <NavigationDestination>[
           NavigationDestination(
             icon: Icon(Icons.dashboard_outlined),
@@ -156,8 +340,9 @@ class _SaasScaffoldState extends State<SaasScaffold> {
             label: 'Alerts',
           ),
           NavigationDestination(
-            icon: Icon(Icons.menu_rounded),
-            label: 'More',
+            icon: Icon(Icons.grid_view_outlined),
+            selectedIcon: Icon(Icons.grid_view_rounded),
+            label: 'Modules',
           ),
         ],
         onDestinationSelected: (int index) {
@@ -165,54 +350,10 @@ class _SaasScaffoldState extends State<SaasScaffold> {
             _scaffoldKey.currentState?.openDrawer();
             return;
           }
-          _onDestinationSelected(index);
+          _navigate(context, _mobileRoutes[index], widget.activeRoute);
         },
       ),
     );
-  }
-
-  List<Widget> _compactActions(BuildContext context) {
-    final state = SessionState.instance;
-    return <Widget>[
-      if (widget.showContextSwitcher)
-        const SchoolContextSwitcher(compact: true),
-      const TenantSwitcher(compact: true),
-      ...widget.actions,
-      if (state.hasPermission(AppPermission.notificationsView) &&
-          widget.activeRoute != '/notifications')
-        IconButton(
-          tooltip: 'Notifications',
-          onPressed: () => _navigate('/notifications'),
-          icon: const Icon(Icons.notifications_none_rounded),
-        ),
-    ];
-  }
-
-  int get _selectedIndex {
-    switch (widget.activeRoute) {
-      case '/search':
-        return 1;
-      case '/notifications':
-        return 2;
-      case '/settings':
-        return 3;
-      default:
-        return 0;
-    }
-  }
-
-  void _onDestinationSelected(int index) {
-    const routes = <String>['/home', '/search', '/notifications', '/settings'];
-    _navigate(routes[index]);
-  }
-
-  void _navigate(String route) {
-    if (widget.activeRoute == route) return;
-    if (route == '/home') {
-      Navigator.pushNamedAndRemoveUntil(context, route, (Route<dynamic> _) => false);
-      return;
-    }
-    Navigator.pushNamed(context, route);
   }
 }
 
@@ -231,57 +372,188 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = SessionState.instance;
     return SizedBox(
-      height: 72,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: 70,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final compact = constraints.maxWidth < 820;
+          return Padding(
+            padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 20),
+            child: Row(
+              children: <Widget>[
+                if (Navigator.canPop(context)) ...<Widget>[
+                  IconButton(
+                    tooltip: 'Back',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: compact ? 18 : 21,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                if (showContextSwitcher)
+                  SchoolContextSwitcher(compact: compact),
+                if (showContextSwitcher && !compact) const SizedBox(width: 8),
+                const TenantSwitcher(compact: true),
+                IconButton(
+                  tooltip: 'Global search',
+                  onPressed: () => Navigator.pushNamed(context, '/search'),
+                  icon: const Icon(Icons.search_rounded),
+                ),
+                if (state.hasPermission(AppPermission.notificationsView))
+                  IconButton(
+                    tooltip: 'Notifications',
+                    onPressed: () =>
+                        Navigator.pushNamed(context, '/notifications'),
+                    icon: const Icon(Icons.notifications_none_rounded),
+                  ),
+                if (!compact)
+                  IconButton(
+                    tooltip: 'Toggle theme',
+                    onPressed: SessionState.instance.toggleTheme,
+                    icon: Icon(
+                      Theme.of(context).brightness == Brightness.dark
+                          ? Icons.light_mode_outlined
+                          : Icons.dark_mode_outlined,
+                    ),
+                  ),
+                ...actions.take(compact ? 1 : actions.length),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ContextStrip extends StatelessWidget {
+  const _ContextStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 54),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
+      child: const SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
         child: Row(
           children: <Widget>[
-            if (Navigator.canPop(context)) ...<Widget>[
-              IconButton(
-                tooltip: 'Back',
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back_rounded),
-              ),
-              const SizedBox(width: 4),
-            ],
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            if (showContextSwitcher) const SchoolContextSwitcher(),
-            if (showContextSwitcher) const SizedBox(width: 8),
-            const TenantSwitcher(compact: true),
-            IconButton(
-              tooltip: 'Global search',
-              onPressed: () => Navigator.pushNamed(context, '/search'),
-              icon: const Icon(Icons.search_rounded),
-            ),
-            if (state.hasPermission(AppPermission.notificationsView))
-              IconButton(
-                tooltip: 'Notifications',
-                onPressed: () => Navigator.pushNamed(context, '/notifications'),
-                icon: const Icon(Icons.notifications_none_rounded),
-              ),
-            IconButton(
-              tooltip: 'Toggle theme',
-              onPressed: SessionState.instance.toggleTheme,
-              icon: Icon(
-                Theme.of(context).brightness == Brightness.dark
-                    ? Icons.light_mode_outlined
-                    : Icons.dark_mode_outlined,
-              ),
-            ),
-            ...actions,
+            SchoolContextSwitcher(),
+            SizedBox(width: 8),
+            TenantSwitcher(),
           ],
         ),
       ),
     );
   }
+}
+
+List<Widget> _appBarActions(BuildContext context, List<Widget> actions) {
+  final state = SessionState.instance;
+  return <Widget>[
+    ...actions.take(2),
+    IconButton(
+      tooltip: 'Search',
+      onPressed: () => Navigator.pushNamed(context, '/search'),
+      icon: const Icon(Icons.search_rounded),
+    ),
+    if (state.hasPermission(AppPermission.notificationsView))
+      IconButton(
+        tooltip: 'Notifications',
+        onPressed: () => Navigator.pushNamed(context, '/notifications'),
+        icon: const Icon(Icons.notifications_none_rounded),
+      ),
+  ];
+}
+
+const List<NavigationRailDestination> _railDestinations =
+    <NavigationRailDestination>[
+  NavigationRailDestination(
+    icon: Icon(Icons.dashboard_outlined),
+    selectedIcon: Icon(Icons.dashboard_rounded),
+    label: Text('Dashboard'),
+  ),
+  NavigationRailDestination(
+    icon: Icon(Icons.search_outlined),
+    selectedIcon: Icon(Icons.search_rounded),
+    label: Text('Search'),
+  ),
+  NavigationRailDestination(
+    icon: Icon(Icons.notifications_none_rounded),
+    selectedIcon: Icon(Icons.notifications_rounded),
+    label: Text('Alerts'),
+  ),
+  NavigationRailDestination(
+    icon: Icon(Icons.settings_outlined),
+    selectedIcon: Icon(Icons.settings_rounded),
+    label: Text('Settings'),
+  ),
+];
+
+const List<String> _tabletRoutes = <String>[
+  '/home',
+  '/search',
+  '/notifications',
+  '/settings',
+];
+
+const List<String> _mobileRoutes = <String>[
+  '/home',
+  '/search',
+  '/notifications',
+];
+
+int _selectedIndex(String activeRoute) {
+  switch (activeRoute) {
+    case '/search':
+      return 1;
+    case '/notifications':
+      return 2;
+    case '/settings':
+      return 3;
+    default:
+      return 0;
+  }
+}
+
+int _mobileSelectedIndex(String activeRoute) {
+  switch (activeRoute) {
+    case '/search':
+      return 1;
+    case '/notifications':
+      return 2;
+    case '/home':
+      return 0;
+    default:
+      return 3;
+  }
+}
+
+void _navigate(BuildContext context, String route, String activeRoute) {
+  if (route == activeRoute) return;
+  if (route == '/home') {
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      route,
+      (Route<dynamic> _) => false,
+    );
+    return;
+  }
+  Navigator.pushNamed(context, route);
 }

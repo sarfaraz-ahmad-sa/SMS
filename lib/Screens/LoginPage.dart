@@ -107,8 +107,11 @@ class _MyHomePageState extends State<MyHomePage>
       _showError(error.message);
     } on FirebaseAuthException catch (error) {
       _showError(_messageForFirebaseError(error));
-    } catch (_) {
-      _showError('Something went wrong. Please try again.');
+    } on FirebaseException catch (error) {
+      _showError(_messageForFirebaseServiceError(error));
+    } catch (error) {
+      if (kDebugMode) debugPrint('Email sign-in failed: $error');
+      _showError('Login could not be completed. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -163,13 +166,21 @@ class _MyHomePageState extends State<MyHomePage>
   }
 
   Future<void> _completeSignIn(UserCredential credential) async {
-    final firebaseUser = credential.user;
+    final firebaseUser = await _authService.resolveSignedInUser(
+      credentialUser: credential.user,
+    );
     if (firebaseUser == null) {
       throw FirebaseAuthException(
-        code: 'user-not-available',
-        message: 'The authenticated user could not be loaded.',
+        code: 'auth-state-not-ready',
+        message: 'Login succeeded, but the browser session was not ready. '
+            'Refresh the page and sign in again.',
       );
     }
+
+    // Refresh the ID token before Firestore membership reads. This avoids a
+    // production-only race where rules evaluate an older auth token directly
+    // after email/password sign-in.
+    await firebaseUser.getIdToken(true);
 
     final session = await _tenantService.loadSession(firebaseUser);
     final accessibleTenants =
@@ -243,6 +254,24 @@ class _MyHomePageState extends State<MyHomePage>
     );
   }
 
+  String _messageForFirebaseServiceError(FirebaseException error) {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'Login succeeded, but this account cannot read its school profile. '
+            'Deploy the latest Firestore rules and verify the user membership.';
+      case 'unavailable':
+      case 'deadline-exceeded':
+        return 'The school service is temporarily unavailable. Check the '
+            'internet connection and try again.';
+      case 'failed-precondition':
+        return error.message ??
+            'The school profile is incomplete or requires configuration.';
+      default:
+        return error.message ??
+            'The school profile could not be loaded after login.';
+    }
+  }
+
   String _messageForFirebaseError(FirebaseAuthException error) {
     switch (error.code) {
       case 'user-not-found':
@@ -258,6 +287,10 @@ class _MyHomePageState extends State<MyHomePage>
         return 'Too many attempts. Please try again later.';
       case 'network-request-failed':
         return 'Network error. Check your internet connection.';
+      case 'auth-state-not-ready':
+      case 'user-not-available':
+        return error.message ??
+            'Login succeeded, but the browser session was not ready. Try again.';
       case 'popup-closed-by-user':
       case 'cancelled-popup-request':
       case 'google-sign-in-cancelled':

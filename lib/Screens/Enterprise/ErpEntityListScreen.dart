@@ -133,12 +133,16 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
       return SaasScaffold(
         title: widget.entity.title,
         activeRoute: '/erp-entity',
+        activeModuleId: module?.id,
+        activeEntityCollection: widget.entity.collection,
         body: const PermissionDeniedView(),
       );
     }
     return SaasScaffold(
       title: widget.entity.title,
       activeRoute: '/erp-entity',
+      activeModuleId: module?.id,
+      activeEntityCollection: widget.entity.collection,
       actions: <Widget>[
         if (_canCreate)
           IconButton(

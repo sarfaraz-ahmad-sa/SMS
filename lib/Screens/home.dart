@@ -791,22 +791,17 @@ class _OldQuickAccess extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final columns = constraints.maxWidth >= 1000
-            ? 5
-            : constraints.maxWidth >= 720
-                ? 4
-                : constraints.maxWidth >= 480
-                    ? 3
-                    : 2;
+        final maxTileWidth = constraints.maxWidth < 420 ? 190.0 : 220.0;
+        final tileHeight = constraints.maxWidth < 420 ? 146.0 : 154.0;
 
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: maxTileWidth,
+            mainAxisExtent: tileHeight,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: columns == 2 ? 0.96 : 1.02,
           ),
           itemCount: visibleItems.length,
           itemBuilder: (BuildContext context, int index) {

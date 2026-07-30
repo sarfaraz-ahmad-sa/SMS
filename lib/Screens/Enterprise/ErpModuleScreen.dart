@@ -38,6 +38,7 @@ class _ErpModuleScreenState extends State<ErpModuleScreen> {
       return SaasScaffold(
         title: widget.module.title,
         activeRoute: '/erp-module',
+        activeModuleId: widget.module.id,
         body: const PermissionDeniedView(),
       );
     }
@@ -59,6 +60,7 @@ class _ErpModuleScreenState extends State<ErpModuleScreen> {
     return SaasScaffold(
       title: widget.module.title,
       activeRoute: '/erp-module',
+      activeModuleId: widget.module.id,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1220),

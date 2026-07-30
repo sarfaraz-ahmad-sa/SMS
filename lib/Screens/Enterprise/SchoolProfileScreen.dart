@@ -108,6 +108,7 @@ class _SchoolProfileScreenState extends State<SchoolProfileScreen> {
       return const SaasScaffold(
         title: 'School Profile',
         activeRoute: '/erp-module',
+        activeModuleId: 'school-setup',
         body: Center(child: Text('No active school session.')),
       );
     }
@@ -115,6 +116,7 @@ class _SchoolProfileScreenState extends State<SchoolProfileScreen> {
     return SaasScaffold(
       title: 'School Profile',
       activeRoute: '/erp-module',
+      activeModuleId: 'school-setup',
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 820),
