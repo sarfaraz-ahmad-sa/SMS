@@ -3,7 +3,6 @@ import '../../services/models/user_role.dart';
 import '../../services/session_state.dart';
 import 'erp_access_policy.dart';
 import 'erp_catalog.dart';
-import 'erp_entity.dart';
 import 'tenant_erp_service.dart';
 
 class ErpDashboardMetric {

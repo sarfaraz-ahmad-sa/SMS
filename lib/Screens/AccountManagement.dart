@@ -846,7 +846,7 @@ class _MemberDirectoryState extends State<_MemberDirectory> {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (!mounted || confirmed != true) return;
     if (currentlyActive && reason.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

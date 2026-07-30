@@ -1,4 +1,8 @@
-# CARTZ Link School ERP SaaS 2.4.1+8
+# v2.4.2 Web Runtime Patch
+
+This release fixes startup-time SessionState notifications and the missing Google web client-ID assertion.
+
+# CARTZ Link School ERP SaaS 2.4.2+9
 
 ## Release scope
 

@@ -125,7 +125,7 @@ class _HomeState extends State<Home> {
       final personalScope = user != null &&
           (user.role.isLearner || user.role.isGuardian);
       students = personalScope
-          ? await service.countVisible(studentEntity!)
+          ? await service.countVisible(studentEntity)
           : await service.count('students');
     }
 

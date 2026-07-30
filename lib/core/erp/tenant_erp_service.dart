@@ -184,7 +184,7 @@ class TenantErpService {
         !user.hasPermission(entity.managePermission);
     final selfServiceMetadata = <String, dynamic>{
       if (isSelfService) ...<String, dynamic>{
-        'requesterUid': user!.uid,
+        'requesterUid': user.uid,
         ..._selfServiceDefaults(entity.collection),
       },
       if (user != null && user.role.isLearner) 'authUid': user.uid,
@@ -195,9 +195,9 @@ class TenantErpService {
       ...values,
       ...selfServiceMetadata,
       if (isSelfService &&
-          user?.role.isLearner == true &&
-          user?.linkedRecordId?.isNotEmpty == true)
-        'studentRecordId': user!.linkedRecordId,
+          user.role.isLearner &&
+          user.linkedRecordId?.isNotEmpty == true)
+        'studentRecordId': user.linkedRecordId,
     };
     if (!isDemoMode && entity.collection != 'students') {
       values = await _enrichStudentRelationship(values);

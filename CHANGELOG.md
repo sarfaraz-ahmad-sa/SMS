@@ -1,3 +1,11 @@
+## 2.4.2+9 - Web startup and Google sign-in fix
+
+- Deferred splash bootstrap until after the first rendered frame, preventing `SessionState` notifications during widget build.
+- Made session initialization idempotent.
+- Stopped constructing `GoogleSignIn` on web; Firebase Auth redirect is now used without requiring a `google-signin-client_id` meta tag.
+- Kept native Google Sign-In lazy-initialized for Android and iOS.
+- Removed the duplicate web viewport declaration and cleaned the active analyzer warnings reported in v2.4.1.
+
 
 ## 2.4.1 - Production login reliability
 

@@ -1,6 +1,10 @@
+# v2.4.2 Web Runtime Patch
+
+This release fixes startup-time SessionState notifications and the missing Google web client-ID assertion.
+
 # CARTZ Link School ERP SaaS — Delivery Notes
 
-## Delivered in version 2.4.1+8
+## Delivered in version 2.4.2+9
 
 - Secure administrator-created accounts using a temporary password or email setup link.
 - Mandatory first-login password change with strong-password validation and recent-authentication enforcement.

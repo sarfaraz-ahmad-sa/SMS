@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../Widgets/PermissionGate.dart';
 import '../../Widgets/saas_scaffold.dart';
 import '../../core/erp/erp_catalog.dart';
-import '../../core/erp/erp_entity.dart';
 import '../../core/erp/tenant_erp_service.dart';
 import '../../services/models/app_permission.dart';
 import '../../services/session_state.dart';

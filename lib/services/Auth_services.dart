@@ -5,10 +5,10 @@ import 'package:google_sign_in/google_sign_in.dart';
 class AuthService {
   AuthService({FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn})
       : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn();
+        _googleSignIn = googleSignIn;
 
   final FirebaseAuth _firebaseAuth;
-  final GoogleSignIn _googleSignIn;
+  GoogleSignIn? _googleSignIn;
 
   Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
   User? get currentUser => _firebaseAuth.currentUser;
@@ -55,7 +55,8 @@ class AuthService {
       return null;
     }
 
-    final account = await _googleSignIn.signIn();
+    final googleSignIn = _googleSignIn ??= GoogleSignIn();
+    final account = await googleSignIn.signIn();
     if (account == null) {
       throw FirebaseAuthException(
         code: 'google-sign-in-cancelled',
@@ -149,7 +150,7 @@ class AuthService {
 
   Future<void> signOut() async {
     try {
-      await _googleSignIn.signOut();
+      await _googleSignIn?.signOut();
     } catch (_) {
       // Google Sign-In may not be initialized for email/password users.
     }

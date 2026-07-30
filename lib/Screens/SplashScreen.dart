@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -33,7 +35,9 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 900),
     )..forward();
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-    _bootstrap();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_bootstrap());
+    });
   }
 
   Future<void> _bootstrap() async {

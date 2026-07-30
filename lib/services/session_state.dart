@@ -106,6 +106,7 @@ class SessionState extends ChangeNotifier {
   }
 
   void markInitialized() {
+    if (_initialized) return;
     _initialized = true;
     notifyListeners();
   }
