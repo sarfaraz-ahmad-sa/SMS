@@ -10,6 +10,7 @@ const {
   effectivePermissionsForRoles,
 } = require("./role-permissions");
 
+
 initializeApp();
 
 const db = getFirestore();
@@ -733,7 +734,7 @@ function publicProvisioningError(error) {
 }
 
 exports.provisionSchoolUser = onCall(
-  { region: "asia-south1", timeoutSeconds: 60 },
+  { region: "asia-south1", timeoutSeconds: 60, cors: true },
   async (request) => {
     try {
       return await provisionSchoolUser(request);
@@ -754,7 +755,7 @@ exports.provisionSchoolUser = onCall(
 
 
 exports.manageSchoolUser = onCall(
-  { region: "asia-south1", timeoutSeconds: 60 },
+  { region: "asia-south1", timeoutSeconds: 60, cors: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before managing an account.");
@@ -1006,7 +1007,7 @@ exports.manageSchoolUser = onCall(
 );
 
 exports.completeInitialPasswordChange = onCall(
-  { region: "asia-south1", timeoutSeconds: 30 },
+  { region: "asia-south1", timeoutSeconds: 30, cors: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before completing setup.");
@@ -1063,7 +1064,7 @@ exports.completeInitialPasswordChange = onCall(
 );
 
 exports.recordSuccessfulLogin = onCall(
-  { region: "asia-south1", timeoutSeconds: 20 },
+  { region: "asia-south1", timeoutSeconds: 20, cors: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before recording activity.");
@@ -1095,7 +1096,7 @@ exports.recordSuccessfulLogin = onCall(
 );
 
 exports.createMeteredErpRecord = onCall(
-  { region: "asia-south1", timeoutSeconds: 30 },
+  { region: "asia-south1", timeoutSeconds: 30, cors: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before creating a record.");
@@ -1186,7 +1187,7 @@ exports.createMeteredErpRecord = onCall(
 );
 
 exports.archiveMeteredErpRecord = onCall(
-  { region: "asia-south1", timeoutSeconds: 30 },
+  { region: "asia-south1", timeoutSeconds: 30, cors: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before archiving a record.");
@@ -1311,7 +1312,7 @@ function auditDocument(tenantId, actorUid, action, details = {}) {
 }
 
 exports.refreshSaasUsage = onCall(
-  { region: "asia-south1", timeoutSeconds: 60 },
+  { region: "asia-south1", timeoutSeconds: 60, cors: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before refreshing usage.");
@@ -1403,7 +1404,7 @@ const approvableCollections = new Set([
 ]);
 
 exports.requestApproval = onCall(
-  { region: "asia-south1", timeoutSeconds: 30 },
+  { region: "asia-south1", timeoutSeconds: 30, cors: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before requesting approval.");
@@ -1473,7 +1474,7 @@ exports.requestApproval = onCall(
 );
 
 exports.decideApproval = onCall(
-  { region: "asia-south1", timeoutSeconds: 30 },
+  { region: "asia-south1", timeoutSeconds: 30, cors: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before deciding approval.");
