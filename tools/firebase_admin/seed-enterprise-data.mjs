@@ -64,7 +64,7 @@ const records = [
     openingBalance: 0, status: 'Active',
   }],
   ['announcements', 'welcome-announcement', {
-    title: 'Welcome to CARTZ Link School ERP', audience: 'All',
+    title: 'Welcome to SEEF School ERP', audience: 'All',
     message: 'The enterprise school workspace is ready. Configure master data before onboarding users.',
     publishDate: new Date().toISOString().slice(0, 10), expiryDate: '', priority: 'Normal', status: 'Published',
   }],

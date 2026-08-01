@@ -217,7 +217,7 @@ class _MyHomePageState extends State<MyHomePage>
 
     const tenant = Tenant(
       id: 'school_demo',
-      name: 'CARTZ Link Demo School',
+      name: 'SEEF Demo School',
       code: 'DEMO',
       timezone: 'Asia/Karachi',
       currency: 'PKR',
@@ -424,7 +424,7 @@ class _MyHomePageState extends State<MyHomePage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          'CARTZ Link',
+                          'SEEF',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
@@ -712,7 +712,7 @@ class _LoginBrandPanel extends StatelessWidget {
                     ),
                     const Spacer(),
                     Text(
-                      'CARTZ Link School ERP  •  Enterprise SaaS',
+                      'SEEF School ERP  •  Enterprise SaaS',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.55),
                         fontSize: 12,

@@ -49,7 +49,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (firebaseUser == null) {
         SessionState.instance.markInitialized();
         await _waitForBrandAnimation(startedAt);
-        _replace(const MyHomePage(title: 'CARTZ Link School ERP'));
+        _replace(const MyHomePage(title: 'SEEF School ERP'));
         return;
       }
 
@@ -146,7 +146,7 @@ class _SplashScreenState extends State<SplashScreen>
               ),
               const SizedBox(height: 24),
               const Text(
-                'CARTZ Link',
+                'SEEF',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 30,

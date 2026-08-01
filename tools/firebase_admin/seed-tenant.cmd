@@ -3,7 +3,7 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 echo.
-echo CARTZ Link School ERP - Seed School Tenant
+echo SEEF School ERP - Seed School Tenant
  echo -----------------------------------
 
 if "%FIREBASE_PROJECT_ID%"=="" set /p FIREBASE_PROJECT_ID=Firebase project ID: 

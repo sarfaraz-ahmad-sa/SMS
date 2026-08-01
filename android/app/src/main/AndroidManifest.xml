@@ -2,7 +2,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="CARTZ Link School ERP"
+        android:label="SEEF School ERP"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
        

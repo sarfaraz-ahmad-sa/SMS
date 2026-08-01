@@ -733,7 +733,7 @@ class _DrawerHeader extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            tenant?.name ?? 'CARTZ Link School ERP',
+            tenant?.name ?? 'SEEF',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(

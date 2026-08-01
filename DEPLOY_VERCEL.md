@@ -1,4 +1,4 @@
-# Deploy CARTZ Link School ERP Web
+# Deploy SEEF School ERP Web
 
 ## Recommended: build locally and deploy static output
 

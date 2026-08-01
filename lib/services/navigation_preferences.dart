@@ -10,7 +10,7 @@ class NavigationPreferences extends ChangeNotifier {
   bool? _desktopExpanded;
 
   bool desktopExpandedFor(double width) {
-    return _desktopExpanded ?? width >= 1320;
+    return _desktopExpanded ?? false;
   }
 
   void toggleDesktop(double width) {

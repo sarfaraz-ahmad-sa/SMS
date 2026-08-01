@@ -1,4 +1,4 @@
-CARTZ Link School ERP static validation
+SEEF School ERP static validation
 UTC: 2026-07-30 14:59:24
 
 Dart source/test files: 96

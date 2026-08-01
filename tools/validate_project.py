@@ -208,7 +208,7 @@ def main() -> int:
     ]
 
     lines = [
-        "CARTZ Link School ERP static validation",
+        "SEEF School ERP static validation",
         f"UTC: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}",
         "",
         f"Dart source/test files: {len(files)}",

@@ -19,7 +19,7 @@ class SessionState extends ChangeNotifier {
   String? _activeAcademicYearId;
   bool _initialized = false;
   bool _switchingTenant = false;
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.light;
 
   UserModel? get user => _user;
   Tenant? get tenant => _tenant;
@@ -152,7 +152,7 @@ class SessionState extends ChangeNotifier {
     return switch (value) {
       'light' => ThemeMode.light,
       'dark' => ThemeMode.dark,
-      _ => ThemeMode.system,
+      _ => ThemeMode.light,
     };
   }
 }

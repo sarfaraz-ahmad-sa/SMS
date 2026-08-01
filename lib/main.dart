@@ -39,14 +39,14 @@ class MyApp extends StatelessWidget {
       builder: (BuildContext context, Widget? child) {
         final state = SessionState.instance;
         return MaterialApp(
-          title: 'CARTZ Link School ERP',
+          title: 'SEEF SMS',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightFor(state.tenant),
           darkTheme: AppTheme.darkFor(state.tenant),
           themeMode: state.themeMode,
           home: const SplashScreen(),
           routes: <String, WidgetBuilder>{
-            '/login': (_) => const MyHomePage(title: 'CARTZ Link School ERP'),
+            '/login': (_) => const MyHomePage(title: 'SEEF SMS'),
             '/home': (_) => const Home(),
             '/secure-account': (_) => const FirstLoginPasswordScreen(),
             '/profile': (_) => const ProfileScreen(),

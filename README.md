@@ -1,4 +1,4 @@
-# CARTZ Link School Management SaaS
+# SEEF School Management SaaS
 
 Production-oriented Flutter + Firebase School ERP foundation for schools, colleges and education groups.
 

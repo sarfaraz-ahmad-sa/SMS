@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 
-echo Starting CARTZ Link School ERP demo...
+echo Starting SEEF School ERP demo...
 call flutter pub get
 if errorlevel 1 exit /b 1
 

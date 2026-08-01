@@ -2,7 +2,7 @@
 
 This release fixes startup-time SessionState notifications and the missing Google web client-ID assertion.
 
-# CARTZ Link School ERP SaaS — Delivery Notes
+# SEEF School ERP SaaS — Delivery Notes
 
 ## Delivered in version 2.4.2+9
 
@@ -26,7 +26,7 @@ This release fixes startup-time SessionState notifications and the missing Googl
 - Direct client bypass prevention for metered student/campus creation and archive operations.
 - Trusted usage refresh and compatibility migration for existing tenants.
 - Plan-based module visibility and Firestore collection entitlement checks.
-- Standardized CARTZ Link School ERP branding.
+- Standardized SEEF School ERP branding.
 - Existing 24 modules and 105 tenant-scoped workflows retained and integrated.
 
 

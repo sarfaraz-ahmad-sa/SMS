@@ -97,4 +97,4 @@
 - Added backend-enforced student and campus quotas with trusted archive counters.
 - Added a migration tool for existing tenant subscriptions and SaaS usage counters.
 - Added staff-user subscription-limit enforcement during account provisioning.
-- Standardized product branding as CARTZ Link School ERP.
+- Standardized product branding as SEEF School ERP.
