@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:school_management/services/models/student.dart';
 import 'package:school_management/services/session_state.dart';
 import 'package:school_management/services/student_service.dart';
+import 'package:school_management/services/supabase_student_service.dart';
+import 'package:school_management/config/backend_config.dart';
 import 'package:school_management/theme/app_theme.dart';
 
 class AddStudentScreen extends StatefulWidget {
@@ -15,6 +17,7 @@ class AddStudentScreen extends StatefulWidget {
 class _AddStudentScreenState extends State<AddStudentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _service = StudentService();
+  final _supabaseService = SupabaseStudentService();
 
   // Personal
   final _firstName = TextEditingController();
@@ -57,15 +60,41 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     'Sikhism',
     'Other'
   ];
-  static const _classes = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+  static const _classes = [
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '10',
+    '11',
+    '12'
+  ];
   static const _sections = ['A', 'B', 'C', 'D'];
 
   @override
   void dispose() {
     for (final c in [
-      _firstName, _lastName, _email, _nationality, _phone, _idCard,
-      _address, _address2, _city, _zip, _fatherName, _fatherPhone,
-      _motherName, _motherPhone, _parentAddress, _boardReg
+      _firstName,
+      _lastName,
+      _email,
+      _nationality,
+      _phone,
+      _idCard,
+      _address,
+      _address2,
+      _city,
+      _zip,
+      _fatherName,
+      _fatherPhone,
+      _motherName,
+      _motherPhone,
+      _parentAddress,
+      _boardReg
     ]) {
       c.dispose();
     }
@@ -133,11 +162,45 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     );
 
     try {
-      await _service.addStudent(student);
+      if (BackendConfig.isSupabasePrimary) {
+        final state = SessionState.instance;
+        final tenantId = state.tenant?.id;
+        final campusId = state.activeCampusId;
+        final academicYearId = state.activeAcademicYearId;
+        if (tenantId == null || campusId == null || academicYearId == null) {
+          throw StateError('School, campus, or academic year is not selected.');
+        }
+        final placement = await _supabaseService.resolvePlacement(
+          tenantId: tenantId,
+          campusId: campusId,
+          academicYearId: academicYearId,
+          className: _className!,
+          sectionName: _sectionValue!,
+        );
+        await _supabaseService.create(
+          tenantId: tenantId,
+          student: SupabaseStudentDraft(
+            campusId: campusId,
+            academicYearId: academicYearId,
+            admissionNo: _idCard.text,
+            fullName: student.fullName,
+            classId: placement.classId,
+            sectionId: placement.sectionId,
+            dateOfBirth: _birthday,
+            gender: _gender,
+          ),
+        );
+      } else {
+        await _service.addStudent(student);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Student saved to Firebase'),
+        SnackBar(
+          content: Text(
+            BackendConfig.isSupabasePrimary
+                ? 'Student saved to Supabase'
+                : 'Student saved to Firebase',
+          ),
           backgroundColor: AppColors.success,
         ),
       );
@@ -174,50 +237,51 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                 type: TextInputType.emailAddress, isEmail: true),
             _dateField(),
             Row(children: [
-              Expanded(child: _dropdown('Gender *', _gender, _genders,
-                  (v) => setState(() => _gender = v!))),
+              Expanded(
+                  child: _dropdown('Gender *', _gender, _genders,
+                      (v) => setState(() => _gender = v!))),
               const SizedBox(width: 12),
               Expanded(
                   child: _tf(_nationality, 'Nationality *',
                       hint: 'e.g. Pakistani')),
             ]),
             Row(children: [
-              Expanded(child: _dropdown('Blood Type *', _bloodType, _bloods,
-                  (v) => setState(() => _bloodType = v!))),
+              Expanded(
+                  child: _dropdown('Blood Type *', _bloodType, _bloods,
+                      (v) => setState(() => _bloodType = v!))),
               const SizedBox(width: 12),
-              Expanded(child: _dropdown('Religion *', _religion, _religions,
-                  (v) => setState(() => _religion = v!))),
+              Expanded(
+                  child: _dropdown('Religion *', _religion, _religions,
+                      (v) => setState(() => _religion = v!))),
             ]),
             _tf(_phone, 'Phone *',
                 type: TextInputType.phone, hint: '+92 3XX XXXXXXX'),
-            _tf(_idCard, 'Id Card Number *',
-                hint: 'e.g. 2021-03-01-02-01'),
-
+            _tf(_idCard, 'Id Card Number *', hint: 'e.g. 2021-03-01-02-01'),
             _section('Address'),
             _tf(_address, 'Address *'),
-            _tf(_address2, 'Address 2', required: false,
-                hint: 'Apartment, studio, or floor'),
+            _tf(_address2, 'Address 2',
+                required: false, hint: 'Apartment, studio, or floor'),
             Row(children: [
               Expanded(child: _tf(_city, 'City *')),
               const SizedBox(width: 12),
               Expanded(child: _tf(_zip, 'Zip', required: false)),
             ]),
-
             _section("Parents' Information"),
             Row(children: [
               Expanded(child: _tf(_fatherName, 'Father Name *')),
               const SizedBox(width: 12),
-              Expanded(child: _tf(_fatherPhone, "Father's Phone *",
-                  type: TextInputType.phone)),
+              Expanded(
+                  child: _tf(_fatherPhone, "Father's Phone *",
+                      type: TextInputType.phone)),
             ]),
             Row(children: [
               Expanded(child: _tf(_motherName, 'Mother Name *')),
               const SizedBox(width: 12),
-              Expanded(child: _tf(_motherPhone, "Mother's Phone *",
-                  type: TextInputType.phone)),
+              Expanded(
+                  child: _tf(_motherPhone, "Mother's Phone *",
+                      type: TextInputType.phone)),
             ]),
             _tf(_parentAddress, 'Address *'),
-
             _section('Academic Information'),
             _dropdown('Assign to class *', _className, _classes,
                 (v) => setState(() => _className = v),
@@ -227,7 +291,6 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
                 (v) => setState(() => _sectionValue = v),
                 hint: 'Please select a section'),
             _tf(_boardReg, 'Board Registration No.', required: false),
-
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -291,9 +354,8 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
       isExpanded: true,
       decoration: InputDecoration(labelText: label),
       hint: hint == null ? null : Text(hint),
-      items: items
-          .map((i) => DropdownMenuItem(value: i, child: Text(i)))
-          .toList(),
+      items:
+          items.map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
       onChanged: onChanged,
       validator: (v) => v == null ? 'Required' : null,
     );

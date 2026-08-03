@@ -3,6 +3,7 @@ import '../../services/models/user_role.dart';
 import '../../services/session_state.dart';
 import 'erp_access_policy.dart';
 import 'erp_catalog.dart';
+import 'erp_repository.dart';
 import 'tenant_erp_service.dart';
 
 class ErpDashboardMetric {
@@ -24,10 +25,10 @@ class ErpDashboardSnapshot {
 }
 
 class ErpDashboardService {
-  ErpDashboardService({TenantErpService? service})
+  ErpDashboardService({ErpRepository? service})
       : _service = service ?? TenantErpService();
 
-  final TenantErpService _service;
+  final ErpRepository _service;
 
   Future<ErpDashboardSnapshot> load() async {
     final state = SessionState.instance;
@@ -139,9 +140,13 @@ class ErpDashboardService {
     if (allStatuses is! Map) return null;
     final statuses = allStatuses[collection];
     if (statuses is! Map) return null;
-    final key = Uri.encodeComponent(status);
-    if (!statuses.containsKey(key)) return null;
-    return (statuses[key] as num?)?.toInt();
+    final normalized = status.trim().toLowerCase();
+    if (statuses.containsKey(normalized)) {
+      return (statuses[normalized] as num?)?.toInt();
+    }
+    final legacyKey = Uri.encodeComponent(status);
+    if (!statuses.containsKey(legacyKey)) return null;
+    return (statuses[legacyKey] as num?)?.toInt();
   }
 
   List<_DashboardMetricSpec> _specsFor(UserModel user) {

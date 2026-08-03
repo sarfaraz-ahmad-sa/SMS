@@ -1,8 +1,5 @@
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -62,7 +59,8 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
   }
 
   List<UserRole> get _assignableRoles {
-    final currentRoles = SessionState.instance.user?.roles ?? const <UserRole>[];
+    final currentRoles =
+        SessionState.instance.user?.roles ?? const <UserRole>[];
     if (currentRoles.contains(UserRole.superAdmin)) return UserRole.values;
     if (currentRoles.contains(UserRole.schoolOwner)) {
       return UserRole.values
@@ -111,8 +109,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
             : null,
         forcePasswordChange: _forcePasswordChange,
         recordType: _recordType.isEmpty ? null : _recordType,
-        recordId:
-            _recordType.isEmpty ? null : _recordIdController.text.trim(),
+        recordId: _recordType.isEmpty ? null : _recordIdController.text.trim(),
       );
       if (!mounted) return;
 
@@ -128,8 +125,7 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
           builder: (BuildContext context) => _CredentialsDialog(
             email: email,
             password: temporaryPassword,
-            existingAuthenticationAccount:
-                result.existingAuthenticationAccount,
+            existingAuthenticationAccount: result.existingAuthenticationAccount,
           ),
         );
       } else {
@@ -142,12 +138,8 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
           success: result.passwordEmailSent,
         );
       }
-    } on FirebaseFunctionsException catch (error) {
-      _showError(error.message ?? 'The account could not be created.');
-    } on FirebaseAuthException catch (error) {
-      _showError(error.message ?? 'The setup email could not be sent.');
-    } catch (_) {
-      _showError('The account could not be created. Please try again.');
+    } catch (error) {
+      _showError(_accountErrorMessage(error));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -198,6 +190,11 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
       ..showSnackBar(
         SnackBar(content: Text(message), backgroundColor: AppColors.danger),
       );
+  }
+
+  String _accountErrorMessage(Object error) {
+    if (error is SchoolAccountException) return error.message;
+    return 'The account could not be created. Please try again.';
   }
 
   @override
@@ -365,7 +362,10 @@ class _AccountForm extends StatelessWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.1),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
@@ -380,9 +380,10 @@ class _AccountForm extends StatelessWidget {
                       children: <Widget>[
                         Text(
                           'Create login account',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                         ),
                         const Text(
                           'Assign the exact role, campus and ERP identity.',
@@ -503,7 +504,8 @@ class _AccountForm extends StatelessWidget {
                         onSetupMethodChanged(value.first);
                       },
               ),
-              if (setupMethod == AccountSetupMethod.temporaryPassword) ...<Widget>[
+              if (setupMethod ==
+                  AccountSetupMethod.temporaryPassword) ...<Widget>[
                 const SizedBox(height: 14),
                 TextFormField(
                   controller: passwordController,
@@ -512,10 +514,13 @@ class _AccountForm extends StatelessWidget {
                     labelText: 'Temporary password',
                     prefixIcon: const Icon(Icons.lock_outline_rounded),
                     suffixIcon: IconButton(
-                      tooltip: passwordVisible ? 'Hide password' : 'Show password',
+                      tooltip:
+                          passwordVisible ? 'Hide password' : 'Show password',
                       onPressed: onTogglePassword,
                       icon: Icon(
-                        passwordVisible ? Icons.visibility_off : Icons.visibility,
+                        passwordVisible
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
                     ),
                   ),
@@ -529,10 +534,9 @@ class _AccountForm extends StatelessWidget {
                     labelText: 'Confirm temporary password',
                     prefixIcon: Icon(Icons.lock_reset_rounded),
                   ),
-                  validator: (String? value) =>
-                      value != passwordController.text
-                          ? 'Passwords do not match'
-                          : null,
+                  validator: (String? value) => value != passwordController.text
+                      ? 'Passwords do not match'
+                      : null,
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
@@ -554,7 +558,7 @@ class _AccountForm extends StatelessWidget {
                 const _InfoPanel(
                   icon: Icons.outgoing_mail,
                   text:
-                      'Firebase will email a secure password setup link. The user cannot sign in until the link is completed.',
+                      'Supabase will email a secure password setup link. The user completes the link before signing in.',
                 ),
               ],
               const SizedBox(height: 18),
@@ -608,11 +612,9 @@ class _MemberDirectoryState extends State<_MemberDirectory> {
 
   void _showError(Object error) {
     if (!mounted) return;
-    final message = error is FirebaseFunctionsException
-        ? error.message ?? 'The account action failed.'
-        : error is FirebaseAuthException
-            ? error.message ?? 'The account action failed.'
-            : 'The account action failed. Please try again.';
+    final message = error is SchoolAccountException
+        ? error.message
+        : 'The account action failed. Please try again.';
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -670,7 +672,9 @@ class _MemberDirectoryState extends State<_MemberDirectory> {
                         )
                         .toList(),
                     onChanged: (UserRole? value) {
-                      if (value != null) setDialogState(() => selectedRole = value);
+                      if (value != null) {
+                        setDialogState(() => selectedRole = value);
+                      }
                     },
                   ),
                   const SizedBox(height: 14),
@@ -955,7 +959,11 @@ class _MemberDirectoryState extends State<_MemberDirectory> {
             Wrap(
               spacing: 8,
               children: <Widget>[
-                for (final filter in const <String>['all', 'active', 'suspended'])
+                for (final filter in const <String>[
+                  'all',
+                  'active',
+                  'suspended'
+                ])
                   ChoiceChip(
                     label: Text(filter[0].toUpperCase() + filter.substring(1)),
                     selected: _statusFilter == filter,
@@ -966,11 +974,11 @@ class _MemberDirectoryState extends State<_MemberDirectory> {
             const SizedBox(height: 12),
             SizedBox(
               height: 610,
-              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              child: StreamBuilder<List<SchoolAccountRecord>>(
                 stream: widget.service.watchMembers(widget.tenantId),
                 builder: (
                   BuildContext context,
-                  AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
+                  AsyncSnapshot<List<SchoolAccountRecord>> snapshot,
                 ) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -981,9 +989,9 @@ class _MemberDirectoryState extends State<_MemberDirectory> {
                     );
                   }
                   final query = _searchController.text.trim().toLowerCase();
-                  final documents = (snapshot.data?.docs ??
-                          const <QueryDocumentSnapshot<Map<String, dynamic>>>[])
-                      .where((QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+                  final documents = (snapshot.data ??
+                          const <SchoolAccountRecord>[])
+                      .where((SchoolAccountRecord doc) {
                     final data = doc.data();
                     final active = _isActive(data);
                     if (_statusFilter == 'active' && !active) return false;
@@ -998,13 +1006,15 @@ class _MemberDirectoryState extends State<_MemberDirectory> {
                   }).toList(growable: true)
                     ..sort((left, right) {
                       final leftName = left
-                          .data()['displayName']
-                          ?.toString()
-                          .toLowerCase() ?? '';
+                              .data()['displayName']
+                              ?.toString()
+                              .toLowerCase() ??
+                          '';
                       final rightName = right
-                          .data()['displayName']
-                          ?.toString()
-                          .toLowerCase() ?? '';
+                              .data()['displayName']
+                              ?.toString()
+                              .toLowerCase() ??
+                          '';
                       return leftName.compareTo(rightName);
                     });
 
@@ -1087,9 +1097,10 @@ class _MemberDirectoryState extends State<_MemberDirectory> {
                                       _MiniBadge(label: roleLabel),
                                       _MiniBadge(
                                         label: accountCategory,
-                                        color: accountCategory == 'Portal account'
-                                            ? AppColors.info
-                                            : AppColors.accent,
+                                        color:
+                                            accountCategory == 'Portal account'
+                                                ? AppColors.info
+                                                : AppColors.accent,
                                       ),
                                       _MiniBadge(
                                         label: active ? 'Active' : 'Suspended',
@@ -1144,7 +1155,8 @@ class _MemberDirectoryState extends State<_MemberDirectory> {
                                 const PopupMenuItem<String>(
                                   value: 'edit',
                                   child: ListTile(
-                                    leading: Icon(Icons.manage_accounts_outlined),
+                                    leading:
+                                        Icon(Icons.manage_accounts_outlined),
                                     title: Text('Edit role & campuses'),
                                     contentPadding: EdgeInsets.zero,
                                   ),
@@ -1177,7 +1189,9 @@ class _MemberDirectoryState extends State<_MemberDirectory> {
                                           : AppColors.success,
                                     ),
                                     title: Text(
-                                      active ? 'Suspend account' : 'Activate account',
+                                      active
+                                          ? 'Suspend account'
+                                          : 'Activate account',
                                     ),
                                     contentPadding: EdgeInsets.zero,
                                   ),
@@ -1198,8 +1212,6 @@ class _MemberDirectoryState extends State<_MemberDirectory> {
     );
   }
 }
-
-
 
 class _CampusScopeField extends StatefulWidget {
   const _CampusScopeField({
@@ -1254,23 +1266,14 @@ class _CampusScopeFieldState extends State<_CampusScopeField> {
 
   @override
   Widget build(BuildContext context) {
-    final stream = FirebaseFirestore.instance
-        .collection('tenants')
-        .doc(widget.tenantId)
-        .collection('campuses')
-        .limit(100)
-        .snapshots();
-
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: stream,
+    return FutureBuilder<List<SchoolAccountRecord>>(
+      future: SchoolAccountService().listCampuses(widget.tenantId),
       builder: (
         BuildContext context,
-        AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
+        AsyncSnapshot<List<SchoolAccountRecord>> snapshot,
       ) {
-        final campuses = snapshot.data?.docs
-                .where((document) => document.data()['isArchived'] != true)
-                .toList() ??
-            <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+        final campuses =
+            snapshot.data?.toList(growable: true) ?? <SchoolAccountRecord>[];
         campuses.sort((left, right) {
           final leftName = (left.data()['name'] ?? left.id).toString();
           final rightName = (right.data()['name'] ?? right.id).toString();
@@ -1340,12 +1343,6 @@ class _LinkedRecordDropdown extends StatelessWidget {
   final TextEditingController controller;
   final bool enabled;
 
-  String get _collection => switch (recordType) {
-        'student' => 'students',
-        'guardian' => 'guardians',
-        _ => 'teachers',
-      };
-
   String get _label => switch (recordType) {
         'student' => 'Select student',
         'guardian' => 'Select parent / guardian',
@@ -1368,18 +1365,14 @@ class _LinkedRecordDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stream = FirebaseFirestore.instance
-        .collection('tenants')
-        .doc(tenantId)
-        .collection(_collection)
-        .limit(300)
-        .snapshots();
-
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: stream,
+    return FutureBuilder<List<SchoolAccountRecord>>(
+      future: SchoolAccountService().listLinkedRecords(
+        tenantId: tenantId,
+        recordType: recordType,
+      ),
       builder: (
         BuildContext context,
-        AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
+        AsyncSnapshot<List<SchoolAccountRecord>> snapshot,
       ) {
         if (snapshot.hasError) {
           return TextFormField(
@@ -1387,7 +1380,7 @@ class _LinkedRecordDropdown extends StatelessWidget {
             enabled: enabled,
             decoration: InputDecoration(
               labelText: '$_label record ID',
-              helperText: 'Profile list unavailable. Enter its Firestore ID.',
+              helperText: 'Profile list unavailable. Enter its record ID.',
               prefixIcon: const Icon(Icons.badge_outlined),
             ),
             validator: (String? value) => value == null || value.trim().isEmpty
@@ -1396,12 +1389,10 @@ class _LinkedRecordDropdown extends StatelessWidget {
           );
         }
 
-        final documents = snapshot.data?.docs
-                .where((document) => document.data()['isArchived'] != true)
-                .toList() ??
-            <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-        documents.sort((left, right) =>
-            _title(left.data()).toLowerCase().compareTo(
+        final documents =
+            snapshot.data?.toList(growable: true) ?? <SchoolAccountRecord>[];
+        documents
+            .sort((left, right) => _title(left.data()).toLowerCase().compareTo(
                   _title(right.data()).toLowerCase(),
                 ));
         final ids = documents.map((document) => document.id).toSet();
@@ -1474,9 +1465,8 @@ class _CredentialsDialog extends StatelessWidget {
         existingAuthenticationAccount
             ? Icons.info_outline_rounded
             : Icons.verified_user_outlined,
-        color: existingAuthenticationAccount
-            ? AppColors.info
-            : AppColors.success,
+        color:
+            existingAuthenticationAccount ? AppColors.info : AppColors.success,
         size: 36,
       ),
       title: Text(
@@ -1494,7 +1484,7 @@ class _CredentialsDialog extends StatelessWidget {
               const _InfoPanel(
                 icon: Icons.shield_outlined,
                 text:
-                    'This email already had a Firebase account, so its existing password was preserved. Send a password setup email if the user does not know it.',
+                    'This email already had an authentication account, so its existing password was preserved. Send a password setup email if the user does not know it.',
               )
             else ...<Widget>[
               const Text(
@@ -1678,8 +1668,7 @@ String _generateTemporaryPassword() {
     lowercase[random.nextInt(lowercase.length)],
     numbers[random.nextInt(numbers.length)],
     symbols[random.nextInt(symbols.length)],
-    for (var index = 0; index < 10; index++)
-      all[random.nextInt(all.length)],
+    for (var index = 0; index < 10; index++) all[random.nextInt(all.length)],
   ]..shuffle(random);
   return characters.join();
 }

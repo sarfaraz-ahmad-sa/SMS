@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 
 import '../../Widgets/saas_scaffold.dart';
 
+import '../../config/backend_config.dart';
 import '../../core/erp/tenant_erp_service.dart';
 import '../../services/models/app_permission.dart';
 import '../../services/session_state.dart';
+import '../../services/supabase_tenant_service.dart';
 import '../../services/tenant_service.dart';
 import '../../theme/app_theme.dart';
 
@@ -18,7 +20,9 @@ class SchoolProfileScreen extends StatefulWidget {
 
 class _SchoolProfileScreenState extends State<SchoolProfileScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final TenantService _tenantService = TenantService();
+  final TenantService? _tenantService =
+      BackendConfig.isSupabasePrimary ? null : TenantService();
+  final SupabaseTenantService _supabaseTenantService = SupabaseTenantService();
 
   late final TextEditingController _nameController;
   late final TextEditingController _codeController;
@@ -66,15 +70,25 @@ class _SchoolProfileScreenState extends State<SchoolProfileScreen> {
 
     setState(() => _saving = true);
     try {
-      final updated = await _tenantService.updateTenantProfile(
-        current: tenant,
-        name: _nameController.text,
-        code: _codeController.text,
-        timezone: _timezoneController.text,
-        currency: _currencyController.text,
-        activeAcademicYearId: _academicYearController.text,
-        logoUrl: _logoUrlController.text,
-      );
+      final updated = BackendConfig.isSupabasePrimary
+          ? await _supabaseTenantService.updateTenantProfile(
+              current: tenant,
+              name: _nameController.text,
+              code: _codeController.text,
+              timezone: _timezoneController.text,
+              currency: _currencyController.text,
+              activeAcademicYearId: _academicYearController.text,
+              logoUrl: _logoUrlController.text,
+            )
+          : await _tenantService!.updateTenantProfile(
+              current: tenant,
+              name: _nameController.text,
+              code: _codeController.text,
+              timezone: _timezoneController.text,
+              currency: _currencyController.text,
+              activeAcademicYearId: _academicYearController.text,
+              logoUrl: _logoUrlController.text,
+            );
       SessionState.instance.updateTenant(updated);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

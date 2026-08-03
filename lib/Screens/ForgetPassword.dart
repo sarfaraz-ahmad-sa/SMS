@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/Auth_services.dart';
+import '../config/backend_config.dart';
 import '../theme/app_theme.dart';
 
 class ForgetPassword extends StatefulWidget {
@@ -34,8 +35,8 @@ class _ForgetPasswordState extends State<ForgetPassword> {
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Reset link sent'),
-          content: const Text(
-            'Check your inbox and follow the password reset instructions.',
+          content: Text(
+            'Check your inbox and follow the ${BackendConfig.isSupabasePrimary ? 'Supabase' : 'Firebase'} password reset instructions.',
           ),
           actions: [
             TextButton(
@@ -96,7 +97,7 @@ class _ForgetPasswordState extends State<ForgetPassword> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Enter your registered email address. Firebase will send you a secure reset link.',
+                        'Enter your registered email address. A secure reset link will be sent to your inbox.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: AppColors.textSecondary),
                       ),

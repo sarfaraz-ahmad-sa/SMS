@@ -114,6 +114,7 @@ class PlanEntitlementService {
           SaasFeature.helpdesk,
         };
       case SubscriptionTier.starter:
+      case SubscriptionTier.standard:
         return const <String>{
           SaasFeature.coreSchool,
           SaasFeature.admissions,
@@ -171,19 +172,29 @@ class PlanEntitlementService {
         };
       case SubscriptionTier.starter:
         return const <String, int>{
-          SaasLimitKey.students: 250,
-          SaasLimitKey.staffUsers: 40,
+          SaasLimitKey.students: 200,
+          SaasLimitKey.staffUsers: 20,
           SaasLimitKey.campuses: 1,
           SaasLimitKey.storageMb: 5120,
           SaasLimitKey.smsPerMonth: 2000,
           SaasLimitKey.emailPerMonth: 10000,
           SaasLimitKey.aiActionsPerMonth: 250,
         };
+      case SubscriptionTier.standard:
+        return const <String, int>{
+          SaasLimitKey.students: 500,
+          SaasLimitKey.staffUsers: 40,
+          SaasLimitKey.campuses: 1,
+          SaasLimitKey.storageMb: 10240,
+          SaasLimitKey.smsPerMonth: 5000,
+          SaasLimitKey.emailPerMonth: 25000,
+          SaasLimitKey.aiActionsPerMonth: 500,
+        };
       case SubscriptionTier.pro:
         return const <String, int>{
-          SaasLimitKey.students: 2000,
-          SaasLimitKey.staffUsers: 250,
-          SaasLimitKey.campuses: 10,
+          SaasLimitKey.students: 1000,
+          SaasLimitKey.staffUsers: 100,
+          SaasLimitKey.campuses: 1,
           SaasLimitKey.storageMb: 51200,
           SaasLimitKey.smsPerMonth: 20000,
           SaasLimitKey.emailPerMonth: 100000,

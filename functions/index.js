@@ -25,8 +25,9 @@ const leadershipRoles = new Set([
 const accountAdministratorRoles = new Set(["adminStaff", "itAdmin"]);
 const defaultStaffLimits = Object.freeze({
   trial: 10,
-  starter: 40,
-  pro: 250,
+  starter: 20,
+  standard: 40,
+  pro: 100,
   enterprise: 0,
   custom: 0,
 });
@@ -76,8 +77,9 @@ const dashboardCollections = new Set([
 
 const defaultMeteredLimits = Object.freeze({
   trial: Object.freeze({ students: 30, campuses: 1 }),
-  starter: Object.freeze({ students: 250, campuses: 1 }),
-  pro: Object.freeze({ students: 2000, campuses: 10 }),
+  starter: Object.freeze({ students: 200, campuses: 1 }),
+  standard: Object.freeze({ students: 500, campuses: 1 }),
+  pro: Object.freeze({ students: 1000, campuses: 1 }),
   enterprise: Object.freeze({ students: 0, campuses: 0 }),
   custom: Object.freeze({ students: 0, campuses: 0 }),
 });

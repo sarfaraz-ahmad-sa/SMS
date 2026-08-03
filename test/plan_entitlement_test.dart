@@ -24,8 +24,10 @@ void main() {
     expect(service.isFeatureEnabled(SaasFeature.attendance), isTrue);
     expect(service.isFeatureEnabled(SaasFeature.accounting), isFalse);
     expect(service.limit(SaasLimitKey.students), 30);
-    expect(service.isWithinLimit(SaasLimitKey.students, 29, additional: 1), isTrue);
-    expect(service.isWithinLimit(SaasLimitKey.students, 30, additional: 1), isFalse);
+    expect(service.isWithinLimit(SaasLimitKey.students, 29, additional: 1),
+        isTrue);
+    expect(service.isWithinLimit(SaasLimitKey.students, 30, additional: 1),
+        isFalse);
   });
 
   test('tenant feature and limit overrides replace plan defaults', () {
@@ -43,6 +45,27 @@ void main() {
     expect(service.isFeatureEnabled(SaasFeature.hostel), isTrue);
     expect(service.isFeatureEnabled(SaasFeature.fees), isFalse);
     expect(service.limit(SaasLimitKey.students), 700);
+  });
+
+  test('Pakistan commercial tiers apply advertised student limits and prices',
+      () {
+    expect(SubscriptionTier.starter.maxStudents, 200);
+    expect(SubscriptionTier.starter.monthlyPricePkr, 3000);
+    expect(SubscriptionTier.standard.maxStudents, 500);
+    expect(SubscriptionTier.standard.monthlyPricePkr, 6000);
+    expect(SubscriptionTier.pro.maxStudents, 1000);
+    expect(SubscriptionTier.pro.monthlyPricePkr, 10000);
+
+    final standard = PlanEntitlementService(
+      tenant: tenantWith(
+        const Subscription(
+          tier: SubscriptionTier.standard,
+          status: SubscriptionStatus.active,
+        ),
+      ),
+    );
+    expect(standard.limit(SaasLimitKey.students), 500);
+    expect(standard.limit(SaasLimitKey.campuses), 1);
   });
 
   test('suspended subscription denies every feature', () {

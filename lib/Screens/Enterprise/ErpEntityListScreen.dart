@@ -9,6 +9,7 @@ import '../../core/erp/erp_catalog.dart';
 import '../../core/erp/erp_entity.dart';
 import '../../core/erp/erp_field.dart';
 import '../../core/erp/erp_record.dart';
+import '../../core/erp/erp_repository.dart';
 import '../../core/erp/tenant_erp_service.dart';
 import '../../services/plan_entitlement_service.dart';
 import '../../services/session_state.dart';
@@ -25,12 +26,12 @@ class ErpEntityListScreen extends StatefulWidget {
 }
 
 class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
-  final TenantErpService _service = TenantErpService();
+  final ErpRepository _service = TenantErpService();
   final TextEditingController _searchController = TextEditingController();
   final List<ErpRecord> _records = <ErpRecord>[];
   String _query = '';
   String? _status;
-  DocumentSnapshot<Map<String, dynamic>>? _cursor;
+  Object? _cursor;
   Object? _loadError;
   bool _loading = true;
   bool _loadingMore = false;
@@ -180,8 +181,6 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
           backgroundColor: AppColors.success,
         ),
       );
-    } on FirebaseException catch (error) {
-      _showError(error.message ?? 'The record could not be archived.');
     } catch (error) {
       _showError(error.toString());
     }

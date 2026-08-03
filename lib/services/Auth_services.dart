@@ -2,16 +2,24 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../config/backend_config.dart';
+import 'supabase_auth_service.dart';
+
 class AuthService {
   AuthService({FirebaseAuth? firebaseAuth, GoogleSignIn? googleSignIn})
-      : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance,
+      : _firebaseAuth = firebaseAuth ??
+            (BackendConfig.isSupabasePrimary ? null : FirebaseAuth.instance),
         _googleSignIn = googleSignIn;
 
-  final FirebaseAuth _firebaseAuth;
+  final FirebaseAuth? _firebaseAuth;
   GoogleSignIn? _googleSignIn;
 
-  Stream<User?> get authStateChanges => _firebaseAuth.authStateChanges();
-  User? get currentUser => _firebaseAuth.currentUser;
+  FirebaseAuth get _legacyAuth =>
+      _firebaseAuth ??
+      (throw StateError('Firebase authentication is disabled.'));
+
+  Stream<User?> get authStateChanges => _legacyAuth.authStateChanges();
+  User? get currentUser => _firebaseAuth?.currentUser;
 
   /// Firebase Web can briefly return a credential whose `user` has not yet
   /// propagated to `currentUser`. Resolve the signed-in account from both
@@ -23,16 +31,16 @@ class AuthService {
   }) async {
     if (credentialUser != null) return credentialUser;
 
-    final immediateUser = _firebaseAuth.currentUser;
+    final immediateUser = _legacyAuth.currentUser;
     if (immediateUser != null) return immediateUser;
 
     try {
-      return await _firebaseAuth
+      return await _legacyAuth
           .authStateChanges()
           .firstWhere((User? user) => user != null)
           .timeout(timeout);
     } catch (_) {
-      return _firebaseAuth.currentUser;
+      return _legacyAuth.currentUser;
     }
   }
 
@@ -40,7 +48,7 @@ class AuthService {
     required String email,
     required String password,
   }) {
-    return _firebaseAuth.signInWithEmailAndPassword(
+    return _legacyAuth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
@@ -51,7 +59,7 @@ class AuthService {
   Future<UserCredential?> signInWithGoogle() async {
     if (kIsWeb) {
       // Popup COOP ki wajah se atakta hai, isliye redirect use karte hain.
-      await _firebaseAuth.signInWithRedirect(GoogleAuthProvider());
+      await _legacyAuth.signInWithRedirect(GoogleAuthProvider());
       return null;
     }
 
@@ -69,7 +77,7 @@ class AuthService {
       accessToken: authentication.accessToken,
       idToken: authentication.idToken,
     );
-    return _firebaseAuth.signInWithCredential(credential);
+    return _legacyAuth.signInWithCredential(credential);
   }
 
   // Web pe redirect ke baad app dobara load hone par ye call karo
@@ -77,20 +85,35 @@ class AuthService {
   Future<UserCredential?> getRedirectResultIfAny() async {
     if (!kIsWeb) return null;
     try {
-      return await _firebaseAuth.getRedirectResult();
+      return await _legacyAuth.getRedirectResult();
     } catch (_) {
       return null;
     }
   }
 
   Future<void> sendPasswordResetEmail(String email) {
-    return _firebaseAuth.sendPasswordResetEmail(email: email.trim());
+    if (BackendConfig.isSupabasePrimary) {
+      return SupabaseAuthService().sendPasswordReset(email);
+    }
+    return _legacyAuth.sendPasswordResetEmail(email: email.trim());
   }
 
   Future<void> reauthenticateWithPassword({
     required String currentPassword,
   }) async {
-    final user = _firebaseAuth.currentUser;
+    if (BackendConfig.isSupabasePrimary) {
+      final user = SupabaseAuthService().currentUser;
+      final email = user?.email;
+      if (email == null || email.trim().isEmpty) {
+        throw StateError('No email/password account is currently signed in.');
+      }
+      await SupabaseAuthService().signInWithPassword(
+        email: email,
+        password: currentPassword,
+      );
+      return;
+    }
+    final user = _legacyAuth.currentUser;
     final email = user?.email;
     if (user == null || email == null || email.trim().isEmpty) {
       throw FirebaseAuthException(
@@ -108,17 +131,28 @@ class AuthService {
   }
 
   Future<void> refreshCurrentUser() async {
-    final user = _firebaseAuth.currentUser;
+    if (BackendConfig.isSupabasePrimary) {
+      await SupabaseAuthService().refreshSession();
+      return;
+    }
+    final user = _legacyAuth.currentUser;
     if (user == null) return;
     await user.reload();
-    await _firebaseAuth.currentUser?.getIdToken(true);
+    await _legacyAuth.currentUser?.getIdToken(true);
   }
 
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
-    final user = _firebaseAuth.currentUser;
+    if (BackendConfig.isSupabasePrimary) {
+      await SupabaseAuthService().changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      return;
+    }
+    final user = _legacyAuth.currentUser;
     final email = user?.email;
     if (user == null || email == null || email.trim().isEmpty) {
       throw FirebaseAuthException(
@@ -138,7 +172,15 @@ class AuthService {
   }
 
   Future<void> sendEmailVerification() async {
-    final user = _firebaseAuth.currentUser;
+    if (BackendConfig.isSupabasePrimary) {
+      if (!SupabaseAuthService().isEmailVerified) {
+        throw StateError(
+          'Use password recovery to verify access to this email address.',
+        );
+      }
+      return;
+    }
+    final user = _legacyAuth.currentUser;
     if (user == null) {
       throw FirebaseAuthException(
         code: 'user-not-available',
@@ -149,16 +191,20 @@ class AuthService {
   }
 
   Future<void> signOut() async {
+    if (BackendConfig.isSupabasePrimary) {
+      await SupabaseAuthService().signOut();
+      return;
+    }
     try {
       await _googleSignIn?.signOut();
     } catch (_) {
       // Google Sign-In may not be initialized for email/password users.
     }
-    await _firebaseAuth.signOut();
+    await _legacyAuth.signOut();
   }
 
   Future<String?> getIdToken({bool forceRefresh = false}) async {
-    final user = _firebaseAuth.currentUser;
+    final user = _firebaseAuth?.currentUser;
     if (user == null) return null;
     return user.getIdToken(forceRefresh);
   }

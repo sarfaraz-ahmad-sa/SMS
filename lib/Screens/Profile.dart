@@ -7,6 +7,8 @@ import '../services/Auth_services.dart';
 import '../services/profile_service.dart';
 import '../services/session_state.dart';
 import '../theme/app_theme.dart';
+import '../config/backend_config.dart';
+import '../services/supabase_auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -77,7 +79,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.message ?? 'Verification email could not be sent.'),
+          content:
+              Text(error.message ?? 'Verification email could not be sent.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Verification could not be completed: $error'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -85,15 +96,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _changePassword() async {
-    final firebaseUser = FirebaseAuth.instance.currentUser;
-    final supportsPassword = firebaseUser?.providerData.any(
-          (UserInfo provider) => provider.providerId == 'password',
-        ) ==
-        true;
+    final supportsPassword = BackendConfig.isSupabasePrimary ||
+        FirebaseAuth.instance.currentUser?.providerData.any(
+              (UserInfo provider) => provider.providerId == 'password',
+            ) ==
+            true;
     if (!supportsPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Password is managed by your external sign-in provider.'),
+          content:
+              Text('Password is managed by your external sign-in provider.'),
         ),
       );
       return;
@@ -125,6 +137,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           backgroundColor: AppColors.danger,
         ),
       );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Password could not be changed: $error'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
     }
   }
 
@@ -135,6 +155,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (BuildContext context, Widget? child) {
         final user = SessionState.instance.user;
         final tenant = SessionState.instance.tenant;
+
+        final emailVerified = BackendConfig.isSupabasePrimary
+            ? SupabaseAuthService().isEmailVerified
+            : FirebaseAuth.instance.currentUser?.emailVerified == true;
 
         return SaasScaffold(
           title: 'Profile',
@@ -285,10 +309,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: <Widget>[
                         ListTile(
                           leading: Icon(
-                            FirebaseAuth.instance.currentUser?.emailVerified == true
+                            emailVerified
                                 ? Icons.verified_rounded
                                 : Icons.mark_email_unread_outlined,
-                            color: FirebaseAuth.instance.currentUser?.emailVerified == true
+                            color: emailVerified
                                 ? AppColors.success
                                 : AppColors.warning,
                           ),
@@ -297,12 +321,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: TextStyle(fontWeight: FontWeight.w700),
                           ),
                           subtitle: Text(
-                            FirebaseAuth.instance.currentUser?.emailVerified == true
+                            emailVerified
                                 ? 'Your email address is verified.'
                                 : 'Verify your email to secure recovery and notifications.',
                           ),
-                          trailing: FirebaseAuth.instance.currentUser?.emailVerified == true
-                              ? const Icon(Icons.check_circle, color: AppColors.success)
+                          trailing: emailVerified
+                              ? const Icon(Icons.check_circle,
+                                  color: AppColors.success)
                               : TextButton(
                                   onPressed: _sendVerification,
                                   child: const Text('Send email'),
@@ -323,7 +348,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: const Text('Change'),
                           ),
                         ),
-                        if (user?.linkedRecordId?.isNotEmpty == true) ...<Widget>[
+                        if (user?.linkedRecordId?.isNotEmpty ==
+                            true) ...<Widget>[
                           const Divider(height: 1),
                           ListTile(
                             leading: const Icon(Icons.link_rounded),
@@ -349,7 +375,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-
 
 class _PasswordChangeData {
   const _PasswordChangeData({
@@ -438,7 +463,8 @@ class _PasswordChangeDialogState extends State<_PasswordChangeDialog> {
                   suffixIcon: IconButton(
                     tooltip: _visible ? 'Hide passwords' : 'Show passwords',
                     onPressed: () => setState(() => _visible = !_visible),
-                    icon: Icon(_visible ? Icons.visibility_off : Icons.visibility),
+                    icon: Icon(
+                        _visible ? Icons.visibility_off : Icons.visibility),
                   ),
                 ),
                 validator: (String? value) => value != _newController.text

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -72,6 +73,16 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.background,
       colorScheme: scheme,
       visualDensity: VisualDensity.standard,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: ZoomPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+        },
+      ),
     );
 
     return base.copyWith(
@@ -120,7 +131,7 @@ class AppTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        height: 68,
+        height: 80,
         elevation: 0,
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
@@ -205,7 +216,8 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         labelStyle: const TextStyle(color: AppColors.textSecondary),
         hintStyle: const TextStyle(color: AppColors.textSecondary),
         enabledBorder: OutlineInputBorder(
@@ -290,12 +302,12 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith<Color?>((states) =>
             states.contains(WidgetState.selected) ? Colors.white : null),
-        trackColor: WidgetStateProperty.resolveWith<Color?>((states) =>
-            states.contains(WidgetState.selected) ? primary : null),
+        trackColor: WidgetStateProperty.resolveWith<Color?>(
+            (states) => states.contains(WidgetState.selected) ? primary : null),
       ),
       checkboxTheme: CheckboxThemeData(
-        fillColor: WidgetStateProperty.resolveWith<Color?>((states) =>
-            states.contains(WidgetState.selected) ? primary : null),
+        fillColor: WidgetStateProperty.resolveWith<Color?>(
+            (states) => states.contains(WidgetState.selected) ? primary : null),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
       ),
     );
@@ -314,6 +326,16 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.darkBackground,
       colorScheme: scheme,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: ZoomPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+        },
+      ),
     );
 
     return base.copyWith(
@@ -364,7 +386,7 @@ class AppTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        height: 68,
+        height: 80,
         elevation: 0,
         backgroundColor: AppColors.darkSurface,
         surfaceTintColor: Colors.transparent,
@@ -372,16 +394,16 @@ class AppTheme {
         indicatorShape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
         ),
-        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((states) =>
-            TextStyle(
-              color: states.contains(WidgetState.selected)
-                  ? primary
-                  : const Color(0xFF94A3B8),
-              fontWeight: states.contains(WidgetState.selected)
-                  ? FontWeight.w700
-                  : FontWeight.w500,
-              fontSize: 11,
-            )),
+        labelTextStyle:
+            WidgetStateProperty.resolveWith<TextStyle?>((states) => TextStyle(
+                  color: states.contains(WidgetState.selected)
+                      ? primary
+                      : const Color(0xFF94A3B8),
+                  fontWeight: states.contains(WidgetState.selected)
+                      ? FontWeight.w700
+                      : FontWeight.w500,
+                  fontSize: 11,
+                )),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primary,
@@ -416,7 +438,8 @@ class AppTheme {
           elevation: 0,
           minimumSize: const Size(44, 46),
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 22),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: const TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
@@ -425,7 +448,8 @@ class AppTheme {
           backgroundColor: primary,
           foregroundColor: Colors.white,
           minimumSize: const Size(44, 46),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -433,13 +457,15 @@ class AppTheme {
           foregroundColor: const Color(0xFFE5E7EB),
           minimumSize: const Size(44, 44),
           side: BorderSide(color: Colors.white.withOpacity(0.14)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.darkSurfaceRaised,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         labelStyle: const TextStyle(color: Color(0xFF94A3B8)),
         hintStyle: const TextStyle(color: Color(0xFF64748B)),
         enabledBorder: OutlineInputBorder(
@@ -531,12 +557,12 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith<Color?>((states) =>
             states.contains(WidgetState.selected) ? Colors.white : null),
-        trackColor: WidgetStateProperty.resolveWith<Color?>((states) =>
-            states.contains(WidgetState.selected) ? primary : null),
+        trackColor: WidgetStateProperty.resolveWith<Color?>(
+            (states) => states.contains(WidgetState.selected) ? primary : null),
       ),
       checkboxTheme: CheckboxThemeData(
-        fillColor: WidgetStateProperty.resolveWith<Color?>((states) =>
-            states.contains(WidgetState.selected) ? primary : null),
+        fillColor: WidgetStateProperty.resolveWith<Color?>(
+            (states) => states.contains(WidgetState.selected) ? primary : null),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
       ),
     );

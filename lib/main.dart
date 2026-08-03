@@ -16,19 +16,30 @@ import 'Screens/Saas/saas_control_center_screen.dart';
 import 'Screens/Saas/tenant_onboarding_screen.dart';
 import 'Screens/Settings.dart';
 import 'Screens/SplashScreen.dart';
+import 'Screens/Supabase/supabase_auth_pilot_screen.dart';
+import 'Screens/Supabase/supabase_password_setup_screen.dart';
 import 'Screens/home.dart';
+import 'config/backend_config.dart';
 import 'core/erp/erp_entity.dart';
 import 'core/erp/erp_module.dart';
 import 'firebase_options.dart';
 import 'services/session_state.dart';
+import 'services/supabase_bootstrap.dart';
+import 'services/supabase_error_reporter.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  await _activateFirebaseAppCheck();
+  if (!BackendConfig.isSupabasePrimary) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await _activateFirebaseAppCheck();
+  }
+  if (BackendConfig.shouldInitializeSupabase) {
+    await SupabaseBootstrap.initializeClient();
+    SupabaseErrorReporter.install();
+  }
   runApp(const MyApp());
 }
 
@@ -73,7 +84,7 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.lightFor(state.tenant),
           darkTheme: AppTheme.darkFor(state.tenant),
           themeMode: state.themeMode,
-          home: const SplashScreen(),
+          home: _initialScreen(),
           routes: <String, WidgetBuilder>{
             '/login': (_) => const MyHomePage(title: 'SEEF SMS'),
             '/home': (_) => const Home(),
@@ -86,6 +97,9 @@ class MyApp extends StatelessWidget {
             '/saas': (_) => const SaasControlCenterScreen(),
             '/onboarding': (_) => const TenantOnboardingScreen(),
             '/approvals': (_) => const ApprovalInboxScreen(),
+            '/supabase-auth': (_) => const SupabaseAuthPilotScreen(),
+            '/supabase-password-setup': (_) =>
+                const SupabasePasswordSetupScreen(),
           },
           onGenerateRoute: (RouteSettings settings) {
             if (settings.name == '/erp-module' &&
@@ -110,4 +124,39 @@ class MyApp extends StatelessWidget {
       },
     );
   }
+}
+
+Widget _initialScreen() {
+  if (BackendConfig.isSupabasePrimary) {
+    final uri = Uri.base;
+    final fragment = uri.fragment;
+    final callbackType = uri.queryParameters['type'];
+    final isPasswordCallback =
+        uri.queryParameters['code']?.isNotEmpty == true ||
+            callbackType == 'invite' ||
+            callbackType == 'recovery' ||
+            fragment.contains('type=invite') ||
+            fragment.contains('type=recovery');
+    if (isPasswordCallback) return const SupabasePasswordSetupScreen();
+    return const SplashScreen();
+  }
+  if (!BackendConfig.enableSupabaseAuthPilot) return const SplashScreen();
+
+  final uri = Uri.base;
+  final fragment = uri.fragment;
+  final fragmentPath = fragment.split('?').first;
+  if (fragmentPath == '/supabase-password-setup') {
+    return const SupabasePasswordSetupScreen();
+  }
+  final callbackType = uri.queryParameters['type'];
+  final isPasswordCallback = uri.queryParameters['code']?.isNotEmpty == true ||
+      callbackType == 'invite' ||
+      callbackType == 'recovery' ||
+      fragment.contains('type=invite') ||
+      fragment.contains('type=recovery');
+  if (isPasswordCallback) return const SupabasePasswordSetupScreen();
+  if (fragmentPath == '/supabase-auth') {
+    return const SupabaseAuthPilotScreen();
+  }
+  return const SplashScreen();
 }

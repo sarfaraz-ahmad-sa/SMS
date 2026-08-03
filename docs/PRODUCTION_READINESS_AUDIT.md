@@ -104,11 +104,16 @@ correctly excludes documents missing an equality-filtered field.
   where required; implement server-generated PDFs with tenant branding.
 - [ ] Store export artifacts in protected Cloud Storage with short-lived signed
   URLs, retention policies, job status, and audit events.
+- [x] Provision private Supabase document/export/backup buckets; enforce
+  tenant/campus/academic-year path scope, MIME/size limits, backend-only export
+  writes and service-role-only backups.
 - [ ] Configure scheduled Firestore/Storage backups, encryption, retention,
   cross-project or cross-region copies, and documented restore drills/RPO/RTO.
 - [ ] Add Crashlytics or an approved web error reporter, Cloud Logging structured
   fields, Error Reporting, uptime checks, function latency/error alerts, and
   dead-letter handling for retried jobs.
+- [x] Capture authenticated Flutter framework/platform errors in a rate-limited,
+  tenant-linked Supabase error table without exposing direct client writes.
 - [ ] Configure Google Cloud budgets and billing alerts at 50/75/90/100%, plus
   Firestore read/write, Functions invocation, Storage egress, SMS, and email
   operational thresholds. Billing alerts notify; they do not cap spending.
@@ -124,13 +129,15 @@ correctly excludes documents missing an equality-filtered field.
 - [ ] Pin the Flutter SDK in CI instead of tracking mutable `stable`.
 - [ ] Split or lazy-load infrequently used modules, measure with
   `flutter build web --analyze-size`, and establish a bundle budget.
-- [ ] Remove or transcode the approximately 10 MB `SMS App.gif`; it dominates
+- [x] Remove the unused approximately 10 MB `SMS App.gif`; it dominated
   the asset payload. Verify which screenshot/demo assets are still referenced.
 - [ ] Replace legacy Flare/GIF animations, reduce repaint areas, honor reduced
   motion, and avoid animation controllers in list rows.
 - [ ] Introduce module-scoped repositories/state instead of global singleton
   rebuilds, then add loading/error/empty states and cancellation tests.
-- [ ] Add immutable caching headers for hashed assets, security headers, preview
+- [x] Add immutable caching headers for static assets, baseline security headers,
+  and a Supabase-only Vercel production build configuration.
+- [ ] Add preview
   deployment checks, smoke tests, and a rollback procedure.
 
 ## Verification baseline
@@ -140,22 +147,41 @@ At audit start, all 20 Flutter unit tests and all 4 Functions unit tests passed.
 non-zero analyzer status is caused by lint severity. Security rules were read
 and reviewed statically but still require Emulator Suite tests before release.
 
-After the first remediation slice, the same 20 Flutter tests and 4 Functions
-tests pass, Functions load successfully, and Firestore Rules compile in the
-local emulator. `npm audit --omit=dev` still reports seven moderate findings in
-the current Firebase Admin transitive Google Cloud Storage/`uuid` tree; no safe
-direct upgrade or override is available, so this must be monitored upstream
-rather than force-downgrading Firebase Admin.
+After the Supabase cutover slice, all 32 Flutter tests pass and a release web
+build completes successfully. `flutter analyze` has no compile errors; its
+non-zero status is caused by 246 legacy style/info findings. Temporary build,
+package and migration artifacts are removed from the workspace after
+verification.
 
 ## Live deployment status (2026-08-03)
 
-Firestore Rules were deployed to `school-management-app-46a07` with the
-dashboard-summary read authorization, resolving the reported permission-denied
-path after the client refreshes or signs in again. Cloud Functions could not be
-deployed because the project is not on the Blaze billing plan; the Firebase CLI
-could not enable Cloud Build and Artifact Registry. Until Blaze is enabled and
-the Functions are deployed/backfilled, the dashboard uses bounded aggregate
-fallback queries and high-integrity financial/result writes cannot safely be
-made backend-only in the live rules without breaking the currently deployed
-client. The repository rules already contain that stricter target state and
-must be deployed together with the Functions release.
+Supabase is now the default runtime. Migrations `001` through `011`, School
+Accounts Edge Function, RLS, trusted finance/result RPCs, tenant profile RPC,
+generic ERP storage, dashboard summaries, private Storage buckets and client
+error monitoring are live. Firebase contained only 10 tenant documents; all
+functional records were inventoried, imported and count-reconciled. Firebase
+remains dormant only as rollback compatibility code until acceptance testing;
+it is not initialized by the default build.
+
+## Android-first delivery status (2026-08-03)
+
+- [x] Build against and target Android 16 / API 36.
+- [x] Upgrade Android Gradle Plugin to 8.11.1, Gradle to 8.13, and Kotlin to
+  2.2.20; keep Java 17 and release resource/code shrinking enabled.
+- [x] Produce and verify a debug APK from the shared Flutter codebase.
+- [x] Fix the drawer Scrollbar ownership exception and mobile bottom
+  navigation/dashboard text-scale overflows.
+- [ ] Replace the placeholder `com.example.school_management` application ID
+  with the organization's permanent reverse-domain ID, then register that exact
+  ID as a new Firebase Android app and replace `google-services.json`.
+- [ ] Create a protected upload keystore, configure `key.properties` outside
+  Git, build a signed AAB, enroll Play App Signing, and test internal release.
+- [ ] Register Android App Check debug tokens for development and configure Play
+  Integrity for the release signing certificate before enforcement.
+
+The School Accounts UI, profile linking, role delegation, quota checks, Auth
+user creation, membership writes, password actions, and audit logging are
+implemented. Live create/suspend/reset actions remain unavailable because the
+project currently has no deployed Cloud Functions and cannot deploy them on the
+Spark plan. This cannot safely be replaced with direct client-side Auth/admin
+writes; enable Blaze and deploy Functions to activate the feature.

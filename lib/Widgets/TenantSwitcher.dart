@@ -1,7 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../config/backend_config.dart';
 import '../services/session_state.dart';
+import '../services/supabase_tenant_service.dart';
 import '../services/tenant_service.dart';
 import '../theme/app_theme.dart';
 
@@ -11,9 +13,39 @@ class TenantSwitcher extends StatelessWidget {
   const TenantSwitcher({Key? key, this.compact = false}) : super(key: key);
 
   Future<void> _switchTenant(BuildContext context, String tenantId) async {
+    if (tenantId == SessionState.instance.tenant?.id) return;
+    if (BackendConfig.isSupabasePrimary) {
+      SessionState.instance.setSwitchingTenant(true);
+      try {
+        final service = SupabaseTenantService();
+        final session = await service.selectTenant(tenantId);
+        final tenants = await service.getAccessibleTenants();
+        SessionState.instance.setSession(
+          user: session.user,
+          tenant: session.tenant,
+          availableTenants: tenants,
+          activeCampusId: session.activeCampusId,
+          activeAcademicYearId: session.activeAcademicYearId,
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Switched to ${session.tenant.name}')),
+          );
+        }
+      } on TenantAccessException catch (error) {
+        SessionState.instance.setSwitchingTenant(false);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(error.message),
+                backgroundColor: AppColors.danger),
+          );
+        }
+      }
+      return;
+    }
     final firebaseUser = FirebaseAuth.instance.currentUser;
-    if (firebaseUser == null ||
-        tenantId == SessionState.instance.tenant?.id) {
+    if (firebaseUser == null || tenantId == SessionState.instance.tenant?.id) {
       return;
     }
 
@@ -111,7 +143,8 @@ class TenantSwitcher extends StatelessWidget {
         if (compact) {
           return IconButton(
             tooltip: 'Switch school',
-            onPressed: state.switchingTenant ? null : () => _showPicker(context),
+            onPressed:
+                state.switchingTenant ? null : () => _showPicker(context),
             icon: state.switchingTenant
                 ? const SizedBox(
                     width: 20,

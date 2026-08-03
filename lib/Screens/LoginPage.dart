@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../config/backend_config.dart';
 import '../services/Auth_services.dart';
 import '../services/UserModel.dart';
 import '../services/session_state.dart';
@@ -10,6 +11,8 @@ import '../services/models/tenant.dart';
 import '../services/models/user_role.dart';
 import '../services/tenant_service.dart';
 import '../services/school_account_service.dart';
+import '../services/supabase_auth_service.dart';
+import '../services/supabase_tenant_service.dart';
 import '../theme/app_theme.dart';
 import 'FirstLoginPasswordScreen.dart';
 import 'ForgetPassword.dart';
@@ -35,8 +38,12 @@ class _MyHomePageState extends State<MyHomePage>
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final AuthService _authService = AuthService();
-  final TenantService _tenantService = TenantService();
+  final TenantService? _tenantService =
+      BackendConfig.isSupabasePrimary ? null : TenantService();
+  final SupabaseAuthService _supabaseAuthService = SupabaseAuthService();
+  final SupabaseTenantService _supabaseTenantService = SupabaseTenantService();
 
   late final AnimationController _animationController;
   late final Animation<double> _fade;
@@ -88,6 +95,7 @@ class _MyHomePageState extends State<MyHomePage>
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _scrollController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -97,13 +105,51 @@ class _MyHomePageState extends State<MyHomePage>
     setState(() => _loading = true);
 
     try {
+      if (BackendConfig.isSupabasePrimary) {
+        await _supabaseAuthService.signInWithPassword(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+        final session = await _supabaseTenantService.loadSession();
+        final accessibleTenants =
+            await _supabaseTenantService.getAccessibleTenants();
+        SessionState.instance.setSession(
+          user: session.user,
+          tenant: session.tenant,
+          availableTenants: accessibleTenants.isEmpty
+              ? <Tenant>[session.tenant]
+              : accessibleTenants,
+          activeCampusId: session.activeCampusId,
+          activeAcademicYearId: session.activeAcademicYearId,
+        );
+        try {
+          await SchoolAccountService().recordSuccessfulLogin(session.tenant.id);
+        } catch (_) {
+          // Authentication remains valid if activity tracking is unavailable.
+        }
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) => session.user.mustChangePassword
+                ? const FirstLoginPasswordScreen()
+                : const Home(),
+          ),
+          (_) => false,
+        );
+        return;
+      }
       final credential = await _authService.signInWithEmail(
         email: _emailController.text,
         password: _passwordController.text,
       );
       await _completeSignIn(credential);
     } on TenantAccessException catch (error) {
-      await _authService.signOut();
+      if (BackendConfig.isSupabasePrimary) {
+        await _supabaseAuthService.signOut();
+      } else {
+        await _authService.signOut();
+      }
       _showError(error.message);
     } on FirebaseAuthException catch (error) {
       _showError(_messageForFirebaseError(error));
@@ -118,6 +164,11 @@ class _MyHomePageState extends State<MyHomePage>
   }
 
   Future<void> _signInWithGoogle() async {
+    if (BackendConfig.isSupabasePrimary) {
+      _showError(
+          'Google sign-in will be enabled after Supabase provider setup.');
+      return;
+    }
     setState(() => _googleLoading = true);
     try {
       final credential = await _authService.signInWithGoogle();
@@ -182,7 +233,7 @@ class _MyHomePageState extends State<MyHomePage>
     // after email/password sign-in.
     await firebaseUser.getIdToken(true);
 
-    final session = await _tenantService.loadSession(firebaseUser);
+    final session = await _tenantService!.loadSession(firebaseUser);
     final accessibleTenants =
         await _tenantService.getAccessibleTenants(firebaseUser);
     SessionState.instance.setSession(
@@ -330,7 +381,11 @@ class _MyHomePageState extends State<MyHomePage>
         child: SafeArea(
           child: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
-              final wide = constraints.maxWidth >= 980;
+              // The brand panel uses a presentation-style flex layout. On a
+              // wide but short browser window it cannot fit safely, so use the
+              // vertically scrollable compact layout instead.
+              final wide =
+                  constraints.maxWidth >= 980 && constraints.maxHeight >= 640;
               if (wide) {
                 return Row(
                   children: <Widget>[
@@ -339,6 +394,8 @@ class _MyHomePageState extends State<MyHomePage>
                       flex: 9,
                       child: Center(
                         child: SingleChildScrollView(
+                          controller: _scrollController,
+                          primary: false,
                           padding: const EdgeInsets.all(36),
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 500),
@@ -359,6 +416,8 @@ class _MyHomePageState extends State<MyHomePage>
 
               return Center(
                 child: SingleChildScrollView(
+                  controller: _scrollController,
+                  primary: false,
                   padding: const EdgeInsets.all(20),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 500),
@@ -471,8 +530,7 @@ class _MyHomePageState extends State<MyHomePage>
                 validator: (String? value) {
                   final email = value?.trim() ?? '';
                   if (email.isEmpty) return 'Enter your email address';
-                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                      .hasMatch(email)) {
+                  if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
                     return 'Enter a valid email address';
                   }
                   return null;
@@ -489,7 +547,8 @@ class _MyHomePageState extends State<MyHomePage>
                   labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock_outline_rounded),
                   suffixIcon: IconButton(
-                    tooltip: _passwordVisible ? 'Hide password' : 'Show password',
+                    tooltip:
+                        _passwordVisible ? 'Hide password' : 'Show password',
                     icon: Icon(
                       _passwordVisible
                           ? Icons.visibility_off_outlined
@@ -531,39 +590,42 @@ class _MyHomePageState extends State<MyHomePage>
                     : const Icon(Icons.login_rounded),
                 label: Text(_loading ? 'Signing in...' : 'Sign in securely'),
               ),
-              const SizedBox(height: 17),
-              const Row(
-                children: <Widget>[
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'OR',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+              if (!BackendConfig.isSupabasePrimary) ...<Widget>[
+                const SizedBox(height: 17),
+                const Row(
+                  children: <Widget>[
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'OR',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 17),
-              OutlinedButton.icon(
-                onPressed: _loading || _googleLoading
-                    ? null
-                    : _signInWithGoogle,
-                icon: _googleLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.account_circle_outlined),
-                label: const Text('Continue with Google'),
-              ),
-              if (kDebugMode && _enableDeveloperLogin) ...<Widget>[
+                    Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 17),
+                OutlinedButton.icon(
+                  onPressed:
+                      _loading || _googleLoading ? null : _signInWithGoogle,
+                  icon: _googleLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.account_circle_outlined),
+                  label: const Text('Continue with Google'),
+                ),
+              ],
+              if (!BackendConfig.isSupabasePrimary &&
+                  kDebugMode &&
+                  _enableDeveloperLogin) ...<Widget>[
                 const SizedBox(height: 11),
                 FilledButton.tonalIcon(
                   onPressed:
@@ -572,19 +634,32 @@ class _MyHomePageState extends State<MyHomePage>
                   label: const Text('Open full ERP demo'),
                 ),
               ],
-              const SizedBox(height: 11),
-              TextButton.icon(
-                onPressed: _loading || _googleLoading
-                    ? null
-                    : () => Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => const RequestLogin(),
+              if (!BackendConfig.isSupabasePrimary &&
+                  BackendConfig.enableSupabaseAuthPilot) ...<Widget>[
+                const SizedBox(height: 11),
+                OutlinedButton.icon(
+                  onPressed: _loading || _googleLoading
+                      ? null
+                      : () => Navigator.pushNamed(context, '/supabase-auth'),
+                  icon: const Icon(Icons.cloud_done_outlined),
+                  label: const Text('Open Supabase login pilot'),
+                ),
+              ],
+              if (!BackendConfig.isSupabasePrimary) ...<Widget>[
+                const SizedBox(height: 11),
+                TextButton.icon(
+                  onPressed: _loading || _googleLoading
+                      ? null
+                      : () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => const RequestLogin(),
+                            ),
                           ),
-                        ),
-                icon: const Icon(Icons.badge_outlined),
-                label: const Text('Request a school login ID'),
-              ),
+                  icon: const Icon(Icons.badge_outlined),
+                  label: const Text('Request a school login ID'),
+                ),
+              ],
               const SizedBox(height: 14),
               const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -658,7 +733,8 @@ class _LoginBrandPanel extends StatelessWidget {
                       height: 72,
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.12),
-                        border: Border.all(color: Colors.white.withOpacity(0.18)),
+                        border:
+                            Border.all(color: Colors.white.withOpacity(0.18)),
                         borderRadius: BorderRadius.circular(22),
                       ),
                       child: const Icon(
@@ -814,4 +890,3 @@ class _GlowOrb extends StatelessWidget {
     );
   }
 }
-

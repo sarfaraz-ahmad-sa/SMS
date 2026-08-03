@@ -14,6 +14,9 @@ import '../services/models/tenant.dart';
 import '../services/plan_entitlement_service.dart';
 import '../services/Auth_services.dart';
 import '../services/session_state.dart';
+import '../services/supabase_auth_service.dart';
+import '../services/supabase_dashboard_summary_service.dart';
+import '../config/backend_config.dart';
 import '../theme/app_theme.dart';
 import 'Enterprise/ErpEntityListScreen.dart';
 import 'Enterprise/ErpModuleScreen.dart';
@@ -30,7 +33,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   late Future<_DashboardSummaryData> _summaryFuture;
-  late final StreamSubscription<User?> _authSubscription;
+  late final StreamSubscription<dynamic> _authSubscription;
   String? _dashboardContextKey;
 
   @override
@@ -39,8 +42,13 @@ class _HomeState extends State<Home> {
     _dashboardContextKey = _currentDashboardContextKey();
     _refreshDashboard();
     SessionState.instance.addListener(_handleSessionChange);
-    _authSubscription =
-        AuthService().authStateChanges.listen(_handleAuthChange);
+    _authSubscription = BackendConfig.isSupabasePrimary
+        ? SupabaseAuthService().authStateChanges.listen(
+              (dynamic state) => _handleAuthSession(state.session != null),
+            )
+        : AuthService().authStateChanges.listen(
+              (User? user) => _handleAuthSession(user != null),
+            );
   }
 
   @override
@@ -50,8 +58,8 @@ class _HomeState extends State<Home> {
     super.dispose();
   }
 
-  void _handleAuthChange(User? firebaseUser) {
-    if (firebaseUser != null || !mounted) return;
+  void _handleAuthSession(bool isSignedIn) {
+    if (isSignedIn || !mounted) return;
     final sessionUser = SessionState.instance.user;
     if (sessionUser?.uid == 'debug-school-owner') return;
 
@@ -94,9 +102,30 @@ class _HomeState extends State<Home> {
   Future<_DashboardSummaryData> _loadSummary() async {
     final state = SessionState.instance;
     final user = state.user;
+    if (user == null || state.tenant == null) {
+      return const _DashboardSummaryData(
+        students: 0,
+        totalAdmissions: 0,
+        pendingAdmissions: 0,
+        approvedAdmissions: 0,
+        rejectedAdmissions: 0,
+        canViewStudents: false,
+        canViewAdmissions: false,
+      );
+    }
     final service = TenantErpService();
+    final usesSupabase = BackendConfig.isSupabasePrimary;
     final entitlement = PlanEntitlementService(tenant: state.tenant);
-    final dashboardSummary = await service.loadDashboardSummary();
+    final campusId = state.activeCampusId;
+    final academicYearId = state.activeAcademicYearId;
+    final dashboardSummary =
+        usesSupabase && campusId != null && academicYearId != null
+            ? await SupabaseDashboardSummaryService().load(
+                tenantId: state.tenant!.id,
+                campusId: campusId,
+                academicYearId: academicYearId,
+              )
+            : await service.loadDashboardSummary();
     final summaryCounts = dashboardSummary['counts'];
     final summaryStatuses = dashboardSummary['statusCounts'];
 
@@ -117,7 +146,8 @@ class _HomeState extends State<Home> {
           user,
           state.hasPermission,
         );
-    final canViewAdmissions = admissionEntity != null &&
+    final canViewAdmissions = !usesSupabase &&
+        admissionEntity != null &&
         entitlement.canAccessModule('admissions') &&
         ErpAccessPolicy.canViewEntity(
           admissionEntity,
@@ -126,8 +156,7 @@ class _HomeState extends State<Home> {
         );
 
     if (canViewStudents) {
-      final personalScope =
-          user != null && (user.role.isLearner || user.role.isGuardian);
+      final personalScope = user.role.isLearner || user.role.isGuardian;
       final summarized = summaryCounts is Map
           ? (summaryCounts['students'] as num?)?.toInt()
           : null;
@@ -824,8 +853,11 @@ class _OldQuickAccess extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
+        final scaledLabelHeight =
+            MediaQuery.textScalerOf(context).scale(14.5) - 14.5;
         final maxTileWidth = constraints.maxWidth < 420 ? 190.0 : 220.0;
-        final tileHeight = constraints.maxWidth < 420 ? 146.0 : 154.0;
+        final baseTileHeight = constraints.maxWidth < 420 ? 154.0 : 160.0;
+        final tileHeight = baseTileHeight + scaledLabelHeight.clamp(0.0, 32.0);
 
         return GridView.builder(
           shrinkWrap: true,

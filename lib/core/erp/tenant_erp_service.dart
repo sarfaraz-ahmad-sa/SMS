@@ -3,33 +3,43 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/session_state.dart';
+import '../../services/supabase_dashboard_summary_service.dart';
+import '../../services/supabase_erp_record_service.dart';
+import '../../services/supabase_student_service.dart';
+import '../../config/backend_config.dart';
 import '../../services/models/user_role.dart';
 import 'demo_erp_store.dart';
 import 'erp_access_policy.dart';
 import 'erp_entity.dart';
 import 'erp_record.dart';
+import 'erp_repository.dart';
 
-class ErpPage {
-  const ErpPage({required this.records, required this.hasMore, this.cursor});
-
-  final List<ErpRecord> records;
-  final bool hasMore;
-  final DocumentSnapshot<Map<String, dynamic>>? cursor;
-}
-
-class TenantErpService {
+class TenantErpService implements ErpRepository {
   TenantErpService({
     FirebaseFirestore? firestore,
     FirebaseAuth? firebaseAuth,
     FirebaseFunctions? functions,
-  }) : _db = firestore ?? FirebaseFirestore.instance,
-       _auth = firebaseAuth ?? FirebaseAuth.instance,
+  }) : _db =
+           firestore ??
+           (BackendConfig.isSupabasePrimary
+               ? null
+               : FirebaseFirestore.instance),
+       _auth =
+           firebaseAuth ??
+           (BackendConfig.isSupabasePrimary ? null : FirebaseAuth.instance),
        _functions =
-           functions ?? FirebaseFunctions.instanceFor(region: 'asia-south1');
+           functions ??
+           (BackendConfig.isSupabasePrimary
+               ? null
+               : FirebaseFunctions.instanceFor(region: 'asia-south1'));
 
-  final FirebaseFirestore _db;
-  final FirebaseAuth _auth;
-  final FirebaseFunctions _functions;
+  final FirebaseFirestore? _db;
+  final FirebaseAuth? _auth;
+  final FirebaseFunctions? _functions;
+  final SupabaseStudentService _supabaseStudents = SupabaseStudentService();
+  final SupabaseErpRecordService _supabaseRecords = SupabaseErpRecordService();
+  final SupabaseTrustedErpService _supabaseTrusted =
+      SupabaseTrustedErpService();
 
   static const Set<String> _meteredCollections = <String>{
     'students',
@@ -49,7 +59,9 @@ class TenantErpService {
     'exam_results',
   };
 
-  bool get isDemoMode => _auth.currentUser == null;
+  @override
+  bool get isDemoMode =>
+      !BackendConfig.isSupabasePrimary && _auth?.currentUser == null;
 
   String get _tenantId {
     final id = SessionState.instance.tenant?.id.trim() ?? '';
@@ -58,13 +70,13 @@ class TenantErpService {
   }
 
   String get _actorId {
-    return _auth.currentUser?.uid ??
+    return _auth?.currentUser?.uid ??
         SessionState.instance.user?.uid ??
         'unknown-user';
   }
 
   CollectionReference<Map<String, dynamic>> _collection(String collection) {
-    return _db.collection('tenants').doc(_tenantId).collection(collection);
+    return _db!.collection('tenants').doc(_tenantId).collection(collection);
   }
 
   Query<Map<String, dynamic>> _activeScopeQuery(String collection) {
@@ -85,6 +97,11 @@ class TenantErpService {
   }
 
   Stream<List<ErpRecord>> watch(ErpEntity entity) {
+    if (BackendConfig.isSupabasePrimary) {
+      return Stream<ErpPage>.fromFuture(
+        fetchPage(entity, pageSize: 100),
+      ).map((page) => page.records);
+    }
     if (isDemoMode) {
       return DemoErpStore.instance
           .watch(_tenantId, entity)
@@ -150,12 +167,48 @@ class TenantErpService {
     return query;
   }
 
+  @override
   Future<ErpPage> fetchPage(
     ErpEntity entity, {
     int pageSize = 50,
-    DocumentSnapshot<Map<String, dynamic>>? startAfter,
+    Object? startAfter,
   }) async {
     final safePageSize = pageSize.clamp(10, 100).toInt();
+    if (BackendConfig.isSupabasePrimary) {
+      final scope = _supabaseScope();
+      final cursor = startAfter?.toString();
+      if (entity.collection != 'students') {
+        if (entity.collection == 'payments') {
+          return _supabaseTrusted.fetchPayments(
+            tenantId: scope.$1,
+            campusId: scope.$2,
+            academicYearId: scope.$3,
+            pageSize: safePageSize,
+            afterId: cursor,
+          );
+        }
+        return _supabaseRecords.fetchPage(
+          tenantId: scope.$1,
+          collection: entity.collection,
+          campusId: scope.$2,
+          academicYearId: scope.$3,
+          pageSize: safePageSize,
+          afterId: cursor,
+        );
+      }
+      final page = await _supabaseStudents.fetchPage(
+        tenantId: scope.$1,
+        campusId: scope.$2,
+        academicYearId: scope.$3,
+        pageSize: safePageSize,
+        afterId: cursor,
+      );
+      return ErpPage(
+        records: page.records.map(_studentRecord).toList(growable: false),
+        hasMore: page.hasMore,
+        cursor: page.nextCursor,
+      );
+    }
     if (isDemoMode) {
       final records = await DemoErpStore.instance
           .watch(_tenantId, entity)
@@ -171,7 +224,15 @@ class TenantErpService {
       entity,
       _activeScopeQuery(entity.collection),
     ).orderBy(FieldPath.documentId);
-    if (startAfter != null) query = query.startAfterDocument(startAfter);
+    if (startAfter != null &&
+        startAfter is! DocumentSnapshot<Map<String, dynamic>>) {
+      throw ArgumentError.value(startAfter, 'startAfter', 'Invalid cursor.');
+    }
+    final firestoreCursor =
+        startAfter as DocumentSnapshot<Map<String, dynamic>>?;
+    if (firestoreCursor != null) {
+      query = query.startAfterDocument(firestoreCursor);
+    }
     final snapshot = await query.limit(safePageSize + 1).get();
     final hasMore = snapshot.docs.length > safePageSize;
     final pageDocuments = snapshot.docs.take(safePageSize).toList();
@@ -180,7 +241,7 @@ class TenantErpService {
           .map((document) => ErpRecord(id: document.id, data: document.data()))
           .toList(growable: false),
       hasMore: hasMore,
-      cursor: pageDocuments.isEmpty ? startAfter : pageDocuments.last,
+      cursor: pageDocuments.isEmpty ? firestoreCursor : pageDocuments.last,
     );
   }
 
@@ -220,7 +281,11 @@ class TenantErpService {
     return records;
   }
 
+  @override
   Future<int> countVisible(ErpEntity entity) async {
+    if (BackendConfig.isSupabasePrimary) {
+      return count(entity.collection);
+    }
     if (isDemoMode) {
       final records = await DemoErpStore.instance
           .watch(_tenantId, entity)
@@ -236,7 +301,16 @@ class TenantErpService {
     return result.count ?? 0;
   }
 
+  @override
   Future<Map<String, dynamic>> loadDashboardSummary() async {
+    if (BackendConfig.isSupabasePrimary) {
+      final scope = _supabaseScope();
+      return SupabaseDashboardSummaryService().load(
+        tenantId: scope.$1,
+        campusId: scope.$2,
+        academicYearId: scope.$3,
+      );
+    }
     if (isDemoMode) return const <String, dynamic>{};
     final state = SessionState.instance;
     final year = Uri.encodeComponent(
@@ -264,7 +338,13 @@ class TenantErpService {
     }
   }
 
+  @override
   Future<int> count(String collection) async {
+    if (BackendConfig.isSupabasePrimary) {
+      final summary = await loadDashboardSummary();
+      final counts = summary['counts'];
+      return counts is Map ? (counts[collection] as num?)?.toInt() ?? 0 : 0;
+    }
     if (isDemoMode) {
       return DemoErpStore.instance.count(_tenantId, collection);
     }
@@ -272,7 +352,19 @@ class TenantErpService {
     return result.count ?? 0;
   }
 
+  @override
   Future<int> countWhere(String collection, String field, dynamic value) async {
+    if (BackendConfig.isSupabasePrimary) {
+      if (field != 'status') return 0;
+      final summary = await loadDashboardSummary();
+      final statuses = summary['statusCounts'];
+      final collectionStatuses = statuses is Map ? statuses[collection] : null;
+      return collectionStatuses is Map
+          ? (collectionStatuses[value.toString().toLowerCase()] as num?)
+                    ?.toInt() ??
+                0
+          : 0;
+    }
     if (isDemoMode) {
       return DemoErpStore.instance.countWhere(
         _tenantId,
@@ -287,8 +379,47 @@ class TenantErpService {
     return result.count ?? 0;
   }
 
+  @override
   Future<String> create(ErpEntity entity, Map<String, dynamic> values) async {
     final state = SessionState.instance;
+    if (BackendConfig.isSupabasePrimary) {
+      if (entity.collection != 'students') {
+        final scope = _supabaseScope();
+        if (_trustedMutationCollections.contains(entity.collection)) {
+          return _supabaseTrusted.create(
+            tenantId: scope.$1,
+            collection: entity.collection,
+            campusId: scope.$2,
+            academicYearId: scope.$3,
+            values: values,
+          );
+        }
+        return _supabaseRecords.create(
+          tenantId: scope.$1,
+          collection: entity.collection,
+          campusId: scope.$2,
+          academicYearId: scope.$3,
+          values: values,
+        );
+      }
+      final scope = _supabaseScope();
+      final placement = await _placementFromValues(scope, values);
+      final created = await _supabaseStudents.create(
+        tenantId: scope.$1,
+        student: SupabaseStudentDraft(
+          campusId: scope.$2,
+          academicYearId: scope.$3,
+          admissionNo: values['admissionNo']?.toString() ?? '',
+          fullName: values['fullName']?.toString() ?? '',
+          classId: placement?.classId,
+          sectionId: placement?.sectionId,
+          dateOfBirth: _optionalDate(values['dateOfBirth']),
+          gender: values['gender']?.toString(),
+          status: _studentStatus(values['status']),
+        ),
+      );
+      return created.id;
+    }
     final user = state.user;
     final isSelfService =
         user != null &&
@@ -326,7 +457,7 @@ class TenantErpService {
     }
 
     if (_trustedMutationCollections.contains(entity.collection)) {
-      final result = await _functions
+      final result = await _functions!
           .httpsCallable('mutateTrustedErpRecord')
           .call(<String, dynamic>{
             'tenantId': _tenantId,
@@ -344,7 +475,7 @@ class TenantErpService {
     }
 
     if (_meteredCollections.contains(entity.collection)) {
-      final result = await _functions
+      final result = await _functions!
           .httpsCallable('createMeteredErpRecord')
           .call(<String, dynamic>{
             'tenantId': _tenantId,
@@ -451,11 +582,63 @@ class TenantErpService {
     }
   }
 
+  @override
   Future<void> update(
     ErpEntity entity,
     String recordId,
     Map<String, dynamic> values,
   ) async {
+    if (BackendConfig.isSupabasePrimary) {
+      if (entity.collection != 'students') {
+        final scope = _supabaseScope();
+        if (_trustedMutationCollections.contains(entity.collection)) {
+          await _supabaseTrusted.update(
+            tenantId: scope.$1,
+            collection: entity.collection,
+            campusId: scope.$2,
+            academicYearId: scope.$3,
+            recordId: recordId,
+            values: values,
+          );
+          return;
+        }
+        await _supabaseRecords.update(
+          tenantId: scope.$1,
+          collection: entity.collection,
+          campusId: scope.$2,
+          academicYearId: scope.$3,
+          recordId: recordId,
+          values: values,
+        );
+        return;
+      }
+      final scope = _supabaseScope();
+      final current = await _supabaseStudents.fetchById(
+        tenantId: scope.$1,
+        campusId: scope.$2,
+        academicYearId: scope.$3,
+        studentId: recordId,
+      );
+      final placement = await _placementFromValues(scope, values);
+      await _supabaseStudents.update(
+        student: current,
+        changes: SupabaseStudentDraft(
+          campusId: scope.$2,
+          academicYearId: scope.$3,
+          admissionNo: values['admissionNo']?.toString() ?? current.admissionNo,
+          fullName: values['fullName']?.toString() ?? current.fullName,
+          classId: placement?.classId ?? current.classId,
+          sectionId: placement?.sectionId ?? current.sectionId,
+          dateOfBirth:
+              _optionalDate(values['dateOfBirth']) ?? current.dateOfBirth,
+          gender: values['gender']?.toString() ?? current.gender,
+          status: values.containsKey('status')
+              ? _studentStatus(values['status'])
+              : current.status,
+        ),
+      );
+      return;
+    }
     if (!isDemoMode &&
         entity.collection != 'students' &&
         (values.containsKey('studentId') ||
@@ -474,7 +657,7 @@ class TenantErpService {
     }
 
     if (_trustedMutationCollections.contains(entity.collection)) {
-      await _functions
+      await _functions!
           .httpsCallable('mutateTrustedErpRecord')
           .call(<String, dynamic>{
             'tenantId': _tenantId,
@@ -495,7 +678,40 @@ class TenantErpService {
     });
   }
 
+  @override
   Future<void> archive(ErpEntity entity, String recordId) async {
+    if (BackendConfig.isSupabasePrimary) {
+      if (entity.collection != 'students') {
+        final scope = _supabaseScope();
+        if (_trustedMutationCollections.contains(entity.collection)) {
+          await _supabaseTrusted.archive(
+            tenantId: scope.$1,
+            collection: entity.collection,
+            campusId: scope.$2,
+            academicYearId: scope.$3,
+            recordId: recordId,
+          );
+          return;
+        }
+        await _supabaseRecords.archive(
+          tenantId: scope.$1,
+          collection: entity.collection,
+          campusId: scope.$2,
+          academicYearId: scope.$3,
+          recordId: recordId,
+        );
+        return;
+      }
+      final scope = _supabaseScope();
+      final student = await _supabaseStudents.fetchById(
+        tenantId: scope.$1,
+        campusId: scope.$2,
+        academicYearId: scope.$3,
+        studentId: recordId,
+      );
+      await _supabaseStudents.archive(student);
+      return;
+    }
     if (isDemoMode) {
       return DemoErpStore.instance.archive(
         tenantId: _tenantId,
@@ -506,7 +722,7 @@ class TenantErpService {
     }
 
     if (_trustedMutationCollections.contains(entity.collection)) {
-      await _functions
+      await _functions!
           .httpsCallable('mutateTrustedErpRecord')
           .call(<String, dynamic>{
             'tenantId': _tenantId,
@@ -518,7 +734,7 @@ class TenantErpService {
     }
 
     if (_meteredCollections.contains(entity.collection)) {
-      await _functions.httpsCallable('archiveMeteredErpRecord').call(
+      await _functions!.httpsCallable('archiveMeteredErpRecord').call(
         <String, dynamic>{
           'tenantId': _tenantId,
           'collection': entity.collection,
@@ -535,5 +751,76 @@ class TenantErpService {
       'updatedBy': _actorId,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  (String, String, String) _supabaseScope() {
+    final state = SessionState.instance;
+    final tenantId = state.tenant?.id.trim() ?? '';
+    final campusId = state.activeCampusId?.trim() ?? '';
+    final academicYearId = state.activeAcademicYearId?.trim() ?? '';
+    if (tenantId.isEmpty || campusId.isEmpty || academicYearId.isEmpty) {
+      throw StateError('School, campus, and academic year are required.');
+    }
+    return (tenantId, campusId, academicYearId);
+  }
+
+  Future<SupabaseStudentPlacement?> _placementFromValues(
+    (String, String, String) scope,
+    Map<String, dynamic> values,
+  ) async {
+    final className = values['className']?.toString().trim() ?? '';
+    final sectionName = values['sectionName']?.toString().trim() ?? '';
+    if (className.isEmpty && sectionName.isEmpty) return null;
+    if (className.isEmpty || sectionName.isEmpty) {
+      throw StateError('Both class and section are required.');
+    }
+    return _supabaseStudents.resolvePlacement(
+      tenantId: scope.$1,
+      campusId: scope.$2,
+      academicYearId: scope.$3,
+      className: className,
+      sectionName: sectionName,
+    );
+  }
+
+  ErpRecord _studentRecord(SupabaseStudentRecord student) {
+    return ErpRecord(
+      id: student.id,
+      data: <String, dynamic>{
+        'admissionNo': student.admissionNo,
+        'fullName': student.fullName,
+        'dateOfBirth': student.dateOfBirth?.toIso8601String().split('T').first,
+        'gender': _titleCase(student.gender),
+        'className': student.classId ?? '',
+        'sectionName': student.sectionId ?? '',
+        'status': _titleCase(student.status),
+        'updatedAt': student.updatedAt,
+        'isArchived': false,
+      },
+    );
+  }
+
+  String _studentStatus(dynamic value) {
+    return switch (value?.toString().trim().toLowerCase()) {
+      'on leave' => 'inactive',
+      'transferred' => 'withdrawn',
+      'withdrawn' => 'withdrawn',
+      'graduated' => 'graduated',
+      'inactive' => 'inactive',
+      _ => 'active',
+    };
+  }
+
+  String _titleCase(String? value) {
+    final text = value?.trim() ?? '';
+    return text.isEmpty
+        ? ''
+        : '${text[0].toUpperCase()}${text.substring(1).toLowerCase()}';
+  }
+
+  DateTime? _optionalDate(dynamic value) {
+    if (value is DateTime) return value;
+    final text = value?.toString().trim();
+    return text == null || text.isEmpty ? null : DateTime.tryParse(text);
   }
 }

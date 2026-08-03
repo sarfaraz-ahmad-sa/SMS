@@ -1,7 +1,30 @@
 {
-  "buildCommand": "if [ ! -x flutter/bin/flutter ]; then git clone --depth 1 https://github.com/flutter/flutter.git -b stable flutter; fi && flutter/bin/flutter config --enable-web && flutter/bin/flutter pub get && flutter/bin/flutter build web --release --dart-define=FIREBASE_APPCHECK_RECAPTCHA_KEY=$FIREBASE_APPCHECK_RECAPTCHA_KEY",
+  "buildCommand": "if [ ! -x flutter/bin/flutter ]; then git clone --depth 1 https://github.com/flutter/flutter.git -b stable flutter; fi && flutter/bin/flutter config --enable-web && flutter/bin/flutter pub get && flutter/bin/flutter build web --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY --dart-define=APP_VERSION=$VERCEL_GIT_COMMIT_SHA",
   "outputDirectory": "build/web",
   "installCommand": "echo skip",
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/canvaskit/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+      ]
+    }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

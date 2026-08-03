@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum SubscriptionTier { trial, starter, pro, enterprise, custom }
+enum SubscriptionTier { trial, starter, standard, pro, enterprise, custom }
 
 enum SubscriptionStatus { trialing, active, pastDue, suspended, cancelled }
 
@@ -11,6 +11,8 @@ extension SubscriptionTierX on SubscriptionTier {
         return 'Free Trial';
       case SubscriptionTier.starter:
         return 'Starter';
+      case SubscriptionTier.standard:
+        return 'Standard';
       case SubscriptionTier.pro:
         return 'Professional';
       case SubscriptionTier.enterprise:
@@ -22,14 +24,32 @@ extension SubscriptionTierX on SubscriptionTier {
 
   String get value => name;
 
+  int get monthlyPricePkr {
+    switch (this) {
+      case SubscriptionTier.trial:
+        return 0;
+      case SubscriptionTier.starter:
+        return 3000;
+      case SubscriptionTier.standard:
+        return 6000;
+      case SubscriptionTier.pro:
+        return 10000;
+      case SubscriptionTier.enterprise:
+      case SubscriptionTier.custom:
+        return 0;
+    }
+  }
+
   int get maxStudents {
     switch (this) {
       case SubscriptionTier.trial:
         return 30;
       case SubscriptionTier.starter:
-        return 250;
+        return 200;
+      case SubscriptionTier.standard:
+        return 500;
       case SubscriptionTier.pro:
-        return 2000;
+        return 1000;
       case SubscriptionTier.enterprise:
       case SubscriptionTier.custom:
         return 0;

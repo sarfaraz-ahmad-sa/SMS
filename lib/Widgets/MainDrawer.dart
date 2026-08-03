@@ -36,7 +36,14 @@ class MainDrawer extends StatefulWidget {
 }
 
 class _MainDrawerState extends State<MainDrawer> {
+  final ScrollController _scrollController = ScrollController();
   String _query = '';
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,13 +69,13 @@ class _MainDrawerState extends State<MainDrawer> {
         final modules = _query.isEmpty
             ? allModules
             : allModules.where((ErpModule module) {
-                final moduleMatch =
-                    '${module.title} ${module.description}'.toLowerCase().contains(_query);
+                final moduleMatch = '${module.title} ${module.description}'
+                    .toLowerCase()
+                    .contains(_query);
                 final entityMatch = module.entities.any(
-                  (ErpEntity entity) =>
-                      '${entity.title} ${entity.description}'
-                          .toLowerCase()
-                          .contains(_query),
+                  (ErpEntity entity) => '${entity.title} ${entity.description}'
+                      .toLowerCase()
+                      .contains(_query),
                 );
                 return moduleMatch || entityMatch;
               }).toList(growable: false);
@@ -76,7 +83,8 @@ class _MainDrawerState extends State<MainDrawer> {
         if (widget.compact) {
           return _buildCompact(context, state, tenant, modules);
         }
-        return _buildExpanded(context, state, tenant, modules, allModules.length);
+        return _buildExpanded(
+            context, state, tenant, modules, allModules.length);
       },
     );
   }
@@ -116,7 +124,10 @@ class _MainDrawerState extends State<MainDrawer> {
           ),
         Expanded(
           child: Scrollbar(
+            controller: _scrollController,
             child: ListView(
+              controller: _scrollController,
+              primary: false,
               padding: const EdgeInsets.fromLTRB(8, 6, 8, 16),
               children: <Widget>[
                 _tile(
@@ -236,7 +247,10 @@ class _MainDrawerState extends State<MainDrawer> {
         ),
         Expanded(
           child: Scrollbar(
+            controller: _scrollController,
             child: ListView(
+              controller: _scrollController,
+              primary: false,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
               children: <Widget>[
                 _compactRouteButton(
@@ -708,7 +722,8 @@ class _DrawerHeader extends StatelessWidget {
               const Spacer(),
               if (TenantErpService().isDemoMode)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.16),
                     borderRadius: BorderRadius.circular(999),

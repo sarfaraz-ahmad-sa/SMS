@@ -66,3 +66,26 @@ Review the unresolved count, correct ambiguous student IDs/admission numbers, th
 set "DRY_RUN=false"
 npm run backfill:portal-links
 ```
+
+## Dry-run Firebase to Supabase reference/student migration
+
+Keep the Firebase service-account JSON outside this repository. The command is
+read-only unless `APPLY_SUPABASE=true` is explicitly supplied.
+
+```bat
+set "GOOGLE_APPLICATION_CREDENTIALS=C:\secure\firebase-service-account.json"
+set "FIREBASE_PROJECT_ID=school-management-app-46a07"
+set "SOURCE_FIREBASE_TENANT_ID=school_demo"
+set "TARGET_SUPABASE_TENANT_ID=pilot_school"
+set "DEFAULT_CAMPUS_ID=main-campus"
+set "DEFAULT_ACADEMIC_YEAR_ID=2026-2027"
+npm run migrate:supabase
+```
+
+The dry run prints collection counts and validation errors only; it does not
+print student or guardian data. Resolve every missing field, foreign-key, and
+duplicate error before applying. Actual import additionally requires
+`SUPABASE_URL`, a server-only `SUPABASE_SECRET_KEY` (or legacy
+`SUPABASE_SERVICE_ROLE_KEY`), and the explicit
+`APPLY_SUPABASE=true` flag. Never place the service-role key in Flutter,
+Vercel client variables, screenshots, chat, or committed environment files.

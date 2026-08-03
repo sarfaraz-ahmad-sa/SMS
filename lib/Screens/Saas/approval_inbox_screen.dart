@@ -2,11 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../Widgets/saas_scaffold.dart';
+import '../../config/backend_config.dart';
 import '../../core/erp/tenant_erp_service.dart';
 import '../../services/models/app_permission.dart';
 import '../../services/models/approval_request.dart';
 import '../../services/saas_admin_service.dart';
 import '../../services/session_state.dart';
+import '../../services/supabase_bootstrap.dart';
 import '../../theme/app_theme.dart';
 
 class ApprovalInboxScreen extends StatefulWidget {
@@ -132,6 +134,12 @@ class _ApprovalInboxScreenState extends State<ApprovalInboxScreen> {
       return Stream<List<ApprovalRequest>>.value(const <ApprovalRequest>[]);
     }
 
+    if (BackendConfig.isSupabasePrimary) {
+      return Stream<List<ApprovalRequest>>.fromFuture(
+        _loadSupabaseApprovals(tenantId),
+      );
+    }
+
     return FirebaseFirestore.instance
         .collection('tenants')
         .doc(tenantId)
@@ -149,12 +157,80 @@ class _ApprovalInboxScreenState extends State<ApprovalInboxScreen> {
         );
   }
 
+  Future<List<ApprovalRequest>> _loadSupabaseApprovals(String tenantId) async {
+    final state = SessionState.instance;
+    final rows = await SupabaseBootstrap.client
+        .from('erp_records')
+        .select('id,collection,status,data,created_by,created_at')
+        .eq('tenant_id', tenantId)
+        .eq('campus_id', state.activeCampusId ?? '')
+        .eq('academic_year_id', state.activeAcademicYearId ?? '')
+        .eq('is_archived', false)
+        .inFilter('collection', const <String>[
+          'fee_refunds',
+          'payroll_runs',
+          'journal_entries',
+          'expenses',
+          'budgets',
+          'payslips',
+          'exam_results',
+        ])
+        .inFilter('status', const <String>[
+          'Requested',
+          'Under Review',
+          'Submitted',
+          'Approved',
+          'Rejected',
+        ])
+        .order('created_at', ascending: false)
+        .limit(100);
+    return rows.whereType<Map>().map((raw) {
+      final row = Map<String, dynamic>.from(raw);
+      final data = row['data'] is Map
+          ? Map<String, dynamic>.from(row['data'] as Map)
+          : const <String, dynamic>{};
+      final collection = row['collection']?.toString() ?? '';
+      final recordId = row['id']?.toString() ?? '';
+      final statusText = row['status']?.toString() ?? '';
+      final title = <dynamic>[
+        data['refundNo'],
+        data['period'],
+        data['voucherNo'],
+        data['expenseNo'],
+        data['name'],
+        data['studentName'],
+      ].map((value) => value?.toString().trim() ?? '').firstWhere(
+            (value) => value.isNotEmpty,
+            orElse: () => collection.replaceAll('_', ' '),
+          );
+      return ApprovalRequest(
+        id: '$collection:$recordId',
+        tenantId: tenantId,
+        type: collection.replaceAll('_', '-'),
+        title: title,
+        requesterUid: row['created_by']?.toString() ?? '',
+        status: switch (statusText) {
+          'Requested' || 'Submitted' => ApprovalStatus.submitted,
+          'Under Review' => ApprovalStatus.underReview,
+          'Approved' => ApprovalStatus.approved,
+          'Rejected' => ApprovalStatus.rejected,
+          _ => ApprovalStatus.draft,
+        },
+        recordCollection: collection,
+        recordId: recordId,
+        createdAt: DateTime.tryParse(row['created_at']?.toString() ?? '') ??
+            DateTime.now(),
+      );
+    }).toList(growable: false);
+  }
+
   Future<void> _decide(ApprovalRequest approval, String decision) async {
     final reasonController = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
-        title: Text(decision == 'approved' ? 'Approve request?' : 'Reject request?'),
+        title: Text(
+            decision == 'approved' ? 'Approve request?' : 'Reject request?'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,7 +296,9 @@ class _ApprovalInboxScreenState extends State<ApprovalInboxScreen> {
 
   String _friendlyError(Object error) {
     final text = error.toString();
-    return text.replaceFirst('Exception: ', '').replaceFirst('StateError: ', '');
+    return text
+        .replaceFirst('Exception: ', '')
+        .replaceFirst('StateError: ', '');
   }
 }
 
@@ -369,7 +447,8 @@ class _ApprovalCard extends StatelessWidget {
                             ? const SizedBox(
                                 width: 14,
                                 height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.check, size: 18),
                         label: const Text('Approve'),

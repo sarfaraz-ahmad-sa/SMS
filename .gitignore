@@ -51,6 +51,10 @@ service-account*.json
 # Web related
 web/.env*
 
+# Supabase CLI local state (migrations and config remain tracked)
+supabase/.branches/
+supabase/.temp/
+
 # Symbolication related
 app.*.symbols
 

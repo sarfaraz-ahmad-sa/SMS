@@ -3,11 +3,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --test",
     "seed:tenant": "node seed-tenant.mjs",
     "migrate:flat": "node migrate-flat-collections.mjs",
     "seed:enterprise": "node seed-enterprise-data.mjs",
     "migrate:saas": "node migrate-saas-foundation.mjs",
-    "backfill:portal-links": "node backfill-portal-links.mjs"
+    "backfill:portal-links": "node backfill-portal-links.mjs",
+    "export:firestore-erp-sql": "node firestore-erp-to-sql.mjs",
+    "inventory:firestore": "node firestore-inventory.mjs",
+    "migrate:supabase": "node firestore-to-supabase.mjs"
   },
   "dependencies": {
     "firebase-admin": "^13.4.0"

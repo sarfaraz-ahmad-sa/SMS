@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 
 import 'UserModel.dart';
 import 'models/tenant.dart';
+import '../config/backend_config.dart';
+import 'supabase_bootstrap.dart';
 
 class SessionState extends ChangeNotifier {
   SessionState._();
@@ -23,7 +25,8 @@ class SessionState extends ChangeNotifier {
 
   UserModel? get user => _user;
   Tenant? get tenant => _tenant;
-  List<Tenant> get availableTenants => List<Tenant>.unmodifiable(_availableTenants);
+  List<Tenant> get availableTenants =>
+      List<Tenant>.unmodifiable(_availableTenants);
   String? get activeCampusId => _activeCampusId;
   String? get activeAcademicYearId => _activeAcademicYearId;
   bool get initialized => _initialized;
@@ -134,6 +137,23 @@ class SessionState extends ChangeNotifier {
       _user = _user!.copyWith(themeMode: mode.name);
     }
     notifyListeners();
+    if (BackendConfig.isSupabasePrimary) {
+      final uid = SupabaseBootstrap.client.auth.currentUser?.id;
+      if (uid != null) {
+        unawaited(
+          SupabaseBootstrap.client
+              .from('profiles')
+              .update(<String, dynamic>{
+                'theme_mode': mode.name,
+                'updated_at': DateTime.now().toUtc().toIso8601String(),
+              })
+              .eq('user_id', uid)
+              .then<void>((_) {})
+              .catchError((Object _) {}),
+        );
+      }
+      return;
+    }
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       unawaited(

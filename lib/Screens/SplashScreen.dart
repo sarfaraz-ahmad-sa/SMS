@@ -8,6 +8,9 @@ import '../services/session_state.dart';
 import '../services/models/tenant.dart';
 import '../services/tenant_service.dart';
 import '../services/school_account_service.dart';
+import '../config/backend_config.dart';
+import '../services/supabase_auth_service.dart';
+import '../services/supabase_tenant_service.dart';
 import '../theme/app_theme.dart';
 import 'FirstLoginPasswordScreen.dart';
 import 'LoginPage.dart';
@@ -25,7 +28,10 @@ class _SplashScreenState extends State<SplashScreen>
   late final AnimationController _controller;
   late final Animation<double> _fade;
   final AuthService _authService = AuthService();
-  final TenantService _tenantService = TenantService();
+  final TenantService? _tenantService =
+      BackendConfig.isSupabasePrimary ? null : TenantService();
+  final SupabaseAuthService _supabaseAuthService = SupabaseAuthService();
+  final SupabaseTenantService _supabaseTenantService = SupabaseTenantService();
 
   @override
   void initState() {
@@ -45,6 +51,38 @@ class _SplashScreenState extends State<SplashScreen>
     String? loginMessage;
 
     try {
+      if (BackendConfig.isSupabasePrimary) {
+        if (_supabaseAuthService.currentUser == null) {
+          SessionState.instance.markInitialized();
+          await _waitForBrandAnimation(startedAt);
+          _replace(const MyHomePage(title: 'SEEF School ERP'));
+          return;
+        }
+        final session = await _supabaseTenantService.loadSession();
+        final accessibleTenants =
+            await _supabaseTenantService.getAccessibleTenants();
+        SessionState.instance.setSession(
+          user: session.user,
+          tenant: session.tenant,
+          availableTenants: accessibleTenants.isEmpty
+              ? <Tenant>[session.tenant]
+              : accessibleTenants,
+          activeCampusId: session.activeCampusId,
+          activeAcademicYearId: session.activeAcademicYearId,
+        );
+        try {
+          await SchoolAccountService().recordSuccessfulLogin(session.tenant.id);
+        } catch (_) {
+          // Session restore remains valid if activity tracking is unavailable.
+        }
+        await _waitForBrandAnimation(startedAt);
+        _replace(
+          session.user.mustChangePassword
+              ? const FirstLoginPasswordScreen()
+              : const Home(),
+        );
+        return;
+      }
       final firebaseUser = FirebaseAuth.instance.currentUser;
       if (firebaseUser == null) {
         SessionState.instance.markInitialized();
@@ -53,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen>
         return;
       }
 
-      final session = await _tenantService.loadSession(firebaseUser);
+      final session = await _tenantService!.loadSession(firebaseUser);
       final accessibleTenants =
           await _tenantService.getAccessibleTenants(firebaseUser);
       SessionState.instance.setSession(
@@ -81,14 +119,19 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     } on TenantAccessException catch (error) {
       loginMessage = error.message;
-      await _authService.signOut();
+      if (BackendConfig.isSupabasePrimary) {
+        await _supabaseAuthService.signOut();
+      } else {
+        await _authService.signOut();
+      }
       SessionState.instance.clear();
     } on FirebaseAuthException catch (error) {
       loginMessage = error.message ?? 'Your session could not be restored.';
       await _authService.signOut();
       SessionState.instance.clear();
     } catch (_) {
-      loginMessage = 'Could not connect to the school service. Please try again.';
+      loginMessage =
+          'Could not connect to the school service. Please try again.';
       SessionState.instance.clear();
     }
 

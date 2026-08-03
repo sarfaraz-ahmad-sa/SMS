@@ -108,7 +108,8 @@ class _DesktopShell extends StatelessWidget {
     return ListenableBuilder(
       listenable: NavigationPreferences.instance,
       builder: (BuildContext context, Widget? child) {
-        final expanded = NavigationPreferences.instance.desktopExpandedFor(width);
+        final expanded =
+            NavigationPreferences.instance.desktopExpandedFor(width);
         final sidebarWidth = expanded
             ? SaasScaffold.expandedSidebarWidth
             : SaasScaffold.compactSidebarWidth;
@@ -321,7 +322,7 @@ class _MobileShellState extends State<_MobileShell> {
         ),
       ),
       bottomNavigationBar: NavigationBar(
-        height: 68,
+        height: 80,
         selectedIndex: _mobileSelectedIndex(widget.activeRoute),
         destinations: const <NavigationDestination>[
           NavigationDestination(
