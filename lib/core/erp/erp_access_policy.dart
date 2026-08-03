@@ -10,6 +10,7 @@ class ErpAccessPolicy {
     'students',
     'student_attendance',
     'assignments',
+    'daily_diary',
     'study_materials',
     'exam_schedules',
     'exam_results',
@@ -40,6 +41,7 @@ class ErpAccessPolicy {
     'students',
     'student_attendance',
     'assignments',
+    'daily_diary',
     'study_materials',
     'exam_schedules',
     'exam_results',
@@ -72,6 +74,7 @@ class ErpAccessPolicy {
   static const Set<String> personalStudentCollections = <String>{
     'students',
     'student_attendance',
+    'daily_diary',
     'exam_results',
     'transcripts',
     'fee_invoices',

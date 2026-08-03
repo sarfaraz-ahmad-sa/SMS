@@ -198,6 +198,7 @@ service cloud.firestore {
           'student_transfers', 'discipline_records', 'student_achievements',
           'guardians', 'student_guardians',
           'student_attendance', 'student_leave_requests',
+          'daily_diary',
           'fee_invoices', 'payments', 'mark_entries', 'exam_results',
           'transcripts', 'book_loans', 'library_reservations',
           'transport_assignments', 'hostel_allocations',
@@ -254,7 +255,8 @@ service cloud.firestore {
 
     function academicCollections(collection) {
       return collection in [
-        'syllabus_units', 'lesson_plans', 'assignments', 'study_materials'
+        'syllabus_units', 'lesson_plans', 'daily_diary', 'assignments',
+        'study_materials'
       ];
     }
 
@@ -779,6 +781,14 @@ service cloud.firestore {
       return collection in ['students', 'campuses'];
     }
 
+    function trustedBackendCollection(collection) {
+      return collection in [
+        'payments', 'fee_refunds', 'payroll_runs', 'payslips',
+        'chart_of_accounts', 'journal_entries', 'bank_accounts', 'expenses',
+        'budgets', 'exam_results'
+      ];
+    }
+
     function validCreate(tenantId) {
       return request.resource.data.tenantId == tenantId &&
         request.resource.data.get('createdBy', '') == request.auth.uid &&
@@ -847,6 +857,11 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      match /dashboard_summaries/{summaryId} {
+        allow read: if isActiveMember(tenantId);
+        allow write: if false;
+      }
+
       match /approval_requests/{approvalId} {
         allow read: if isActiveMember(tenantId) &&
           (
@@ -888,6 +903,7 @@ service cloud.firestore {
 
         allow create: if knownErpCollection(collection) &&
           !meteredCollection(collection) &&
+          !trustedBackendCollection(collection) &&
           collectionEntitled(tenantId, collection) &&
           validCreate(tenantId) &&
           (
@@ -899,6 +915,7 @@ service cloud.firestore {
           );
 
         allow update: if knownErpCollection(collection) &&
+          !trustedBackendCollection(collection) &&
           collectionEntitled(tenantId, collection) &&
           canManageCollection(tenantId, collection) &&
           validUpdate(tenantId) &&

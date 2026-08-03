@@ -39,9 +39,10 @@ class ErpDashboardService {
     final specs = _specsFor(user);
     final visibleSpecs = specs.where((spec) => _canView(spec, user, state));
     final metrics = <ErpDashboardMetric>[];
+    final summary = await _service.loadDashboardSummary();
 
     for (final spec in visibleSpecs.take(6)) {
-      final value = await _loadValue(spec, user, state);
+      final value = await _loadValue(spec, user, state, summary);
       metrics.add(
         ErpDashboardMetric(
           key: spec.key,
@@ -74,6 +75,7 @@ class ErpDashboardService {
     _DashboardMetricSpec spec,
     UserModel user,
     SessionState state,
+    Map<String, dynamic> summary,
   ) async {
     var total = 0;
 
@@ -93,17 +95,53 @@ class ErpDashboardService {
           spec.filterValue != null &&
           !user.role.isLearner &&
           !user.role.isGuardian) {
+        final summarized = _summaryStatusCount(
+          summary,
+          collection,
+          spec.filterValue.toString(),
+        );
+        if (summarized != null) {
+          total += summarized;
+          continue;
+        }
         total += await _service.countWhere(
           collection,
           spec.filterField!,
           spec.filterValue,
         );
       } else {
+        if (!user.role.isLearner && !user.role.isGuardian) {
+          final summarized = _summaryCount(summary, collection);
+          if (summarized != null) {
+            total += summarized;
+            continue;
+          }
+        }
         total += await _service.countVisible(entity);
       }
     }
 
     return total;
+  }
+
+  int? _summaryCount(Map<String, dynamic> summary, String collection) {
+    final counts = summary['counts'];
+    if (counts is! Map || !counts.containsKey(collection)) return null;
+    return (counts[collection] as num?)?.toInt();
+  }
+
+  int? _summaryStatusCount(
+    Map<String, dynamic> summary,
+    String collection,
+    String status,
+  ) {
+    final allStatuses = summary['statusCounts'];
+    if (allStatuses is! Map) return null;
+    final statuses = allStatuses[collection];
+    if (statuses is! Map) return null;
+    final key = Uri.encodeComponent(status);
+    if (!statuses.containsKey(key)) return null;
+    return (statuses[key] as num?)?.toInt();
   }
 
   List<_DashboardMetricSpec> _specsFor(UserModel user) {
@@ -175,17 +213,19 @@ class ErpDashboardService {
 
     if (user.hasRole(UserRole.accountant)) {
       return const <_DashboardMetricSpec>[
-        _DashboardMetricSpec('invoices', 'Fee Invoices', <String>['fee_invoices']),
+        _DashboardMetricSpec(
+            'invoices', 'Fee Invoices', <String>['fee_invoices']),
         _DashboardMetricSpec('payments', 'Payments', <String>['payments']),
         _DashboardMetricSpec('refunds', 'Refunds', <String>['fee_refunds']),
-        _DashboardMetricSpec('journals', 'Journal Entries', <String>['journal_entries']),
-        _DashboardMetricSpec('banks', 'Bank Accounts', <String>['bank_accounts']),
+        _DashboardMetricSpec(
+            'journals', 'Journal Entries', <String>['journal_entries']),
+        _DashboardMetricSpec(
+            'banks', 'Bank Accounts', <String>['bank_accounts']),
         _DashboardMetricSpec('budgets', 'Budgets', <String>['budgets']),
       ];
     }
 
-    if (user.hasRole(UserRole.teacher) ||
-        user.hasRole(UserRole.classTeacher)) {
+    if (user.hasRole(UserRole.teacher) || user.hasRole(UserRole.classTeacher)) {
       return const <_DashboardMetricSpec>[
         _DashboardMetricSpec('students', 'Students', <String>['students']),
         _DashboardMetricSpec(
@@ -193,10 +233,13 @@ class ErpDashboardService {
           'Attendance Records',
           <String>['student_attendance'],
         ),
-        _DashboardMetricSpec('assignments', 'Assignments', <String>['assignments']),
-        _DashboardMetricSpec('marks', 'Marks Entries', <String>['mark_entries']),
+        _DashboardMetricSpec(
+            'assignments', 'Assignments', <String>['assignments']),
+        _DashboardMetricSpec(
+            'marks', 'Marks Entries', <String>['mark_entries']),
         _DashboardMetricSpec('events', 'Events', <String>['events']),
-        _DashboardMetricSpec('leave', 'Leave Requests', <String>['leave_requests']),
+        _DashboardMetricSpec(
+            'leave', 'Leave Requests', <String>['leave_requests']),
       ];
     }
 
@@ -219,14 +262,17 @@ class ErpDashboardService {
       return const <_DashboardMetricSpec>[
         _DashboardMetricSpec('employees', 'Employees', <String>['employees']),
         _DashboardMetricSpec('teachers', 'Teachers', <String>['teachers']),
-        _DashboardMetricSpec('leave', 'Leave Requests', <String>['leave_requests']),
-        _DashboardMetricSpec('payroll', 'Payroll Runs', <String>['payroll_runs']),
+        _DashboardMetricSpec(
+            'leave', 'Leave Requests', <String>['leave_requests']),
+        _DashboardMetricSpec(
+            'payroll', 'Payroll Runs', <String>['payroll_runs']),
         _DashboardMetricSpec(
           'staff-attendance',
           'Staff Attendance',
           <String>['staff_attendance'],
         ),
-        _DashboardMetricSpec('contracts', 'Contracts', <String>['employee_contracts']),
+        _DashboardMetricSpec(
+            'contracts', 'Contracts', <String>['employee_contracts']),
       ];
     }
 
@@ -239,9 +285,11 @@ class ErpDashboardService {
         ),
         _DashboardMetricSpec('students', 'Students', <String>['students']),
         _DashboardMetricSpec('guardians', 'Guardians', <String>['guardians']),
-        _DashboardMetricSpec('appointments', 'Appointments', <String>['appointments']),
+        _DashboardMetricSpec(
+            'appointments', 'Appointments', <String>['appointments']),
         _DashboardMetricSpec('visitors', 'Visitors', <String>['visitor_log']),
-        _DashboardMetricSpec('complaints', 'Complaints', <String>['complaints']),
+        _DashboardMetricSpec(
+            'complaints', 'Complaints', <String>['complaints']),
       ];
     }
 
@@ -268,9 +316,11 @@ class ErpDashboardService {
           'Bed Allocations',
           <String>['hostel_allocations'],
         ),
-        _DashboardMetricSpec('visitors', 'Hostel Visitors', <String>['hostel_visitors']),
+        _DashboardMetricSpec(
+            'visitors', 'Hostel Visitors', <String>['hostel_visitors']),
         _DashboardMetricSpec('students', 'Students', <String>['students']),
-        _DashboardMetricSpec('invoices', 'Fee Invoices', <String>['fee_invoices']),
+        _DashboardMetricSpec(
+            'invoices', 'Fee Invoices', <String>['fee_invoices']),
         _DashboardMetricSpec('assets', 'Assets', <String>['assets']),
       ];
     }
@@ -278,9 +328,11 @@ class ErpDashboardService {
     if (user.hasRole(UserRole.itAdmin)) {
       return const <_DashboardMetricSpec>[
         _DashboardMetricSpec('users', 'User Access', <String>['user_access']),
-        _DashboardMetricSpec('integrations', 'Integrations', <String>['integration_connections']),
+        _DashboardMetricSpec('integrations', 'Integrations',
+            <String>['integration_connections']),
         _DashboardMetricSpec('backups', 'Backup Jobs', <String>['backup_jobs']),
-        _DashboardMetricSpec('audits', 'Audit Reviews', <String>['audit_reviews']),
+        _DashboardMetricSpec(
+            'audits', 'Audit Reviews', <String>['audit_reviews']),
         _DashboardMetricSpec(
           'tickets',
           'Open Tickets',
@@ -289,7 +341,8 @@ class ErpDashboardService {
           filterField: 'status',
           filterValue: 'Open',
         ),
-        _DashboardMetricSpec('features', 'Feature Flags', <String>['feature_flags']),
+        _DashboardMetricSpec(
+            'features', 'Feature Flags', <String>['feature_flags']),
       ];
     }
 
@@ -305,7 +358,8 @@ class ErpDashboardService {
         'Teachers & Staff',
         <String>['teachers', 'employees'],
       ),
-      _DashboardMetricSpec('invoices', 'Fee Invoices', <String>['fee_invoices']),
+      _DashboardMetricSpec(
+          'invoices', 'Fee Invoices', <String>['fee_invoices']),
       _DashboardMetricSpec('payments', 'Payments', <String>['payments']),
       _DashboardMetricSpec(
         'tickets',

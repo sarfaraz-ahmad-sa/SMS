@@ -1,10 +1,11 @@
 "use strict";
 
-const { randomBytes } = require("node:crypto");
+const { createHash, randomBytes } = require("node:crypto");
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { FieldValue, getFirestore } = require("firebase-admin/firestore");
 const { HttpsError, onCall } = require("firebase-functions/v2/https");
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const {
   allRoles,
   effectivePermissionsForRoles,
@@ -42,6 +43,36 @@ const meteredCollectionConfig = Object.freeze({
     permissions: Object.freeze(["school_setup.manage"]),
   }),
 });
+
+// These records have financial, payroll, approval, or publication impact and
+// must never be mutated directly by an untrusted client.
+const trustedMutationConfig = Object.freeze({
+  payments: Object.freeze({ permissions: ["fees.collect", "fees.manage"], unique: ["receiptNo"] }),
+  fee_refunds: Object.freeze({ permissions: ["fees.refund", "fees.manage"], unique: ["refundNo"] }),
+  payroll_runs: Object.freeze({ permissions: ["payroll.manage"], unique: ["period"] }),
+  payslips: Object.freeze({ permissions: ["payroll.manage"], unique: ["employeeId", "period"] }),
+  chart_of_accounts: Object.freeze({ permissions: ["accounting.manage"], unique: ["accountCode"] }),
+  journal_entries: Object.freeze({ permissions: ["accounting.manage"], unique: ["voucherNo"] }),
+  bank_accounts: Object.freeze({ permissions: ["accounting.manage"], unique: ["accountNumber"] }),
+  expenses: Object.freeze({ permissions: ["accounting.manage"], unique: ["expenseNo"] }),
+  budgets: Object.freeze({ permissions: ["accounting.manage"], unique: [] }),
+  exam_results: Object.freeze({ permissions: ["exams.manage"], unique: ["academicYearId", "examName", "studentId"] }),
+});
+
+const dashboardCollections = new Set([
+  "students", "student_attendance", "assignments", "exam_results",
+  "fee_invoices", "issued_certificates", "parent_meetings",
+  "student_leave_requests", "certificate_requests", "payments", "fee_refunds",
+  "journal_entries", "bank_accounts", "budgets", "mark_entries", "events",
+  "leave_requests", "books", "book_loans", "library_reservations", "teachers",
+  "employees", "payroll_runs", "staff_attendance", "employee_contracts",
+  "admission_applications", "guardians", "appointments", "visitor_log",
+  "complaints", "transport_routes", "vehicles", "drivers",
+  "transport_assignments", "hostel_rooms", "hostel_allocations",
+  "hostel_visitors", "assets", "inventory_items", "purchase_orders",
+  "stock_movements", "user_access", "integration_connections", "backup_jobs",
+  "audit_reviews", "support_tickets", "feature_flags",
+]);
 
 const defaultMeteredLimits = Object.freeze({
   trial: Object.freeze({ students: 30, campuses: 1 }),
@@ -734,7 +765,7 @@ function publicProvisioningError(error) {
 }
 
 exports.provisionSchoolUser = onCall(
-  { region: "asia-south1", timeoutSeconds: 60, cors: true },
+  { region: "asia-south1", timeoutSeconds: 60, cors: true, enforceAppCheck: true },
   async (request) => {
     try {
       return await provisionSchoolUser(request);
@@ -755,7 +786,7 @@ exports.provisionSchoolUser = onCall(
 
 
 exports.manageSchoolUser = onCall(
-  { region: "asia-south1", timeoutSeconds: 60, cors: true },
+  { region: "asia-south1", timeoutSeconds: 60, cors: true, enforceAppCheck: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before managing an account.");
@@ -1007,7 +1038,7 @@ exports.manageSchoolUser = onCall(
 );
 
 exports.completeInitialPasswordChange = onCall(
-  { region: "asia-south1", timeoutSeconds: 30, cors: true },
+  { region: "asia-south1", timeoutSeconds: 30, cors: true, enforceAppCheck: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before completing setup.");
@@ -1064,7 +1095,7 @@ exports.completeInitialPasswordChange = onCall(
 );
 
 exports.recordSuccessfulLogin = onCall(
-  { region: "asia-south1", timeoutSeconds: 20, cors: true },
+  { region: "asia-south1", timeoutSeconds: 20, cors: true, enforceAppCheck: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before recording activity.");
@@ -1096,7 +1127,7 @@ exports.recordSuccessfulLogin = onCall(
 );
 
 exports.createMeteredErpRecord = onCall(
-  { region: "asia-south1", timeoutSeconds: 30, cors: true },
+  { region: "asia-south1", timeoutSeconds: 30, cors: true, enforceAppCheck: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before creating a record.");
@@ -1187,7 +1218,7 @@ exports.createMeteredErpRecord = onCall(
 );
 
 exports.archiveMeteredErpRecord = onCall(
-  { region: "asia-south1", timeoutSeconds: 30, cors: true },
+  { region: "asia-south1", timeoutSeconds: 30, cors: true, enforceAppCheck: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before archiving a record.");
@@ -1266,6 +1297,182 @@ exports.archiveMeteredErpRecord = onCall(
   },
 );
 
+function cleanOptionalScope(value, field) {
+  if (value == null || String(value).trim() === "") return null;
+  return cleanText(String(value), field, 100);
+}
+
+function uniqueMarkerId(collection, fields, values) {
+  if (fields.length === 0) return null;
+  const parts = fields.map((field) => cleanText(values[field], field, 180).toLowerCase());
+  const digest = createHash("sha256")
+    .update(`${collection}:${parts.join("\u001f")}`)
+    .digest("hex");
+  return `${collection}_${digest}`;
+}
+
+function assertTrustedRecordValid(collection, values, before = null) {
+  if (["payments", "fee_refunds", "expenses"].includes(collection)) {
+    const amount = Number(values.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new HttpsError("invalid-argument", "Amount must be greater than zero.");
+    }
+  }
+  if (collection === "journal_entries") {
+    const debit = Number(values.debitAmount);
+    const credit = Number(values.creditAmount);
+    if (!Number.isFinite(debit) || debit <= 0 || Math.abs(debit - credit) > 0.005) {
+      throw new HttpsError("invalid-argument", "Journal debit and credit totals must balance.");
+    }
+  }
+
+  const previousStatus = String(before?.status ?? "").toLowerCase();
+  const nextStatus = String(values.status ?? "").toLowerCase();
+  const protectedTransitions = {
+    exam_results: ["published", "approved"],
+    payroll_runs: ["disbursed", "approved"],
+    payslips: ["paid", "approved"],
+    fee_refunds: ["paid", "approved"],
+    journal_entries: ["posted", "approved"],
+  };
+  const transition = protectedTransitions[collection];
+  if (transition && nextStatus === transition[0] && previousStatus !== transition[1]) {
+    throw new HttpsError(
+      "failed-precondition",
+      `${transition[0]} records must first be ${transition[1]}.`,
+    );
+  }
+  if (!before && transition && nextStatus === transition[0]) {
+    throw new HttpsError("failed-precondition", "A final-state record cannot be created directly.");
+  }
+}
+
+exports.mutateTrustedErpRecord = onCall(
+  { region: "asia-south1", timeoutSeconds: 30, cors: true, enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Sign in before changing a trusted record.");
+    }
+    const tenantId = cleanText(request.data?.tenantId, "School", 100);
+    const collection = cleanText(request.data?.collection, "Collection", 100);
+    const operation = cleanText(request.data?.operation, "Operation", 20).toLowerCase();
+    const config = trustedMutationConfig[collection];
+    if (!config || !["create", "update", "archive"].includes(operation)) {
+      throw new HttpsError("invalid-argument", "Unsupported trusted record operation.");
+    }
+    const membership = await getCallerMembership(request.auth.uid, tenantId);
+    if (!hasAnyPermission(membership, config.permissions)) {
+      throw new HttpsError("permission-denied", "You cannot change this trusted record.");
+    }
+
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const tenantSnapshot = await tenantRef.get();
+    if (!tenantSnapshot.exists) {
+      throw new HttpsError("not-found", "The selected school was not found.");
+    }
+    assertSubscriptionUsable(tenantSnapshot.data() ?? {});
+
+    const recordId = operation === "create"
+      ? null
+      : cleanText(request.data?.recordId, "Record ID", 140);
+    const values = operation === "archive"
+      ? null
+      : cleanRecordValues(request.data?.values);
+    const recordRef = recordId
+      ? tenantRef.collection(collection).doc(recordId)
+      : tenantRef.collection(collection).doc();
+    const auditRef = tenantRef.collection("audit_logs").doc();
+    const campusId = cleanOptionalScope(request.data?.campusId, "Campus");
+    const academicYearId = cleanOptionalScope(
+      request.data?.academicYearId,
+      "Academic year",
+    );
+
+    await db.runTransaction(async (transaction) => {
+      const snapshot = operation === "create" ? null : await transaction.get(recordRef);
+      if (operation !== "create" && !snapshot.exists) {
+        throw new HttpsError("not-found", "The trusted record was not found.");
+      }
+      const before = snapshot?.data() ?? null;
+      const now = FieldValue.serverTimestamp();
+      let after;
+
+      if (operation === "create") {
+        assertTrustedRecordValid(collection, values);
+        const markerId = uniqueMarkerId(collection, config.unique, {
+          ...values,
+          campusId,
+          academicYearId,
+        });
+        if (markerId) {
+          const markerRef = tenantRef.collection("unique_ids").doc(markerId);
+          const markerSnapshot = await transaction.get(markerRef);
+          if (markerSnapshot.exists) {
+            throw new HttpsError("already-exists", "A record with this unique ID already exists.");
+          }
+          transaction.create(markerRef, {
+            tenantId,
+            collection,
+            recordId: recordRef.id,
+            createdAt: now,
+          });
+        }
+        after = {
+          ...values,
+          tenantId,
+          campusId,
+          academicYearId,
+          createdBy: request.auth.uid,
+          createdAt: now,
+          updatedBy: request.auth.uid,
+          updatedAt: now,
+          isArchived: false,
+        };
+        transaction.create(recordRef, after);
+      } else if (operation === "update") {
+        for (const field of config.unique) {
+          if (Object.hasOwn(values, field) && values[field] !== before[field]) {
+            throw new HttpsError("failed-precondition", `${field} cannot be changed after creation.`);
+          }
+        }
+        const merged = { ...before, ...values };
+        assertTrustedRecordValid(collection, merged, before);
+        after = {
+          ...values,
+          updatedBy: request.auth.uid,
+          updatedAt: now,
+          ...(["approved", "posted", "published", "paid", "disbursed"].includes(
+            String(merged.status ?? "").toLowerCase(),
+          ) ? { finalizedBy: request.auth.uid, finalizedAt: now } : {}),
+        };
+        transaction.update(recordRef, after);
+      } else {
+        if (before.isArchived === true) return;
+        after = {
+          isArchived: true,
+          archivedBy: request.auth.uid,
+          archivedAt: now,
+          updatedBy: request.auth.uid,
+          updatedAt: now,
+        };
+        transaction.update(recordRef, after);
+      }
+
+      transaction.create(
+        auditRef,
+        auditDocument(tenantId, request.auth.uid, `${collection}.${operation}d`, {
+          module: collection,
+          recordCollection: collection,
+          recordId: recordRef.id,
+          before: before ?? {},
+          after,
+        }),
+      );
+    });
+    return { recordId: recordRef.id, operation };
+  },
+);
+
 const approvalManagers = new Set([
   "saas_admin.manage",
   "accounting.manage",
@@ -1311,8 +1518,93 @@ function auditDocument(tenantId, actorUid, action, details = {}) {
   };
 }
 
+exports.rebuildDashboardSummary = onCall(
+  { region: "asia-south1", timeoutSeconds: 120, cors: true, enforceAppCheck: true },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Sign in before rebuilding summaries.");
+    }
+    const tenantId = cleanText(request.data?.tenantId, "School", 100);
+    const campusId = cleanOptionalScope(request.data?.campusId, "Campus");
+    const academicYearId = cleanOptionalScope(
+      request.data?.academicYearId,
+      "Academic year",
+    );
+    const membership = await getCallerMembership(request.auth.uid, tenantId);
+    if (!canDecideApprovals(membership) &&
+        !membershipHasPermission(membership, "reports.manage")) {
+      throw new HttpsError("permission-denied", "You cannot rebuild dashboard summaries.");
+    }
+
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const scopedQuery = (collection) => {
+      let query = tenantRef.collection(collection).where("isArchived", "==", false);
+      if (campusId && collection !== "campuses") {
+        query = query.where("campusId", "==", campusId);
+      }
+      if (academicYearId && collection !== "academic_years") {
+        query = query.where("academicYearId", "==", academicYearId);
+      }
+      return query;
+    };
+    const entries = [...dashboardCollections];
+    const countSnapshots = await Promise.all(
+      entries.map((collection) => scopedQuery(collection).count().get()),
+    );
+    const counts = Object.fromEntries(
+      entries.map((collection, index) => [collection, countSnapshots[index].data().count]),
+    );
+    const trackedStatuses = {
+      admission_applications: [
+        "Draft", "Submitted", "Under Review", "Assessment", "Waitlisted",
+        "Approved", "Enrolled", "Rejected",
+      ],
+      support_tickets: ["Open"],
+    };
+    const statusCounts = {};
+    for (const [collection, statuses] of Object.entries(trackedStatuses)) {
+      const snapshots = await Promise.all(
+        statuses.map((status) => scopedQuery(collection)
+          .where("status", "==", status)
+          .count()
+          .get()),
+      );
+      statusCounts[collection] = Object.fromEntries(
+        statuses.map((status, index) => [
+          encodeURIComponent(status),
+          snapshots[index].data().count,
+        ]),
+      );
+    }
+    const scopeId = `scope_${encodeURIComponent(academicYearId ?? "all")}_${encodeURIComponent(campusId ?? "all")}`;
+    const now = FieldValue.serverTimestamp();
+    const batch = db.batch();
+    batch.set(tenantRef.collection("dashboard_summaries").doc(scopeId), {
+      tenantId,
+      scopeId,
+      campusId,
+      academicYearId,
+      counts,
+      statusCounts,
+      rebuiltAt: now,
+      updatedAt: now,
+      updatedBy: request.auth.uid,
+    });
+    batch.create(
+      tenantRef.collection("audit_logs").doc(),
+      auditDocument(tenantId, request.auth.uid, "dashboard.summary.rebuilt", {
+        module: "reporting",
+        recordCollection: "dashboard_summaries",
+        recordId: scopeId,
+      }),
+    );
+    await batch.commit();
+    return { scopeId, counts };
+  },
+);
+
 exports.refreshSaasUsage = onCall(
-  { region: "asia-south1", timeoutSeconds: 60, cors: true },
+  { region: "asia-south1", timeoutSeconds: 60, cors: true, enforceAppCheck: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before refreshing usage.");
@@ -1404,7 +1696,7 @@ const approvableCollections = new Set([
 ]);
 
 exports.requestApproval = onCall(
-  { region: "asia-south1", timeoutSeconds: 30, cors: true },
+  { region: "asia-south1", timeoutSeconds: 30, cors: true, enforceAppCheck: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before requesting approval.");
@@ -1474,7 +1766,7 @@ exports.requestApproval = onCall(
 );
 
 exports.decideApproval = onCall(
-  { region: "asia-south1", timeoutSeconds: 30, cors: true },
+  { region: "asia-south1", timeoutSeconds: 30, cors: true, enforceAppCheck: true },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Sign in before deciding approval.");
@@ -1498,40 +1790,148 @@ exports.decideApproval = onCall(
 
     const tenantRef = db.collection("tenants").doc(tenantId);
     const approvalRef = tenantRef.collection("approval_requests").doc(approvalId);
-    const approvalSnapshot = await approvalRef.get();
-    if (!approvalSnapshot.exists) {
-      throw new HttpsError("not-found", "The approval request was not found.");
-    }
-    const approval = approvalSnapshot.data();
-    if (!["submitted", "underReview"].includes(String(approval?.status ?? ""))) {
-      throw new HttpsError(
-        "failed-precondition",
-        "Only submitted approvals can be decided.",
-      );
-    }
+    await db.runTransaction(async (transaction) => {
+      const approvalSnapshot = await transaction.get(approvalRef);
+      if (!approvalSnapshot.exists) {
+        throw new HttpsError("not-found", "The approval request was not found.");
+      }
+      const approval = approvalSnapshot.data();
+      if (!["submitted", "underReview"].includes(String(approval?.status ?? ""))) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Only submitted approvals can be decided.",
+        );
+      }
+      if (approval.requesterUid === request.auth.uid) {
+        throw new HttpsError(
+          "permission-denied",
+          "The requester cannot decide their own approval.",
+        );
+      }
 
-    const update = {
-      status: decision,
-      decisionReason: reason || null,
-      decidedBy: request.auth.uid,
-      decidedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    };
-    const batch = db.batch();
-    batch.update(approvalRef, update);
-    batch.create(
-      tenantRef.collection("audit_logs").doc(),
-      auditDocument(tenantId, request.auth.uid, `approval.${decision}`, {
-        module: approval.type,
-        recordCollection: approval.recordCollection,
-        recordId: approval.recordId,
+      const targetRef = tenantRef
+        .collection(approval.recordCollection)
+        .doc(approval.recordId);
+      const targetSnapshot = await transaction.get(targetRef);
+      if (!targetSnapshot.exists) {
+        throw new HttpsError("not-found", "The approval target no longer exists.");
+      }
+      const now = FieldValue.serverTimestamp();
+      const update = {
+        status: decision,
+        decisionReason: reason || null,
+        decidedBy: request.auth.uid,
+        decidedAt: now,
+        updatedAt: now,
+      };
+      transaction.update(approvalRef, update);
+      transaction.update(targetRef, {
+        approvalStatus: decision,
         approvalId,
-        before: approval,
-        after: update,
-        reason,
-      }),
-    );
-    await batch.commit();
+        approvalDecidedBy: request.auth.uid,
+        approvalDecidedAt: now,
+        updatedBy: request.auth.uid,
+        updatedAt: now,
+      });
+      transaction.create(
+        tenantRef.collection("audit_logs").doc(),
+        auditDocument(tenantId, request.auth.uid, `approval.${decision}`, {
+          module: approval.type,
+          recordCollection: approval.recordCollection,
+          recordId: approval.recordId,
+          approvalId,
+          before: approval,
+          after: update,
+          reason,
+        }),
+      );
+    });
     return { approvalId, status: decision };
+  },
+);
+
+function dashboardScopeIds(data) {
+  const campus = String(data?.campusId ?? "").trim() || "all";
+  const year = String(data?.academicYearId ?? "").trim() || "all";
+  return [...new Set([
+    "scope_all_all",
+    `scope_${encodeURIComponent(year)}_all`,
+    `scope_all_${encodeURIComponent(campus)}`,
+    `scope_${encodeURIComponent(year)}_${encodeURIComponent(campus)}`,
+  ])];
+}
+
+function addDashboardDelta(changes, collection, data, delta) {
+  if (!data || data.isArchived === true) return;
+  const status = String(data.status ?? "").trim();
+  for (const scopeId of dashboardScopeIds(data)) {
+    const change = changes.get(scopeId) ?? { count: 0, statuses: new Map() };
+    change.count += delta;
+    if (status) {
+      const key = encodeURIComponent(status);
+      change.statuses.set(key, (change.statuses.get(key) ?? 0) + delta);
+    }
+    changes.set(scopeId, change);
+  }
+}
+
+exports.updateDashboardSummary = onDocumentWritten(
+  {
+    document: "tenants/{tenantId}/{collection}/{documentId}",
+    region: "asia-south1",
+    retry: true,
+  },
+  async (event) => {
+    const { tenantId, collection } = event.params;
+    if (!dashboardCollections.has(collection) || collection === "dashboard_summaries") {
+      return;
+    }
+    const before = event.data?.before.exists ? event.data.before.data() : null;
+    const after = event.data?.after.exists ? event.data.after.data() : null;
+    const changes = new Map();
+    addDashboardDelta(changes, collection, before, -1);
+    addDashboardDelta(changes, collection, after, 1);
+    if (changes.size === 0) return;
+
+    const tenantRef = db.collection("tenants").doc(tenantId);
+    const eventMarkerId = createHash("sha256")
+      .update(String(event.id))
+      .digest("hex");
+    const eventMarkerRef = tenantRef
+      .collection("dashboard_summary_events")
+      .doc(eventMarkerId);
+    await db.runTransaction(async (transaction) => {
+      const marker = await transaction.get(eventMarkerRef);
+      if (marker.exists) return;
+
+      for (const [scopeId, change] of changes) {
+        const update = {
+          tenantId,
+          scopeId,
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+        if (change.count !== 0) {
+          update.counts = { [collection]: FieldValue.increment(change.count) };
+        }
+        const statusUpdate = {};
+        for (const [status, delta] of change.statuses) {
+          if (delta !== 0) {
+            statusUpdate[status] = FieldValue.increment(delta);
+          }
+        }
+        if (Object.keys(statusUpdate).length > 0) {
+          update.statusCounts = { [collection]: statusUpdate };
+        }
+        transaction.set(
+          tenantRef.collection("dashboard_summaries").doc(scopeId),
+          update,
+          { merge: true },
+        );
+      }
+      transaction.create(eventMarkerRef, {
+        eventId: String(event.id),
+        processedAt: FieldValue.serverTimestamp(),
+      });
+    });
   },
 );

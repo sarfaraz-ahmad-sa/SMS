@@ -27,8 +27,82 @@ class ErpEntityListScreen extends StatefulWidget {
 class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
   final TenantErpService _service = TenantErpService();
   final TextEditingController _searchController = TextEditingController();
+  final List<ErpRecord> _records = <ErpRecord>[];
   String _query = '';
   String? _status;
+  DocumentSnapshot<Map<String, dynamic>>? _cursor;
+  Object? _loadError;
+  bool _loading = true;
+  bool _loadingMore = false;
+  bool _hasMore = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  @override
+  void didUpdateWidget(covariant ErpEntityListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.entity.collection != widget.entity.collection) {
+      _searchController.clear();
+      _query = '';
+      _status = null;
+      _reload();
+    }
+  }
+
+  Future<void> _reload() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _loadError = null;
+        _cursor = null;
+        _hasMore = false;
+      });
+    }
+    try {
+      final page = await _service.fetchPage(widget.entity);
+      if (!mounted) return;
+      setState(() {
+        _records
+          ..clear()
+          ..addAll(page.records);
+        _cursor = page.cursor;
+        _hasMore = page.hasMore;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await _service.fetchPage(
+        widget.entity,
+        startAfter: _cursor,
+      );
+      if (!mounted) return;
+      setState(() {
+        _records.addAll(page.records);
+        _cursor = page.cursor;
+        _hasMore = page.hasMore;
+        _loadingMore = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _loadingMore = false);
+      _showError(error.toString());
+    }
+  }
 
   bool get _canCreate => ErpAccessPolicy.canCreate(
         widget.entity,
@@ -56,6 +130,8 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
       record: record,
     );
     if (saved == true && mounted) {
+      await _reload();
+      if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -96,6 +172,8 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
     try {
       await _service.archive(widget.entity, record.id);
       if (!mounted) return;
+      await _reload();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Record archived.'),
@@ -123,12 +201,13 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
     final state = SessionState.instance;
     final module = ErpCatalog.moduleForCollection(widget.entity.collection);
     final entitlement = PlanEntitlementService(tenant: state.tenant);
-    final canView = (module == null || entitlement.canAccessModule(module.id)) &&
-        ErpAccessPolicy.canViewEntity(
-          widget.entity,
-          state.user,
-          state.hasPermission,
-        );
+    final canView =
+        (module == null || entitlement.canAccessModule(module.id)) &&
+            ErpAccessPolicy.canViewEntity(
+              widget.entity,
+              state.user,
+              state.hasPermission,
+            );
     if (!canView) {
       return SaasScaffold(
         title: widget.entity.title,
@@ -161,93 +240,97 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1280),
-          child: StreamBuilder<List<ErpRecord>>(
-            stream: _service.watch(widget.entity),
-            builder: (
-              BuildContext context,
-              AsyncSnapshot<List<ErpRecord>> snapshot,
-            ) {
-              if (snapshot.connectionState == ConnectionState.waiting &&
-                  !snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return _ErrorState(
-                  message: snapshot.error.toString(),
-                  onRetry: () => setState(() {}),
-                );
-              }
-
-              final allRecords = snapshot.data ?? const <ErpRecord>[];
-              final statusOptions = _statusOptions(allRecords);
-              final records = allRecords.where(_matchesFilter).toList();
-
-              return Column(
-                children: <Widget>[
-                  _Header(
-                    entity: widget.entity,
-                    totalRecords: allRecords.length,
-                    visibleRecords: records.length,
-                    demoMode: _service.isDemoMode,
-                  ),
-                  _Filters(
-                    controller: _searchController,
-                    status: _status,
-                    statusOptions: statusOptions,
-                    onQueryChanged: (String value) {
-                      setState(() => _query = value.trim().toLowerCase());
-                    },
-                    onStatusChanged: (String? value) {
-                      setState(() => _status = value);
-                    },
-                    onClear: () {
-                      _searchController.clear();
-                      setState(() {
-                        _query = '';
-                        _status = null;
-                      });
-                    },
-                  ),
-                  Expanded(
-                    child: records.isEmpty
-                        ? _EmptyState(
-                            entity: widget.entity,
-                            filtered: allRecords.isNotEmpty,
-                            canManage: _canCreate,
-                            onCreate: _openForm,
-                          )
-                        : LayoutBuilder(
-                            builder: (
-                              BuildContext context,
-                              BoxConstraints constraints,
-                            ) {
-                              if (constraints.maxWidth >= 900) {
-                                return _DesktopTable(
-                                  entity: widget.entity,
-                                  records: records,
-                                  canManage: _canEdit,
-                                  onView: _showDetails,
-                                  onEdit: _openForm,
-                                  onArchive: _archive,
-                                );
-                              }
-                              return _MobileList(
-                                entity: widget.entity,
-                                records: records,
-                                canManage: _canEdit,
-                                onView: _showDetails,
-                                onEdit: _openForm,
-                                onArchive: _archive,
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              );
-            },
-          ),
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _loadError != null
+                  ? _ErrorState(
+                      message: _loadError.toString(),
+                      onRetry: _reload,
+                    )
+                  : _buildRecordList(),
         ),
       ),
+    );
+  }
+
+  Widget _buildRecordList() {
+    final statusOptions = _statusOptions(_records);
+    final records = _records.where(_matchesFilter).toList();
+    return Column(
+      children: <Widget>[
+        _Header(
+          entity: widget.entity,
+          totalRecords: _records.length,
+          visibleRecords: records.length,
+          demoMode: _service.isDemoMode,
+        ),
+        _Filters(
+          controller: _searchController,
+          status: _status,
+          statusOptions: statusOptions,
+          onQueryChanged: (String value) {
+            setState(() => _query = value.trim().toLowerCase());
+          },
+          onStatusChanged: (String? value) {
+            setState(() => _status = value);
+          },
+          onClear: () {
+            _searchController.clear();
+            setState(() {
+              _query = '';
+              _status = null;
+            });
+          },
+        ),
+        Expanded(
+          child: records.isEmpty
+              ? _EmptyState(
+                  entity: widget.entity,
+                  filtered: _records.isNotEmpty,
+                  canManage: _canCreate,
+                  onCreate: _openForm,
+                )
+              : LayoutBuilder(
+                  builder: (
+                    BuildContext context,
+                    BoxConstraints constraints,
+                  ) {
+                    if (constraints.maxWidth >= 900) {
+                      return _DesktopTable(
+                        entity: widget.entity,
+                        records: records,
+                        canManage: _canEdit,
+                        onView: _showDetails,
+                        onEdit: _openForm,
+                        onArchive: _archive,
+                      );
+                    }
+                    return _MobileList(
+                      entity: widget.entity,
+                      records: records,
+                      canManage: _canEdit,
+                      onView: _showDetails,
+                      onEdit: _openForm,
+                      onArchive: _archive,
+                    );
+                  },
+                ),
+        ),
+        if (_hasMore)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: OutlinedButton.icon(
+              onPressed: _loadingMore ? null : _loadMore,
+              icon: _loadingMore
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.expand_more_rounded),
+              label: Text(_loadingMore ? 'Loading…' : 'Load next 50 records'),
+            ),
+          ),
+      ],
     );
   }
 
@@ -385,7 +468,8 @@ class _Header extends StatelessWidget {
               if (demoMode)
                 Container(
                   margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(999),
@@ -813,9 +897,7 @@ class _RecordDetails extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: <Widget>[
-              ...entity.fields
-                  .where((ErpField field) => !field.internal)
-                  .map(
+              ...entity.fields.where((ErpField field) => !field.internal).map(
                     (ErpField field) => _DetailRow(
                       label: field.label,
                       value: _formatValue(field, record.data[field.key]),
@@ -958,7 +1040,9 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             Text(
-              filtered ? 'No matching records' : 'No ${entity.title.toLowerCase()} yet',
+              filtered
+                  ? 'No matching records'
+                  : 'No ${entity.title.toLowerCase()} yet',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
@@ -999,7 +1083,8 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.cloud_off_outlined, size: 56, color: AppColors.danger),
+            const Icon(Icons.cloud_off_outlined,
+                size: 56, color: AppColors.danger),
             const SizedBox(height: 12),
             const Text(
               'Could not load records',

@@ -4,6 +4,9 @@
 *.pyc
 *.swp
 .DS_Store
+*.zip
+*.tar
+*.tar.gz
 .atom/
 .buildlog/
 .history
@@ -23,6 +26,7 @@
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
+**/ios/Flutter/ephemeral/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
@@ -30,8 +34,22 @@
 .pub-cache/
 .pub/
 /build/
+**/build/
+**/node_modules/
+
+# Local environment and credentials (commit only documented examples)
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.jks
+*.keystore
+serviceAccount*.json
+service-account*.json
 
 # Web related
+web/.env*
 
 # Symbolication related
 app.*.symbols
@@ -48,5 +66,4 @@ app.*.map.json
 firebase_options.dart
 
 /android/app/google-services.json
-
-
+/ios/Runner/GoogleService-Info.plist

@@ -1,4 +1,6 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'Screens/AccountManagement.dart';
@@ -26,7 +28,34 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await _activateFirebaseAppCheck();
   runApp(const MyApp());
+}
+
+Future<void> _activateFirebaseAppCheck() async {
+  const webSiteKey = String.fromEnvironment(
+    'FIREBASE_APPCHECK_RECAPTCHA_KEY',
+  );
+
+  if (kIsWeb && webSiteKey.isEmpty) {
+    if (kReleaseMode) {
+      throw StateError(
+        'FIREBASE_APPCHECK_RECAPTCHA_KEY is required for production web builds.',
+      );
+    }
+    // Local web development can still render the unauthenticated demo. Supply
+    // the dart define when exercising Firebase-backed flows.
+    return;
+  }
+
+  await FirebaseAppCheck.instance.activate(
+    webProvider: kIsWeb ? ReCaptchaV3Provider(webSiteKey) : null,
+    androidProvider:
+        kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+    appleProvider: kDebugMode
+        ? AppleProvider.debug
+        : AppleProvider.appAttestWithDeviceCheckFallback,
+  );
 }
 
 class MyApp extends StatelessWidget {

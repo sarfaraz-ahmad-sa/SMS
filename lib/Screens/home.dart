@@ -39,7 +39,8 @@ class _HomeState extends State<Home> {
     _dashboardContextKey = _currentDashboardContextKey();
     _refreshDashboard();
     SessionState.instance.addListener(_handleSessionChange);
-    _authSubscription = AuthService().authStateChanges.listen(_handleAuthChange);
+    _authSubscription =
+        AuthService().authStateChanges.listen(_handleAuthChange);
   }
 
   @override
@@ -95,6 +96,9 @@ class _HomeState extends State<Home> {
     final user = state.user;
     final service = TenantErpService();
     final entitlement = PlanEntitlementService(tenant: state.tenant);
+    final dashboardSummary = await service.loadDashboardSummary();
+    final summaryCounts = dashboardSummary['counts'];
+    final summaryStatuses = dashboardSummary['statusCounts'];
 
     var students = 0;
     var totalAdmissions = 0;
@@ -122,30 +126,63 @@ class _HomeState extends State<Home> {
         );
 
     if (canViewStudents) {
-      final personalScope = user != null &&
-          (user.role.isLearner || user.role.isGuardian);
+      final personalScope =
+          user != null && (user.role.isLearner || user.role.isGuardian);
+      final summarized = summaryCounts is Map
+          ? (summaryCounts['students'] as num?)?.toInt()
+          : null;
       students = personalScope
           ? await service.countVisible(studentEntity)
-          : await service.count('students');
+          : summarized ?? await service.count('students');
     }
 
     if (canViewAdmissions) {
-      totalAdmissions = await service.count('admission_applications');
+      final admissionCounts = summaryStatuses is Map
+          ? summaryStatuses['admission_applications']
+          : null;
+      int? summarizedStatus(String status) {
+        if (admissionCounts is! Map) return null;
+        return (admissionCounts[Uri.encodeComponent(status)] as num?)?.toInt();
+      }
 
-      final counts = await Future.wait<int>(<Future<int>>[
-        service.countWhere('admission_applications', 'status', 'Draft'),
-        service.countWhere('admission_applications', 'status', 'Submitted'),
-        service.countWhere(
-          'admission_applications',
-          'status',
-          'Under Review',
-        ),
-        service.countWhere('admission_applications', 'status', 'Assessment'),
-        service.countWhere('admission_applications', 'status', 'Waitlisted'),
-        service.countWhere('admission_applications', 'status', 'Approved'),
-        service.countWhere('admission_applications', 'status', 'Enrolled'),
-        service.countWhere('admission_applications', 'status', 'Rejected'),
-      ]);
+      final summarizedTotal = summaryCounts is Map
+          ? (summaryCounts['admission_applications'] as num?)?.toInt()
+          : null;
+      totalAdmissions =
+          summarizedTotal ?? await service.count('admission_applications');
+
+      final summarizedCounts = <int?>[
+        summarizedStatus('Draft'),
+        summarizedStatus('Submitted'),
+        summarizedStatus('Under Review'),
+        summarizedStatus('Assessment'),
+        summarizedStatus('Waitlisted'),
+        summarizedStatus('Approved'),
+        summarizedStatus('Enrolled'),
+        summarizedStatus('Rejected'),
+      ];
+      final counts = summarizedCounts.every((int? value) => value != null)
+          ? summarizedCounts.cast<int>()
+          : await Future.wait<int>(<Future<int>>[
+              service.countWhere('admission_applications', 'status', 'Draft'),
+              service.countWhere(
+                  'admission_applications', 'status', 'Submitted'),
+              service.countWhere(
+                'admission_applications',
+                'status',
+                'Under Review',
+              ),
+              service.countWhere(
+                  'admission_applications', 'status', 'Assessment'),
+              service.countWhere(
+                  'admission_applications', 'status', 'Waitlisted'),
+              service.countWhere(
+                  'admission_applications', 'status', 'Approved'),
+              service.countWhere(
+                  'admission_applications', 'status', 'Enrolled'),
+              service.countWhere(
+                  'admission_applications', 'status', 'Rejected'),
+            ]);
 
       pendingAdmissions =
           counts[0] + counts[1] + counts[2] + counts[3] + counts[4];
@@ -214,7 +251,8 @@ class _HomeState extends State<Home> {
                     const SizedBox(height: 24),
                     const _SectionTitle(
                       title: 'Quick Access',
-                      subtitle: 'Role-based shortcuts for daily school operations',
+                      subtitle:
+                          'Role-based shortcuts for daily school operations',
                     ),
                     const SizedBox(height: 12),
                     _OldQuickAccess(state: state),
@@ -249,9 +287,8 @@ class _SubscriptionNotice extends StatelessWidget {
             state.user?.role.isGuardian == true)) {
       return const SizedBox.shrink();
     }
-    final color = subscription.requiresAttention
-        ? AppColors.warning
-        : AppColors.success;
+    final color =
+        subscription.requiresAttention ? AppColors.warning : AppColors.success;
 
     return Card(
       child: Padding(
@@ -371,10 +408,8 @@ class _DashboardSummary extends StatelessWidget {
 
         final data = snapshot.data!;
         final cards = <Widget>[
-          if (data.canViewStudents)
-            _StudentCountCard(count: data.students),
-          if (data.canViewAdmissions)
-            _AdmissionSummaryCard(data: data),
+          if (data.canViewStudents) _StudentCountCard(count: data.students),
+          if (data.canViewAdmissions) _AdmissionSummaryCard(data: data),
         ];
 
         if (cards.isEmpty) {
@@ -583,8 +618,7 @@ class _AdmissionSummaryCard extends StatelessWidget {
                     children: <Widget>[
                       for (var index = 0; index < items.length; index++) ...[
                         Expanded(child: items[index]),
-                        if (index != items.length - 1)
-                          const SizedBox(width: 8),
+                        if (index != items.length - 1) const SizedBox(width: 8),
                       ],
                     ],
                   );
@@ -746,9 +780,8 @@ class _OldQuickAccess extends StatelessWidget {
         title: 'Apply Leave',
         icon: Icons.event_busy_outlined,
         color: AppColors.danger,
-        moduleId: state.user?.role.isLearner == true
-            ? 'attendance'
-            : 'hr-payroll',
+        moduleId:
+            state.user?.role.isLearner == true ? 'attendance' : 'hr-payroll',
         permissions: const <String>[
           AppPermission.leaveApply,
           AppPermission.leaveView,
@@ -774,8 +807,8 @@ class _OldQuickAccess extends StatelessWidget {
     ];
     final entitlement = PlanEntitlementService(tenant: state.tenant);
     final visibleItems = items.where((_QuickAccessItem item) {
-      final moduleAllowed = item.moduleId == null ||
-          entitlement.canAccessModule(item.moduleId!);
+      final moduleAllowed =
+          item.moduleId == null || entitlement.canAccessModule(item.moduleId!);
       return moduleAllowed && state.hasAnyPermission(item.permissions);
     }).toList(growable: false);
 
