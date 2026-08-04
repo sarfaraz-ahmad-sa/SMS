@@ -75,7 +75,7 @@ class SupabaseStorageService {
         normalized == '.' ||
         normalized == '..' ||
         normalized.contains('/') ||
-        normalized.contains(r'\')) {
+        normalized.contains('\\')) {
       throw ArgumentError.value(value, field, 'Invalid storage path segment.');
     }
     return normalized;
@@ -87,7 +87,7 @@ class SupabaseStorageService {
         normalized == '.' ||
         normalized == '..' ||
         normalized.contains('/') ||
-        normalized.contains(r'\')) {
+        normalized.contains('\\')) {
       throw ArgumentError.value(value, 'fileName', 'Invalid file name.');
     }
     return normalized;
