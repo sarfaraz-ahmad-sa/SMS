@@ -19,27 +19,26 @@ class TenantErpService implements ErpRepository {
     FirebaseFirestore? firestore,
     FirebaseAuth? firebaseAuth,
     FirebaseFunctions? functions,
-  }) : _db =
-           firestore ??
-           (BackendConfig.isSupabasePrimary
-               ? null
-               : FirebaseFirestore.instance),
-       _auth =
-           firebaseAuth ??
-           (BackendConfig.isSupabasePrimary ? null : FirebaseAuth.instance),
-       _functions =
-           functions ??
-           (BackendConfig.isSupabasePrimary
-               ? null
-               : FirebaseFunctions.instanceFor(region: 'asia-south1'));
+  })  : _db = firestore ??
+            (BackendConfig.isSupabasePrimary
+                ? null
+                : FirebaseFirestore.instance),
+        _auth = firebaseAuth ??
+            (BackendConfig.isSupabasePrimary ? null : FirebaseAuth.instance),
+        _functions = functions ??
+            (BackendConfig.isSupabasePrimary
+                ? null
+                : FirebaseFunctions.instanceFor(region: 'asia-south1'));
 
   final FirebaseFirestore? _db;
   final FirebaseAuth? _auth;
   final FirebaseFunctions? _functions;
-  final SupabaseStudentService _supabaseStudents = SupabaseStudentService();
-  final SupabaseErpRecordService _supabaseRecords = SupabaseErpRecordService();
-  final SupabaseTrustedErpService _supabaseTrusted =
-      SupabaseTrustedErpService();
+  final SupabaseStudentService? _supabaseStudents =
+      BackendConfig.isSupabasePrimary ? SupabaseStudentService() : null;
+  final SupabaseErpRecordService? _supabaseRecords =
+      BackendConfig.isSupabasePrimary ? SupabaseErpRecordService() : null;
+  final SupabaseTrustedErpService? _supabaseTrusted =
+      BackendConfig.isSupabasePrimary ? SupabaseTrustedErpService() : null;
 
   static const Set<String> _meteredCollections = <String>{
     'students',
@@ -137,8 +136,7 @@ class TenantErpService implements ErpRepository {
     Query<Map<String, dynamic>> query,
   ) {
     final user = SessionState.instance.user;
-    final selfScoped =
-        user != null &&
+    final selfScoped = user != null &&
         ErpAccessPolicy.selfServiceCollections.contains(entity.collection) &&
         !user.hasPermission(entity.managePermission);
 
@@ -179,7 +177,7 @@ class TenantErpService implements ErpRepository {
       final cursor = startAfter?.toString();
       if (entity.collection != 'students') {
         if (entity.collection == 'payments') {
-          return _supabaseTrusted.fetchPayments(
+          return _supabaseTrusted!.fetchPayments(
             tenantId: scope.$1,
             campusId: scope.$2,
             academicYearId: scope.$3,
@@ -187,7 +185,7 @@ class TenantErpService implements ErpRepository {
             afterId: cursor,
           );
         }
-        return _supabaseRecords.fetchPage(
+        return _supabaseRecords!.fetchPage(
           tenantId: scope.$1,
           collection: entity.collection,
           campusId: scope.$2,
@@ -196,7 +194,7 @@ class TenantErpService implements ErpRepository {
           afterId: cursor,
         );
       }
-      final page = await _supabaseStudents.fetchPage(
+      final page = await _supabaseStudents!.fetchPage(
         tenantId: scope.$1,
         campusId: scope.$2,
         academicYearId: scope.$3,
@@ -251,7 +249,7 @@ class TenantErpService implements ErpRepository {
 
     final selfScoped =
         ErpAccessPolicy.selfServiceCollections.contains(entity.collection) &&
-        !user.hasPermission(entity.managePermission);
+            !user.hasPermission(entity.managePermission);
     if (selfScoped) {
       return records
           .where(
@@ -267,16 +265,14 @@ class TenantErpService implements ErpRepository {
     if (ErpAccessPolicy.personalStudentCollections.contains(
       entity.collection,
     )) {
-      return records
-          .where((ErpRecord record) {
-            if (user.role.isLearner) {
-              return record.data['authUid'] == user.uid ||
-                  record.data['studentAuthUid'] == user.uid;
-            }
-            final guardians = record.data['guardianUids'];
-            return guardians is Iterable && guardians.contains(user.uid);
-          })
-          .toList(growable: false);
+      return records.where((ErpRecord record) {
+        if (user.role.isLearner) {
+          return record.data['authUid'] == user.uid ||
+              record.data['studentAuthUid'] == user.uid;
+        }
+        final guardians = record.data['guardianUids'];
+        return guardians is Iterable && guardians.contains(user.uid);
+      }).toList(growable: false);
     }
     return records;
   }
@@ -361,8 +357,8 @@ class TenantErpService implements ErpRepository {
       final collectionStatuses = statuses is Map ? statuses[collection] : null;
       return collectionStatuses is Map
           ? (collectionStatuses[value.toString().toLowerCase()] as num?)
-                    ?.toInt() ??
-                0
+                  ?.toInt() ??
+              0
           : 0;
     }
     if (isDemoMode) {
@@ -386,7 +382,7 @@ class TenantErpService implements ErpRepository {
       if (entity.collection != 'students') {
         final scope = _supabaseScope();
         if (_trustedMutationCollections.contains(entity.collection)) {
-          return _supabaseTrusted.create(
+          return _supabaseTrusted!.create(
             tenantId: scope.$1,
             collection: entity.collection,
             campusId: scope.$2,
@@ -394,7 +390,7 @@ class TenantErpService implements ErpRepository {
             values: values,
           );
         }
-        return _supabaseRecords.create(
+        return _supabaseRecords!.create(
           tenantId: scope.$1,
           collection: entity.collection,
           campusId: scope.$2,
@@ -404,7 +400,7 @@ class TenantErpService implements ErpRepository {
       }
       final scope = _supabaseScope();
       final placement = await _placementFromValues(scope, values);
-      final created = await _supabaseStudents.create(
+      final created = await _supabaseStudents!.create(
         tenantId: scope.$1,
         student: SupabaseStudentDraft(
           campusId: scope.$2,
@@ -421,8 +417,7 @@ class TenantErpService implements ErpRepository {
       return created.id;
     }
     final user = state.user;
-    final isSelfService =
-        user != null &&
+    final isSelfService = user != null &&
         entity.allowSelfServiceCreate &&
         !user.hasPermission(entity.managePermission);
     final selfServiceMetadata = <String, dynamic>{
@@ -460,13 +455,13 @@ class TenantErpService implements ErpRepository {
       final result = await _functions!
           .httpsCallable('mutateTrustedErpRecord')
           .call(<String, dynamic>{
-            'tenantId': _tenantId,
-            'collection': entity.collection,
-            'operation': 'create',
-            'values': values,
-            'campusId': state.activeCampusId,
-            'academicYearId': state.activeAcademicYearId,
-          });
+        'tenantId': _tenantId,
+        'collection': entity.collection,
+        'operation': 'create',
+        'values': values,
+        'campusId': state.activeCampusId,
+        'academicYearId': state.activeAcademicYearId,
+      });
       final data = result.data;
       if (data is Map && data['recordId'] != null) {
         return data['recordId'].toString();
@@ -478,12 +473,12 @@ class TenantErpService implements ErpRepository {
       final result = await _functions!
           .httpsCallable('createMeteredErpRecord')
           .call(<String, dynamic>{
-            'tenantId': _tenantId,
-            'collection': entity.collection,
-            'values': values,
-            'campusId': state.activeCampusId,
-            'academicYearId': state.activeAcademicYearId,
-          });
+        'tenantId': _tenantId,
+        'collection': entity.collection,
+        'values': values,
+        'campusId': state.activeCampusId,
+        'academicYearId': state.activeAcademicYearId,
+      });
       final data = result.data;
       if (data is Map && data['recordId'] != null) {
         return data['recordId'].toString();
@@ -515,10 +510,10 @@ class TenantErpService implements ErpRepository {
     final lookup = explicitRecordId?.isNotEmpty == true
         ? explicitRecordId!
         : studentReference?.isNotEmpty == true
-        ? studentReference!
-        : admissionReference?.isNotEmpty == true
-        ? admissionReference!
-        : '';
+            ? studentReference!
+            : admissionReference?.isNotEmpty == true
+                ? admissionReference!
+                : '';
     if (lookup.isEmpty) return values;
 
     DocumentSnapshot<Map<String, dynamic>>? student;
@@ -538,10 +533,10 @@ class TenantErpService implements ErpRepository {
     final rawGuardians = data['guardianUids'];
     final guardianUids = rawGuardians is Iterable
         ? rawGuardians
-              .map((dynamic value) => value?.toString().trim() ?? '')
-              .where((String value) => value.isNotEmpty)
-              .toSet()
-              .toList(growable: false)
+            .map((dynamic value) => value?.toString().trim() ?? '')
+            .where((String value) => value.isNotEmpty)
+            .toSet()
+            .toList(growable: false)
         : const <String>[];
 
     return <String, dynamic>{
@@ -592,7 +587,7 @@ class TenantErpService implements ErpRepository {
       if (entity.collection != 'students') {
         final scope = _supabaseScope();
         if (_trustedMutationCollections.contains(entity.collection)) {
-          await _supabaseTrusted.update(
+          await _supabaseTrusted!.update(
             tenantId: scope.$1,
             collection: entity.collection,
             campusId: scope.$2,
@@ -602,7 +597,7 @@ class TenantErpService implements ErpRepository {
           );
           return;
         }
-        await _supabaseRecords.update(
+        await _supabaseRecords!.update(
           tenantId: scope.$1,
           collection: entity.collection,
           campusId: scope.$2,
@@ -613,7 +608,7 @@ class TenantErpService implements ErpRepository {
         return;
       }
       final scope = _supabaseScope();
-      final current = await _supabaseStudents.fetchById(
+      final current = await _supabaseStudents!.fetchById(
         tenantId: scope.$1,
         campusId: scope.$2,
         academicYearId: scope.$3,
@@ -660,14 +655,14 @@ class TenantErpService implements ErpRepository {
       await _functions!
           .httpsCallable('mutateTrustedErpRecord')
           .call(<String, dynamic>{
-            'tenantId': _tenantId,
-            'collection': entity.collection,
-            'operation': 'update',
-            'recordId': recordId,
-            'values': values,
-            'campusId': SessionState.instance.activeCampusId,
-            'academicYearId': SessionState.instance.activeAcademicYearId,
-          });
+        'tenantId': _tenantId,
+        'collection': entity.collection,
+        'operation': 'update',
+        'recordId': recordId,
+        'values': values,
+        'campusId': SessionState.instance.activeCampusId,
+        'academicYearId': SessionState.instance.activeAcademicYearId,
+      });
       return;
     }
 
@@ -684,7 +679,7 @@ class TenantErpService implements ErpRepository {
       if (entity.collection != 'students') {
         final scope = _supabaseScope();
         if (_trustedMutationCollections.contains(entity.collection)) {
-          await _supabaseTrusted.archive(
+          await _supabaseTrusted!.archive(
             tenantId: scope.$1,
             collection: entity.collection,
             campusId: scope.$2,
@@ -693,7 +688,7 @@ class TenantErpService implements ErpRepository {
           );
           return;
         }
-        await _supabaseRecords.archive(
+        await _supabaseRecords!.archive(
           tenantId: scope.$1,
           collection: entity.collection,
           campusId: scope.$2,
@@ -703,7 +698,7 @@ class TenantErpService implements ErpRepository {
         return;
       }
       final scope = _supabaseScope();
-      final student = await _supabaseStudents.fetchById(
+      final student = await _supabaseStudents!.fetchById(
         tenantId: scope.$1,
         campusId: scope.$2,
         academicYearId: scope.$3,
@@ -725,11 +720,11 @@ class TenantErpService implements ErpRepository {
       await _functions!
           .httpsCallable('mutateTrustedErpRecord')
           .call(<String, dynamic>{
-            'tenantId': _tenantId,
-            'collection': entity.collection,
-            'operation': 'archive',
-            'recordId': recordId,
-          });
+        'tenantId': _tenantId,
+        'collection': entity.collection,
+        'operation': 'archive',
+        'recordId': recordId,
+      });
       return;
     }
 
@@ -774,7 +769,7 @@ class TenantErpService implements ErpRepository {
     if (className.isEmpty || sectionName.isEmpty) {
       throw StateError('Both class and section are required.');
     }
-    return _supabaseStudents.resolvePlacement(
+    return _supabaseStudents!.resolvePlacement(
       tenantId: scope.$1,
       campusId: scope.$2,
       academicYearId: scope.$3,

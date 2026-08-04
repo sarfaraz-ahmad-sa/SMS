@@ -105,12 +105,23 @@ class _HomeState extends State<Home> {
     if (user == null || state.tenant == null) {
       return const _DashboardSummaryData(
         students: 0,
+        employees: 0,
+        attendanceSessions: 0,
+        feeInvoices: 0,
+        payments: 0,
+        exams: 0,
+        expenses: 0,
         totalAdmissions: 0,
         pendingAdmissions: 0,
         approvedAdmissions: 0,
         rejectedAdmissions: 0,
         canViewStudents: false,
         canViewAdmissions: false,
+        canViewEmployees: false,
+        canViewAttendance: false,
+        canViewFees: false,
+        canViewExams: false,
+        canViewAccounting: false,
       );
     }
     final service = TenantErpService();
@@ -135,25 +146,37 @@ class _HomeState extends State<Home> {
     var approvedAdmissions = 0;
     var rejectedAdmissions = 0;
 
-    final studentEntity = ErpCatalog.entityByCollection('students');
-    final admissionEntity =
-        ErpCatalog.entityByCollection('admission_applications');
+    int summaryCount(String collection) {
+      if (summaryCounts is! Map) return 0;
+      return (summaryCounts[collection] as num?)?.toInt() ?? 0;
+    }
 
-    final canViewStudents = studentEntity != null &&
-        entitlement.canAccessModule('students') &&
-        ErpAccessPolicy.canViewEntity(
-          studentEntity,
-          user,
-          state.hasPermission,
-        );
-    final canViewAdmissions = !usesSupabase &&
-        admissionEntity != null &&
+    final studentEntity = ErpCatalog.entityByCollection('students');
+    final admissionEntity = ErpCatalog.entityByCollection(
+      'admission_applications',
+    );
+
+    bool canViewCollection(String collection, String moduleId) {
+      final entity = ErpCatalog.entityByCollection(collection);
+      return entity != null &&
+          entitlement.canAccessModule(moduleId) &&
+          ErpAccessPolicy.canViewEntity(entity, user, state.hasPermission);
+    }
+
+    final canViewStudents = canViewCollection('students', 'students');
+    final canViewAdmissions = admissionEntity != null &&
         entitlement.canAccessModule('admissions') &&
         ErpAccessPolicy.canViewEntity(
           admissionEntity,
           user,
           state.hasPermission,
         );
+    final canViewEmployees = canViewCollection('employees', 'hr-payroll');
+    final canViewAttendance =
+        canViewCollection('attendance_sessions', 'attendance');
+    final canViewFees = canViewCollection('fee_invoices', 'fees');
+    final canViewExams = canViewCollection('exams', 'examinations');
+    final canViewAccounting = canViewCollection('expenses', 'accounting');
 
     if (canViewStudents) {
       final personalScope = user.role.isLearner || user.role.isGuardian;
@@ -161,7 +184,7 @@ class _HomeState extends State<Home> {
           ? (summaryCounts['students'] as num?)?.toInt()
           : null;
       students = personalScope
-          ? await service.countVisible(studentEntity)
+          ? await service.countVisible(studentEntity!)
           : summarized ?? await service.count('students');
     }
 
@@ -171,7 +194,17 @@ class _HomeState extends State<Home> {
           : null;
       int? summarizedStatus(String status) {
         if (admissionCounts is! Map) return null;
-        return (admissionCounts[Uri.encodeComponent(status)] as num?)?.toInt();
+        final candidates = <String>{
+          status,
+          status.toLowerCase(),
+          Uri.encodeComponent(status),
+          Uri.encodeComponent(status).toLowerCase(),
+        };
+        for (final key in candidates) {
+          final value = admissionCounts[key];
+          if (value is num) return value.toInt();
+        }
+        return null;
       }
 
       final summarizedTotal = summaryCounts is Map
@@ -190,28 +223,49 @@ class _HomeState extends State<Home> {
         summarizedStatus('Enrolled'),
         summarizedStatus('Rejected'),
       ];
-      final counts = summarizedCounts.every((int? value) => value != null)
-          ? summarizedCounts.cast<int>()
-          : await Future.wait<int>(<Future<int>>[
-              service.countWhere('admission_applications', 'status', 'Draft'),
-              service.countWhere(
-                  'admission_applications', 'status', 'Submitted'),
-              service.countWhere(
-                'admission_applications',
-                'status',
-                'Under Review',
-              ),
-              service.countWhere(
-                  'admission_applications', 'status', 'Assessment'),
-              service.countWhere(
-                  'admission_applications', 'status', 'Waitlisted'),
-              service.countWhere(
-                  'admission_applications', 'status', 'Approved'),
-              service.countWhere(
-                  'admission_applications', 'status', 'Enrolled'),
-              service.countWhere(
-                  'admission_applications', 'status', 'Rejected'),
-            ]);
+      final counts = usesSupabase
+          ? summarizedCounts.map((int? value) => value ?? 0).toList()
+          : summarizedCounts.every((int? value) => value != null)
+              ? summarizedCounts.cast<int>()
+              : await Future.wait<int>(<Future<int>>[
+                  service.countWhere(
+                      'admission_applications', 'status', 'Draft'),
+                  service.countWhere(
+                    'admission_applications',
+                    'status',
+                    'Submitted',
+                  ),
+                  service.countWhere(
+                    'admission_applications',
+                    'status',
+                    'Under Review',
+                  ),
+                  service.countWhere(
+                    'admission_applications',
+                    'status',
+                    'Assessment',
+                  ),
+                  service.countWhere(
+                    'admission_applications',
+                    'status',
+                    'Waitlisted',
+                  ),
+                  service.countWhere(
+                    'admission_applications',
+                    'status',
+                    'Approved',
+                  ),
+                  service.countWhere(
+                    'admission_applications',
+                    'status',
+                    'Enrolled',
+                  ),
+                  service.countWhere(
+                    'admission_applications',
+                    'status',
+                    'Rejected',
+                  ),
+                ]);
 
       pendingAdmissions =
           counts[0] + counts[1] + counts[2] + counts[3] + counts[4];
@@ -221,12 +275,23 @@ class _HomeState extends State<Home> {
 
     return _DashboardSummaryData(
       students: students,
+      employees: summaryCount('employees'),
+      attendanceSessions: summaryCount('attendance_sessions'),
+      feeInvoices: summaryCount('fee_invoices'),
+      payments: summaryCount('payments'),
+      exams: summaryCount('exams'),
+      expenses: summaryCount('expenses'),
       totalAdmissions: totalAdmissions,
       pendingAdmissions: pendingAdmissions,
       approvedAdmissions: approvedAdmissions,
       rejectedAdmissions: rejectedAdmissions,
       canViewStudents: canViewStudents,
       canViewAdmissions: canViewAdmissions,
+      canViewEmployees: canViewEmployees,
+      canViewAttendance: canViewAttendance,
+      canViewFees: canViewFees,
+      canViewExams: canViewExams,
+      canViewAccounting: canViewAccounting,
     );
   }
 
@@ -238,6 +303,7 @@ class _HomeState extends State<Home> {
         final state = SessionState.instance;
         final user = state.user;
         final tenant = state.tenant;
+        final compact = MediaQuery.sizeOf(context).width < 600;
 
         if (user == null || tenant == null) {
           return const Scaffold(
@@ -258,7 +324,12 @@ class _HomeState extends State<Home> {
                 constraints: const BoxConstraints(maxWidth: 1240),
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                  padding: EdgeInsets.fromLTRB(
+                    compact ? AppSpacing.page : 20,
+                    compact ? 14 : 20,
+                    compact ? AppSpacing.page : 20,
+                    40,
+                  ),
                   children: <Widget>[
                     _GreetingCard(
                       name: user.displayName?.trim().isNotEmpty == true
@@ -374,21 +445,43 @@ class _SubscriptionNotice extends StatelessWidget {
 
 class _DashboardSummaryData {
   final int students;
+  final int employees;
+  final int attendanceSessions;
+  final int feeInvoices;
+  final int payments;
+  final int exams;
+  final int expenses;
   final int totalAdmissions;
   final int pendingAdmissions;
   final int approvedAdmissions;
   final int rejectedAdmissions;
   final bool canViewStudents;
   final bool canViewAdmissions;
+  final bool canViewEmployees;
+  final bool canViewAttendance;
+  final bool canViewFees;
+  final bool canViewExams;
+  final bool canViewAccounting;
 
   const _DashboardSummaryData({
     required this.students,
+    required this.employees,
+    required this.attendanceSessions,
+    required this.feeInvoices,
+    required this.payments,
+    required this.exams,
+    required this.expenses,
     required this.totalAdmissions,
     required this.pendingAdmissions,
     required this.approvedAdmissions,
     required this.rejectedAdmissions,
     required this.canViewStudents,
     required this.canViewAdmissions,
+    required this.canViewEmployees,
+    required this.canViewAttendance,
+    required this.canViewFees,
+    required this.canViewExams,
+    required this.canViewAccounting,
   });
 }
 
@@ -396,10 +489,7 @@ class _DashboardSummary extends StatelessWidget {
   final Future<_DashboardSummaryData> future;
   final VoidCallback onRetry;
 
-  const _DashboardSummary({
-    required this.future,
-    required this.onRetry,
-  });
+  const _DashboardSummary({required this.future, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -410,10 +500,7 @@ class _DashboardSummary extends StatelessWidget {
         AsyncSnapshot<_DashboardSummaryData> snapshot,
       ) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox(
-            height: 170,
-            child: Center(child: CircularProgressIndicator()),
-          );
+          return const _DashboardLoading();
         }
 
         if (snapshot.hasError || !snapshot.hasData) {
@@ -436,34 +523,99 @@ class _DashboardSummary extends StatelessWidget {
         }
 
         final data = snapshot.data!;
-        final cards = <Widget>[
-          if (data.canViewStudents) _StudentCountCard(count: data.students),
-          if (data.canViewAdmissions) _AdmissionSummaryCard(data: data),
+        final metrics = <_DashboardMetric>[
+          if (data.canViewStudents)
+            _DashboardMetric(
+              label: 'Students',
+              supporting: 'Active enrolment',
+              value: data.students,
+              icon: Icons.groups_rounded,
+              color: AppColors.primary,
+              collection: 'students',
+            ),
+          if (data.canViewEmployees)
+            _DashboardMetric(
+              label: 'Employees',
+              supporting: 'Faculty and staff',
+              value: data.employees,
+              icon: Icons.badge_rounded,
+              color: const Color(0xFF7B1FA2),
+              collection: 'employees',
+            ),
+          if (data.canViewAttendance)
+            _DashboardMetric(
+              label: 'Attendance',
+              supporting: 'Recorded sessions',
+              value: data.attendanceSessions,
+              icon: Icons.fact_check_rounded,
+              color: AppColors.success,
+              collection: 'attendance_sessions',
+            ),
+          if (data.canViewFees)
+            _DashboardMetric(
+              label: 'Fee invoices',
+              supporting: '${data.payments} payments',
+              value: data.feeInvoices,
+              icon: Icons.receipt_long_rounded,
+              color: AppColors.secondary,
+              collection: 'fee_invoices',
+            ),
+          if (data.canViewExams)
+            _DashboardMetric(
+              label: 'Exams',
+              supporting: 'Current academic year',
+              value: data.exams,
+              icon: Icons.assignment_rounded,
+              color: const Color(0xFFB06000),
+              collection: 'exams',
+            ),
+          if (data.canViewAccounting)
+            _DashboardMetric(
+              label: 'Expenses',
+              supporting: 'Recorded entries',
+              value: data.expenses,
+              icon: Icons.account_balance_wallet_rounded,
+              color: AppColors.danger,
+              collection: 'expenses',
+            ),
         ];
 
-        if (cards.isEmpty) {
+        if (metrics.isEmpty && !data.canViewAdmissions) {
           return const SizedBox.shrink();
         }
 
         return LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            if (constraints.maxWidth >= 760 && cards.length == 2) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(flex: 2, child: cards[0]),
-                  const SizedBox(width: 12),
-                  Expanded(flex: 3, child: cards[1]),
-                ],
-              );
-            }
-
             return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                for (var index = 0; index < cards.length; index++) ...<Widget>[
-                  cards[index],
-                  if (index != cards.length - 1) const SizedBox(height: 12),
+                if (metrics.isNotEmpty) ...<Widget>[
+                  const _SectionTitle(
+                    title: 'Overview',
+                    subtitle: 'Live summary for the selected school context',
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: constraints.maxWidth >= 1000
+                          ? 4
+                          : constraints.maxWidth >= 620
+                              ? 3
+                              : 2,
+                      mainAxisExtent: constraints.maxWidth < 430 ? 142 : 150,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                    ),
+                    itemCount: metrics.length,
+                    itemBuilder: (BuildContext context, int index) =>
+                        _DashboardMetricCard(metric: metrics[index]),
+                  ),
                 ],
+                if (metrics.isNotEmpty && data.canViewAdmissions)
+                  const SizedBox(height: 16),
+                if (data.canViewAdmissions) _AdmissionSummaryCard(data: data),
               ],
             );
           },
@@ -473,19 +625,42 @@ class _DashboardSummary extends StatelessWidget {
   }
 }
 
-class _StudentCountCard extends StatelessWidget {
-  final int count;
+class _DashboardMetric {
+  final String label;
+  final String supporting;
+  final int value;
+  final IconData icon;
+  final Color color;
+  final String collection;
 
-  const _StudentCountCard({required this.count});
+  const _DashboardMetric({
+    required this.label,
+    required this.supporting,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.collection,
+  });
+}
+
+class _DashboardMetricCard extends StatelessWidget {
+  final _DashboardMetric metric;
+
+  const _DashboardMetricCard({required this.metric});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(color: scheme.outlineVariant.withOpacity(0.72)),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
         onTap: () {
-          final entity = ErpCatalog.entityByCollection('students');
+          final entity = ErpCatalog.entityByCollection(metric.collection);
           if (entity == null) return;
           Navigator.push(
             context,
@@ -495,47 +670,76 @@ class _StudentCountCard extends StatelessWidget {
           );
         },
         child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Container(
-                width: 58,
-                height: 58,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.11),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(
-                  Icons.groups_outlined,
-                  color: AppColors.primary,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(
-                      '$count',
-                      style: const TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                      ),
+              Row(
+                children: <Widget>[
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: metric.color.withOpacity(0.11),
+                      shape: BoxShape.circle,
                     ),
-                    const Text(
-                      'Active Students',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+                    child: Icon(metric.icon, color: metric.color, size: 21),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.arrow_outward_rounded,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
               ),
-              const Icon(Icons.chevron_right_rounded),
+              const Spacer(),
+              Text(
+                '${metric.value}',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.6,
+                    ),
+              ),
+              Text(
+                metric.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              Text(
+                metric.supporting,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardLoading extends StatelessWidget {
+  const _DashboardLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.surfaceContainerHighest;
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.3,
+      children: List<Widget>.generate(
+        4,
+        (_) => Container(
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
         ),
       ),
@@ -636,11 +840,7 @@ class _AdmissionSummaryCard extends StatelessWidget {
                   ];
 
                   if (constraints.maxWidth < 410) {
-                    return Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: items,
-                    );
+                    return Wrap(spacing: 8, runSpacing: 8, children: items);
                   }
 
                   return Row(
@@ -781,9 +981,7 @@ class _OldQuickAccess extends StatelessWidget {
         color: const Color(0xFF8B5CF6),
         moduleId: 'library',
         permissions: const <String>[AppPermission.libraryView],
-        builder: (_) => ErpModuleScreen(
-          module: ErpCatalog.byId('library')!,
-        ),
+        builder: (_) => ErpModuleScreen(module: ErpCatalog.byId('library')!),
       ),
       _QuickAccessItem(
         title: 'Fees',
@@ -829,9 +1027,7 @@ class _OldQuickAccess extends StatelessWidget {
         color: const Color(0xFFEC4899),
         moduleId: 'events',
         permissions: const <String>[AppPermission.activitiesView],
-        builder: (_) => ErpModuleScreen(
-          module: ErpCatalog.byId('events')!,
-        ),
+        builder: (_) => ErpModuleScreen(module: ErpCatalog.byId('events')!),
       ),
     ];
     final entitlement = PlanEntitlementService(tenant: state.tenant);
@@ -855,8 +1051,8 @@ class _OldQuickAccess extends StatelessWidget {
       builder: (BuildContext context, BoxConstraints constraints) {
         final scaledLabelHeight =
             MediaQuery.textScalerOf(context).scale(14.5) - 14.5;
-        final maxTileWidth = constraints.maxWidth < 420 ? 190.0 : 220.0;
-        final baseTileHeight = constraints.maxWidth < 420 ? 154.0 : 160.0;
+        final maxTileWidth = constraints.maxWidth < 420 ? 178.0 : 220.0;
+        final baseTileHeight = constraints.maxWidth < 420 ? 136.0 : 150.0;
         final tileHeight = baseTileHeight + scaledLabelHeight.clamp(0.0, 32.0);
 
         return GridView.builder(
@@ -877,9 +1073,7 @@ class _OldQuickAccess extends StatelessWidget {
               color: item.color,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute<void>(
-                  builder: item.builder,
-                ),
+                MaterialPageRoute<void>(builder: item.builder),
               ),
             );
           },
@@ -911,10 +1105,7 @@ class _SectionTitle extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _SectionTitle({
-    required this.title,
-    required this.subtitle,
-  });
+  const _SectionTitle({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -923,18 +1114,12 @@ class _SectionTitle extends StatelessWidget {
       children: <Widget>[
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 2),
         Text(
           subtitle,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 12,
-          ),
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
         ),
       ],
     );
@@ -960,73 +1145,91 @@ class _GreetingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        gradient: AppColors.tenantGradient(tenant),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: AppColors.tenantPrimary(tenant).withOpacity(0.22),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final compact = constraints.maxWidth < 430;
+        final scheme = Theme.of(context).colorScheme;
+        final tenantPrimary = AppColors.tenantPrimary(tenant);
+        return Material(
+          color: scheme.primaryContainer,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.hero),
           ),
-        ],
-      ),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: EdgeInsets.all(compact ? 18 : 22),
+            child: Row(
               children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        tenantName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.88),
-                          fontWeight: FontWeight.w600,
-                        ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Icon(
+                            Icons.school_rounded,
+                            size: 18,
+                            color: scheme.onPrimaryContainer,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              tenantName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: scheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (demoMode) const _WhitePill(label: 'Demo'),
+                        ],
                       ),
-                    ),
-                    if (demoMode) const _WhitePill(label: 'Local Demo'),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'Welcome back, $name',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                      const SizedBox(height: 14),
+                      Text(
+                        'Welcome, $name',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  color: scheme.onPrimaryContainer,
+                                  fontSize: compact ? 22 : 25,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.5,
+                                ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: <Widget>[
+                          _WhitePill(label: roleLabel),
+                          if (academicYearId?.isNotEmpty == true)
+                            _WhitePill(label: academicYearId!),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: <Widget>[
-                    _WhitePill(label: roleLabel),
-                    if (academicYearId?.isNotEmpty == true)
-                      _WhitePill(label: academicYearId!),
-                  ],
+                SizedBox(width: compact ? 10 : 18),
+                CircleAvatar(
+                  radius: compact ? 26 : 31,
+                  backgroundColor: tenantPrimary,
+                  foregroundColor: scheme.onPrimary,
+                  child: Text(
+                    name.trim().substring(0, 1).toUpperCase(),
+                    style: TextStyle(
+                      fontSize: compact ? 20 : 23,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 16),
-          const CircleAvatar(
-            radius: 32,
-            backgroundColor: Colors.white24,
-            child: Icon(Icons.person, color: Colors.white, size: 36),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1038,15 +1241,20 @@ class _WhitePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.16),
+        color: scheme.surface.withOpacity(0.62),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontSize: 11),
+        style: TextStyle(
+          color: scheme.onPrimaryContainer,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

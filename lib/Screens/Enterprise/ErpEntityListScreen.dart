@@ -397,17 +397,13 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: <Color>[
-            entity.color,
-            entity.color.withOpacity(0.76),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: scheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(AppRadius.hero),
       ),
       child: Row(
         children: <Widget>[
@@ -415,10 +411,10 @@ class _Header extends StatelessWidget {
             width: 54,
             height: 54,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.18),
-              borderRadius: BorderRadius.circular(16),
+              color: entity.color.withOpacity(0.12),
+              shape: BoxShape.circle,
             ),
-            child: Icon(entity.icon, color: Colors.white, size: 30),
+            child: Icon(entity.icon, color: entity.color, size: 28),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -427,8 +423,8 @@ class _Header extends StatelessWidget {
               children: <Widget>[
                 Text(
                   entity.title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: scheme.onSurface,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -438,7 +434,7 @@ class _Header extends StatelessWidget {
                   entity.description,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.white.withOpacity(0.86)),
+                  style: TextStyle(color: scheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -449,8 +445,8 @@ class _Header extends StatelessWidget {
             children: <Widget>[
               Text(
                 '$visibleRecords',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: scheme.onSurface,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
@@ -460,7 +456,7 @@ class _Header extends StatelessWidget {
                     ? 'active records'
                     : 'of $totalRecords records',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: scheme.onSurfaceVariant,
                   fontSize: 11,
                 ),
               ),
@@ -470,13 +466,13 @@ class _Header extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: scheme.secondaryContainer,
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: const Text(
+                  child: Text(
                     'DEMO DATA',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: scheme.onSecondaryContainer,
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
                     ),

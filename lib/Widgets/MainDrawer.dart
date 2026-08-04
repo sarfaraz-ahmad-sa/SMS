@@ -683,12 +683,13 @@ class _DrawerHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = SessionState.instance;
     final user = state.user;
+    final scheme = Theme.of(context).colorScheme;
 
     if (compact) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
-        decoration: BoxDecoration(gradient: AppColors.tenantGradient(tenant)),
+        color: scheme.primaryContainer,
         child: Column(
           children: <Widget>[
             _TenantLogo(tenant: tenant, compact: true),
@@ -696,7 +697,7 @@ class _DrawerHeader extends StatelessWidget {
             IconButton(
               tooltip: 'Expand navigation',
               onPressed: onToggleCompact,
-              color: Colors.white,
+              color: scheme.onPrimaryContainer,
               icon: const Icon(Icons.keyboard_double_arrow_right_rounded),
             ),
           ],
@@ -712,7 +713,7 @@ class _DrawerHeader extends StatelessWidget {
         12,
         16,
       ),
-      decoration: BoxDecoration(gradient: AppColors.tenantGradient(tenant)),
+      color: scheme.primaryContainer,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
@@ -725,13 +726,13 @@ class _DrawerHeader extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.16),
+                    color: scheme.surface.withOpacity(0.65),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: const Text(
+                  child: Text(
                     'DEMO',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: scheme.onPrimaryContainer,
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
                     ),
@@ -741,7 +742,7 @@ class _DrawerHeader extends StatelessWidget {
                 IconButton(
                   tooltip: 'Collapse navigation',
                   onPressed: onToggleCompact,
-                  color: Colors.white,
+                  color: scheme.onPrimaryContainer,
                   icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
                 ),
             ],
@@ -751,8 +752,8 @@ class _DrawerHeader extends StatelessWidget {
             tenant?.name ?? 'SEEF',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: scheme.onPrimaryContainer,
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
@@ -764,8 +765,8 @@ class _DrawerHeader extends StatelessWidget {
                 : 'User',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: scheme.onPrimaryContainer,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -774,7 +775,7 @@ class _DrawerHeader extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.74),
+              color: scheme.onPrimaryContainer.withOpacity(0.72),
               fontSize: 11,
             ),
           ),
@@ -847,20 +848,21 @@ class _HeaderPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Flexible(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.14),
+          color: scheme.surface.withOpacity(0.62),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Colors.white24),
+          border: Border.all(color: scheme.outlineVariant.withOpacity(0.55)),
         ),
         child: Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: scheme.onPrimaryContainer,
             fontSize: 9,
             fontWeight: FontWeight.w800,
           ),

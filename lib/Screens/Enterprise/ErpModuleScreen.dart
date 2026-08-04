@@ -44,18 +44,17 @@ class _ErpModuleScreenState extends State<ErpModuleScreen> {
     }
     final entities = widget.module.entities
         .where(
-          (ErpEntity entity) => ErpAccessPolicy.canViewEntity(
-            entity,
-            state.user,
-            state.hasPermission,
-          ),
-        )
+      (ErpEntity entity) => ErpAccessPolicy.canViewEntity(
+        entity,
+        state.user,
+        state.hasPermission,
+      ),
+    )
         .where((ErpEntity entity) {
-          if (_query.isEmpty) return true;
-          final value = '${entity.title} ${entity.description}'.toLowerCase();
-          return value.contains(_query);
-        })
-        .toList();
+      if (_query.isEmpty) return true;
+      final value = '${entity.title} ${entity.description}'.toLowerCase();
+      return value.contains(_query);
+    }).toList();
 
     return SaasScaffold(
       title: widget.module.title,
@@ -99,7 +98,8 @@ class _ErpModuleScreenState extends State<ErpModuleScreen> {
                   setState(() => _query = value.trim().toLowerCase());
                 },
                 decoration: InputDecoration(
-                  hintText: 'Search ${widget.module.title.toLowerCase()} options...',
+                  hintText:
+                      'Search ${widget.module.title.toLowerCase()} options...',
                   prefixIcon: const Icon(Icons.search),
                 ),
               ),
@@ -127,8 +127,7 @@ class _ErpModuleScreenState extends State<ErpModuleScreen> {
                       ],
                     ),
                   ),
-                  if (TenantErpService().isDemoMode)
-                    const _DemoBadge(),
+                  if (TenantErpService().isDemoMode) const _DemoBadge(),
                 ],
               ),
               const SizedBox(height: 12),
@@ -160,7 +159,8 @@ class _ErpModuleScreenState extends State<ErpModuleScreen> {
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute<void>(
-                              builder: (_) => ErpEntityListScreen(entity: entity),
+                              builder: (_) =>
+                                  ErpEntityListScreen(entity: entity),
                             ),
                           ),
                         );
@@ -186,71 +186,62 @@ class _ModuleHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tenant = SessionState.instance.tenant;
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[module.color, module.color.withOpacity(0.72)],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: module.color.withOpacity(0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.hero),
       ),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 66,
-            height: 66,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.17),
-              borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 62,
+              height: 62,
+              decoration: BoxDecoration(
+                color: module.color.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(module.icon, color: module.color, size: 32),
             ),
-            child: Icon(module.icon, color: Colors.white, size: 36),
-          ),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  module.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    module.title,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.45,
+                        ),
                   ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  module.description,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.88),
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: <Widget>[
-                    _WhitePill(label: tenant?.name ?? 'Active school'),
-                    _WhitePill(
-                      label: SessionState.instance.activeAcademicYearId ??
-                          'Academic year not selected',
+                  const SizedBox(height: 5),
+                  Text(
+                    module.description,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.35,
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: <Widget>[
+                      _WhitePill(label: tenant?.name ?? 'Active school'),
+                      _WhitePill(
+                        label: SessionState.instance.activeAcademicYearId ??
+                            'Academic year not selected',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -311,7 +302,11 @@ class _EntityCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        _EntityCount(entity: entity),
+                        Icon(
+                          Icons.arrow_outward_rounded,
+                          size: 18,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -361,49 +356,6 @@ class _EntityCard extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _EntityCount extends StatefulWidget {
-  final ErpEntity entity;
-
-  const _EntityCount({required this.entity});
-
-  @override
-  State<_EntityCount> createState() => _EntityCountState();
-}
-
-class _EntityCountState extends State<_EntityCount> {
-  late Future<int> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _future = TenantErpService().countVisible(widget.entity);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<int>(
-      future: _future,
-      builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-          decoration: BoxDecoration(
-            color: widget.entity.color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            snapshot.hasData ? '${snapshot.data}' : '—',
-            style: TextStyle(
-              color: widget.entity.color,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        );
-      },
     );
   }
 }
@@ -458,15 +410,20 @@ class _WhitePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.16),
+        color: scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontSize: 10),
+        style: TextStyle(
+          color: scheme.onSurfaceVariant,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

@@ -20,11 +20,8 @@ import 'RequestLogin.dart';
 import 'home.dart';
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({
-    Key? key,
-    required this.title,
-    this.initialMessage,
-  }) : super(key: key);
+  const MyHomePage({Key? key, required this.title, this.initialMessage})
+      : super(key: key);
 
   final String title;
   final String? initialMessage;
@@ -42,8 +39,10 @@ class _MyHomePageState extends State<MyHomePage>
   final AuthService _authService = AuthService();
   final TenantService? _tenantService =
       BackendConfig.isSupabasePrimary ? null : TenantService();
-  final SupabaseAuthService _supabaseAuthService = SupabaseAuthService();
-  final SupabaseTenantService _supabaseTenantService = SupabaseTenantService();
+  final SupabaseAuthService? _supabaseAuthService =
+      BackendConfig.isSupabasePrimary ? SupabaseAuthService() : null;
+  final SupabaseTenantService? _supabaseTenantService =
+      BackendConfig.isSupabasePrimary ? SupabaseTenantService() : null;
 
   late final AnimationController _animationController;
   late final Animation<double> _fade;
@@ -69,13 +68,13 @@ class _MyHomePageState extends State<MyHomePage>
       parent: _animationController,
       curve: Curves.easeOut,
     );
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _slide =
+        Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeOutCubic,
+      ),
+    );
 
     if (widget.initialMessage?.trim().isNotEmpty == true) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -106,11 +105,11 @@ class _MyHomePageState extends State<MyHomePage>
 
     try {
       if (BackendConfig.isSupabasePrimary) {
-        await _supabaseAuthService.signInWithPassword(
+        await _supabaseAuthService!.signInWithPassword(
           email: _emailController.text,
           password: _passwordController.text,
         );
-        final session = await _supabaseTenantService.loadSession();
+        final session = await _supabaseTenantService!.loadSession();
         final accessibleTenants =
             await _supabaseTenantService.getAccessibleTenants();
         SessionState.instance.setSession(
@@ -146,7 +145,7 @@ class _MyHomePageState extends State<MyHomePage>
       await _completeSignIn(credential);
     } on TenantAccessException catch (error) {
       if (BackendConfig.isSupabasePrimary) {
-        await _supabaseAuthService.signOut();
+        await _supabaseAuthService!.signOut();
       } else {
         await _authService.signOut();
       }
@@ -166,7 +165,8 @@ class _MyHomePageState extends State<MyHomePage>
   Future<void> _signInWithGoogle() async {
     if (BackendConfig.isSupabasePrimary) {
       _showError(
-          'Google sign-in will be enabled after Supabase provider setup.');
+        'Google sign-in will be enabled after Supabase provider setup.',
+      );
       return;
     }
     setState(() => _googleLoading = true);
@@ -234,8 +234,9 @@ class _MyHomePageState extends State<MyHomePage>
     await firebaseUser.getIdToken(true);
 
     final session = await _tenantService!.loadSession(firebaseUser);
-    final accessibleTenants =
-        await _tenantService.getAccessibleTenants(firebaseUser);
+    final accessibleTenants = await _tenantService.getAccessibleTenants(
+      firebaseUser,
+    );
     SessionState.instance.setSession(
       user: session.user,
       tenant: session.tenant,
@@ -356,26 +357,30 @@ class _MyHomePageState extends State<MyHomePage>
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: AppColors.danger,
-        ),
+        SnackBar(content: Text(message), backgroundColor: AppColors.danger),
       );
   }
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: <Color>[
-              Color(0xFFF8FAFF),
-              Color(0xFFF3F7FF),
-              Color(0xFFF2FBF9),
-            ],
+            colors: dark
+                ? const <Color>[
+                    AppColors.darkBackground,
+                    Color(0xFF101D33),
+                    Color(0xFF0D2428),
+                  ]
+                : const <Color>[
+                    Color(0xFFF8FAFF),
+                    Color(0xFFF3F7FF),
+                    Color(0xFFF2FBF9),
+                  ],
           ),
         ),
         child: SafeArea(
@@ -418,20 +423,17 @@ class _MyHomePageState extends State<MyHomePage>
                 child: SingleChildScrollView(
                   controller: _scrollController,
                   primary: false,
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: constraints.maxWidth < 380 ? 14 : 18,
+                    vertical: 18,
+                  ),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 500),
                     child: FadeTransition(
                       opacity: _fade,
                       child: SlideTransition(
                         position: _slide,
-                        child: Column(
-                          children: <Widget>[
-                            const _MobileLoginBrand(),
-                            const SizedBox(height: 18),
-                            _buildLoginCard(context),
-                          ],
-                        ),
+                        child: _buildLoginCard(context),
                       ),
                     ),
                   ),
@@ -446,10 +448,16 @@ class _MyHomePageState extends State<MyHomePage>
 
   Widget _buildLoginCard(BuildContext context) {
     final theme = Theme.of(context);
+    final compact = MediaQuery.sizeOf(context).width < 600;
     return Card(
       elevation: 0,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(30, 32, 30, 26),
+        padding: EdgeInsets.fromLTRB(
+          compact ? 20 : 30,
+          compact ? 24 : 32,
+          compact ? 20 : 30,
+          compact ? 20 : 26,
+        ),
         child: Form(
           key: _formKey,
           child: Column(
@@ -510,10 +518,10 @@ class _MyHomePageState extends State<MyHomePage>
                 ),
               ),
               const SizedBox(height: 7),
-              const Text(
+              Text(
                 'Sign in with the account and role assigned by your school administrator.',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: theme.colorScheme.onSurfaceVariant,
                   height: 1.45,
                 ),
               ),
@@ -554,9 +562,8 @@ class _MyHomePageState extends State<MyHomePage>
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
                     ),
-                    onPressed: () => setState(
-                      () => _passwordVisible = !_passwordVisible,
-                    ),
+                    onPressed: () =>
+                        setState(() => _passwordVisible = !_passwordVisible),
                   ),
                 ),
                 validator: (String? value) => value == null || value.isEmpty
@@ -733,8 +740,9 @@ class _LoginBrandPanel extends StatelessWidget {
                       height: 72,
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.12),
-                        border:
-                            Border.all(color: Colors.white.withOpacity(0.18)),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.18),
+                        ),
                         borderRadius: BorderRadius.circular(22),
                       ),
                       child: const Icon(
@@ -801,38 +809,6 @@ class _LoginBrandPanel extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _MobileLoginBrand extends StatelessWidget {
-  const _MobileLoginBrand();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: <Color>[AppColors.navigation, AppColors.primaryDark],
-        ),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: const Row(
-        children: <Widget>[
-          Icon(Icons.auto_awesome_rounded, color: Colors.white),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'One secure portal for every school role',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

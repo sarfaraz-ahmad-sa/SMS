@@ -30,8 +30,10 @@ class _SplashScreenState extends State<SplashScreen>
   final AuthService _authService = AuthService();
   final TenantService? _tenantService =
       BackendConfig.isSupabasePrimary ? null : TenantService();
-  final SupabaseAuthService _supabaseAuthService = SupabaseAuthService();
-  final SupabaseTenantService _supabaseTenantService = SupabaseTenantService();
+  final SupabaseAuthService? _supabaseAuthService =
+      BackendConfig.isSupabasePrimary ? SupabaseAuthService() : null;
+  final SupabaseTenantService? _supabaseTenantService =
+      BackendConfig.isSupabasePrimary ? SupabaseTenantService() : null;
 
   @override
   void initState() {
@@ -52,13 +54,13 @@ class _SplashScreenState extends State<SplashScreen>
 
     try {
       if (BackendConfig.isSupabasePrimary) {
-        if (_supabaseAuthService.currentUser == null) {
+        if (_supabaseAuthService!.currentUser == null) {
           SessionState.instance.markInitialized();
           await _waitForBrandAnimation(startedAt);
           _replace(const MyHomePage(title: 'SEEF School ERP'));
           return;
         }
-        final session = await _supabaseTenantService.loadSession();
+        final session = await _supabaseTenantService!.loadSession();
         final accessibleTenants =
             await _supabaseTenantService.getAccessibleTenants();
         SessionState.instance.setSession(
@@ -120,7 +122,7 @@ class _SplashScreenState extends State<SplashScreen>
     } on TenantAccessException catch (error) {
       loginMessage = error.message;
       if (BackendConfig.isSupabasePrimary) {
-        await _supabaseAuthService.signOut();
+        await _supabaseAuthService!.signOut();
       } else {
         await _authService.signOut();
       }

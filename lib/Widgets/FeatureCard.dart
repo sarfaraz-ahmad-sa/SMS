@@ -27,9 +27,10 @@ class _FeatureCardState extends State<FeatureCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final borderColor = _hovered
-        ? widget.color.withOpacity(0.48)
-        : theme.dividerColor;
+        ? widget.color.withOpacity(0.42)
+        : scheme.outlineVariant.withOpacity(0.72);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -42,47 +43,53 @@ class _FeatureCardState extends State<FeatureCard> {
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(18),
+            color: _hovered
+                ? scheme.surfaceContainerLowest
+                : scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(color: borderColor),
             boxShadow: _hovered
                 ? <BoxShadow>[
                     BoxShadow(
-                      color: widget.color.withOpacity(0.10),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
+                      color: scheme.shadow.withOpacity(0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
                     ),
                   ]
                 : const <BoxShadow>[],
           ),
           child: Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(22),
             child: InkWell(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(22),
               onTap: widget.onTap,
               child: Padding(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(15),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Row(
                       children: <Widget>[
                         Container(
-                          width: 46,
-                          height: 46,
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
                             color: widget.color.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(14),
+                            shape: BoxShape.circle,
                           ),
-                          child: Icon(widget.icon, color: widget.color, size: 25),
+                          child: Icon(
+                            widget.icon,
+                            color: widget.color,
+                            size: 25,
+                          ),
                         ),
                         const Spacer(),
                         AnimatedOpacity(
                           opacity: _hovered ? 1 : 0.55,
                           duration: const Duration(milliseconds: 160),
                           child: Icon(
-                            Icons.arrow_forward_rounded,
+                            Icons.arrow_outward_rounded,
                             size: 19,
                             color: widget.color,
                           ),
