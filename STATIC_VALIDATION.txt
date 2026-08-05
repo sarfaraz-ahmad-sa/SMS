@@ -1,14 +1,14 @@
 SEEF School ERP static validation
-UTC: 2026-07-30 14:59:24
+UTC: 2026-08-04 13:32:17
 
-Dart source/test files: 96
+Dart source/test files: 118
 Dart lexical/delimiter validation: PASS
 Missing relative imports: 0
 ERP modules: 24
 ERP module IDs: 24 (unique 24)
 Entitlement module IDs missing: []
 Unknown entitlement module IDs: []
-ERP workflows/collections: 105 (unique 105)
+ERP workflows/collections: 106 (unique 106)
 Collections missing from rules: []
 Permission definitions: 87
 Permission references found: 79

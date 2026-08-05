@@ -44,7 +44,7 @@ class SupabaseStorageService {
   }) {
     return _client.storage
         .from(documentsBucket)
-        .createSignedUrl(path, expiresInSeconds.clamp(60, 900));
+        .createSignedUrl(path, expiresInSeconds.clamp(60, 900).toInt());
   }
 
   Future<String> createExportDownloadUrl(
@@ -53,7 +53,7 @@ class SupabaseStorageService {
   }) {
     return _client.storage
         .from(exportsBucket)
-        .createSignedUrl(path, expiresInSeconds.clamp(60, 900));
+        .createSignedUrl(path, expiresInSeconds.clamp(60, 900).toInt());
   }
 
   static String scopedPath({

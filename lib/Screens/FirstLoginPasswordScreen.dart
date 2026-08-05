@@ -132,17 +132,7 @@ class _FirstLoginPasswordScreenState extends State<FirstLoginPasswordScreen> {
       canPop: false,
       child: Scaffold(
         body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                primary.withOpacity(0.12),
-                Theme.of(context).scaffoldBackgroundColor,
-                AppColors.accent.withOpacity(0.08),
-              ],
-            ),
-          ),
+          color: Theme.of(context).scaffoldBackgroundColor,
           child: SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -163,8 +153,8 @@ class _FirstLoginPasswordScreenState extends State<FirstLoginPasswordScreen> {
                                 width: 64,
                                 height: 64,
                                 decoration: BoxDecoration(
-                                  gradient: AppColors.tenantGradient(tenant),
-                                  borderRadius: BorderRadius.circular(20),
+                                  color: primary,
+                                  borderRadius: BorderRadius.circular(15),
                                 ),
                                 child: const Icon(
                                   Icons.password_rounded,

@@ -1,3 +1,9 @@
+# SEEF School ERP / JinnTV UI — 3.3.0+17
+
+Current release: non-blocking dashboard hydration, scoped caching, deferred rendering and executive analysis. See `DASHBOARD_PERFORMANCE_V3_3.md`.
+
+---
+
 # v2.4.2 Web Runtime Patch
 
 This release fixes startup-time SessionState notifications and the missing Google web client-ID assertion.

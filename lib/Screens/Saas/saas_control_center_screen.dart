@@ -155,7 +155,7 @@ class _PlanHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: AppColors.tenantGradient(tenant),
+        color: AppColors.navigation,
         borderRadius: BorderRadius.circular(22),
         boxShadow: <BoxShadow>[
           BoxShadow(

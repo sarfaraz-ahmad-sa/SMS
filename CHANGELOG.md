@@ -1,3 +1,61 @@
+# Changelog
+
+## 3.3.0+17 — Non-blocking Dashboard & Executive Analysis
+
+- Dashboard renders immediately and hydrates live totals after the first frame.
+- Replaced the blocking full-page dashboard skeleton with a compact background status bar.
+- Added permission-aware initial state and fresh scoped cache reuse when returning to Dashboard.
+- Increased scoped dashboard cache TTL to three minutes and retained in-flight request de-duplication.
+- Debounced campus, academic-year, role and permission session update bursts.
+- Added bounded timeouts and safe fallbacks for aggregate and admission-status count requests.
+- Reduced dashboard scroll cache extent to avoid laying out off-screen web/mobile sections early.
+- Deferred lower dashboard panels across successive frames to reduce main-isolate frame spikes.
+- Added Executive Analysis for admissions, attendance activity, payment activity and student–staff ratio.
+- Replaced placeholder/fake event entries with real Events and Timetable workspace actions.
+- Kept every visible dashboard metric and insight connected to a real permission-aware ERP module.
+
+## 3.2.0+15 — Performance and Next-Level Dashboard
+
+- Render the startup interface immediately instead of waiting for Firebase/Supabase initialization before first paint.
+- Initialize independent backends in parallel and show an actionable retry state on bootstrap failure.
+- Reduced the forced splash delay from 1.1 seconds to 360 milliseconds.
+- Added a tenant/user/campus/academic-year scoped dashboard cache with duplicate request deduplication.
+- Converted dashboard aggregate loading from a sequential request waterfall to parallel requests.
+- Removed the redundant full-dashboard session listener rebuild.
+- Added a permission-aware web Command Center with working Students, Attendance, Fees, Exams and Reports shortcuts.
+- Made web KPI cards, operations overview rows, calendar, admissions, attendance and quick-access panels navigable.
+- Replaced synthetic monthly finance bars and fake attendance percentages with real scoped totals.
+- Added a working dashboard refresh action and live-summary freshness label.
+- Added permission-aware mobile quick actions, KPI navigation and an all-modules action.
+- Debounced Global Search, module search, drawer search and entity-list filtering.
+- Added repaint boundaries around high-cost dashboard and record-list surfaces.
+- Removed the non-functional keyboard-shortcut badge from the web search box.
+
+## 3.1.0+14
+
+- Added expanded, mini, and fully closed desktop sidebar modes.
+- Added persistent navigation preference across routes.
+- Added web sidebar close/reopen controls.
+- Added explicit mobile drawer close control.
+- Kept mobile menu available on nested screens.
+- Refined web command bar and responsive control visibility.
+- Refined persistent mobile bottom navigation.
+- Upgraded mobile dashboard welcome and search experience.
+- Retained the MainDrawer BoxDecoration compile fix.
+
+## 3.0.0+13 — Full Modern Mobile and Web Application
+
+- Rebuilt the authenticated application around one responsive solid design system instead of a dashboard-only theme.
+- Added persistent five-destination mobile bottom navigation for Home, Modules, Search, Alerts and Profile.
+- Added a dedicated desktop workspace with a fixed slate sidebar, command/search bar and contextual school controls.
+- Rebuilt the role-aware dashboard for compact mobile workflows and browser analytics.
+- Reworked module, list, form, detail, table, status, empty-state and dialog surfaces across the ERP.
+- Migrated student, admissions, attendance, leave, fee, examination, timetable, library, transport, hostel, event and activity screens to the shared shell.
+- Rebuilt authentication and account setup screens with a dedicated responsive solid auth layout.
+- Replaced the basic web loader with a responsive product-shell skeleton for desktop and mobile.
+- Preserved permissions, plan entitlements, tenant/campus/academic-year scope and Firebase/Supabase service behavior.
+- Removed the transient student-list scroll-controller allocation from widget build.
+
 ## 2.4.2+9 - Web startup and Google sign-in fix
 
 - Deferred splash bootstrap until after the first rendered frame, preventing `SessionState` notifications during widget build.
@@ -13,7 +71,6 @@
 - Forces a fresh ID token before tenant and membership reads.
 - Added readable Firestore service, permission, and availability errors.
 - Preserves existing tenant, role, subscription, and first-login security checks.
-# Changelog
 
 ## 2.4.1+8 — Adaptive Navigation and UI Polish
 

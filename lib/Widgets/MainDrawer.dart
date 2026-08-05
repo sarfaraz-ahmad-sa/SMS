@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/erp/erp_access_policy.dart';
@@ -7,11 +9,9 @@ import '../core/erp/erp_module.dart';
 import '../core/erp/tenant_erp_service.dart';
 import '../services/Auth_services.dart';
 import '../services/models/app_permission.dart';
-import '../services/models/tenant.dart';
 import '../services/plan_entitlement_service.dart';
 import '../services/session_state.dart';
 import '../theme/app_theme.dart';
-import 'TenantSwitcher.dart';
 
 class MainDrawer extends StatefulWidget {
   final bool embedded;
@@ -20,6 +20,7 @@ class MainDrawer extends StatefulWidget {
   final String? activeModuleId;
   final String? activeEntityCollection;
   final VoidCallback? onToggleCompact;
+  final VoidCallback? onClose;
 
   const MainDrawer({
     super.key,
@@ -29,6 +30,7 @@ class MainDrawer extends StatefulWidget {
     this.activeModuleId,
     this.activeEntityCollection,
     this.onToggleCompact,
+    this.onClose,
   });
 
   @override
@@ -36,13 +38,27 @@ class MainDrawer extends StatefulWidget {
 }
 
 class _MainDrawerState extends State<MainDrawer> {
-  final ScrollController _scrollController = ScrollController();
+  final ScrollController _controller = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   String _query = '';
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _searchDebounce?.cancel();
+    _controller.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _queueSearch(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 140), () {
+      if (!mounted) return;
+      final next = value.trim().toLowerCase();
+      if (next == _query) return;
+      setState(() => _query = next);
+    });
   }
 
   @override
@@ -51,297 +67,494 @@ class _MainDrawerState extends State<MainDrawer> {
       listenable: SessionState.instance,
       builder: (BuildContext context, Widget? child) {
         final state = SessionState.instance;
-        final user = state.user;
-        final tenant = state.tenant;
-        final entitlement = PlanEntitlementService(tenant: tenant);
-
-        final allModules = ErpCatalog.modules
+        final entitlement = PlanEntitlementService(tenant: state.tenant);
+        final modules = ErpCatalog.modules
+            .where((ErpModule module) => entitlement.canAccessModule(module.id))
             .where(
               (ErpModule module) => ErpAccessPolicy.canViewModule(
                 module,
-                user,
+                state.user,
                 state.hasPermission,
               ),
             )
-            .where((ErpModule module) => entitlement.canAccessModule(module.id))
+            .where((ErpModule module) {
+              if (_query.isEmpty) return true;
+              final haystack = '${module.title} ${module.description}'.toLowerCase();
+              return haystack.contains(_query) ||
+                  module.entities.any(
+                    (ErpEntity entity) =>
+                        '${entity.title} ${entity.description}'.toLowerCase().contains(_query),
+                  );
+            })
             .toList(growable: false);
 
-        final modules = _query.isEmpty
-            ? allModules
-            : allModules.where((ErpModule module) {
-                final moduleMatch = '${module.title} ${module.description}'
-                    .toLowerCase()
-                    .contains(_query);
-                final entityMatch = module.entities.any(
-                  (ErpEntity entity) => '${entity.title} ${entity.description}'
-                      .toLowerCase()
-                      .contains(_query),
-                );
-                return moduleMatch || entityMatch;
-              }).toList(growable: false);
-
-        if (widget.compact) {
-          return _buildCompact(context, state, tenant, modules);
-        }
-        return _buildExpanded(
-            context, state, tenant, modules, allModules.length);
+        return ColoredBox(
+          color: AppColors.navigation,
+          child: SafeArea(
+            top: !widget.embedded,
+            child: Column(
+              children: <Widget>[
+                _brandHeader(state),
+                if (!widget.compact) _searchBox(),
+                Expanded(
+                  child: Scrollbar(
+                    controller: _controller,
+                    thumbVisibility: widget.embedded && !widget.compact,
+                    child: ListView(
+                      controller: _controller,
+                      padding: EdgeInsets.fromLTRB(
+                        widget.compact ? 9 : 12,
+                        6,
+                        widget.compact ? 9 : 12,
+                        16,
+                      ),
+                      children: <Widget>[
+                        _routeTile(Icons.dashboard_outlined, 'Dashboard', '/home', replaceRoot: true),
+                        _routeTile(Icons.grid_view_rounded, 'All Modules', '/modules'),
+                        if (state.hasPermission(AppPermission.profileView))
+                          _routeTile(Icons.person_outline_rounded, 'My Profile', '/profile'),
+                        if (state.hasPermission(AppPermission.notificationsView))
+                          _routeTile(Icons.notifications_none_rounded, 'Notifications', '/notifications'),
+                        if (!widget.compact) const _DrawerLabel('SCHOOL ERP'),
+                        ...modules.map((ErpModule module) => _moduleTile(module, state)),
+                        if (!widget.compact) const _DrawerLabel('WORKSPACE'),
+                        if (_canViewApprovals(state))
+                          _routeTile(Icons.task_alt_rounded, 'Approval Inbox', '/approvals'),
+                        if (state.hasAnyPermission(const <String>[
+                          AppPermission.saasAdminView,
+                          AppPermission.subscriptionManage,
+                          AppPermission.tenantManage,
+                        ]))
+                          _routeTile(Icons.admin_panel_settings_outlined, 'SaaS Control', '/saas'),
+                        if (state.hasPermission(AppPermission.settingsView))
+                          _routeTile(Icons.settings_outlined, 'Settings', '/settings'),
+                        if (state.hasPermission(AppPermission.usersManage))
+                          _routeTile(Icons.manage_accounts_outlined, 'School Accounts', '/accounts'),
+                      ],
+                    ),
+                  ),
+                ),
+                _footer(state),
+              ],
+            ),
+          ),
+        );
       },
     );
   }
 
-  Widget _buildExpanded(
-    BuildContext context,
-    SessionState state,
-    Tenant? tenant,
-    List<ErpModule> modules,
-    int totalModuleCount,
-  ) {
-    return Column(
-      children: <Widget>[
-        _DrawerHeader(
-          tenant: tenant,
-          compact: false,
-          onToggleCompact: widget.onToggleCompact,
-          embedded: widget.embedded,
+  Widget _brandHeader(SessionState state) {
+    final tenant = state.tenant;
+
+    if (widget.compact) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(10, 14, 10, 10),
+        child: Column(
+          children: <Widget>[
+            _brandMark(),
+            const SizedBox(height: 10),
+            if (widget.onToggleCompact != null)
+              _drawerControl(
+                tooltip: 'Expand sidebar',
+                icon: Icons.keyboard_double_arrow_right_rounded,
+                onPressed: widget.onToggleCompact!,
+              ),
+            if (widget.onClose != null) ...<Widget>[
+              const SizedBox(height: 5),
+              _drawerControl(
+                tooltip: 'Close sidebar',
+                icon: Icons.close_rounded,
+                onPressed: widget.onClose!,
+              ),
+            ],
+          ],
         ),
-        if (totalModuleCount > 5)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            child: TextField(
-              onChanged: (String value) {
-                setState(() => _query = value.trim().toLowerCase());
-              },
-              decoration: const InputDecoration(
-                isDense: true,
-                hintText: 'Find a module...',
-                prefixIcon: Icon(Icons.search_rounded, size: 20),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 11,
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 10, 12),
+      child: Row(
+        children: <Widget>[
+          _brandMark(),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'SEEF SCHOOL',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  tenant?.name ?? 'School Management',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Color(0xFFCAD6E0), fontSize: 10.5),
+                ),
+              ],
+            ),
+          ),
+          if (TenantErpService().isDemoMode)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: const Text(
+                'DEMO',
+                style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w800),
+              ),
+            ),
+          if (widget.onToggleCompact != null) ...<Widget>[
+            const SizedBox(width: 3),
+            _drawerControl(
+              tooltip: 'Mini sidebar',
+              icon: Icons.keyboard_double_arrow_left_rounded,
+              onPressed: widget.onToggleCompact!,
+            ),
+          ],
+          if (widget.onClose != null) ...<Widget>[
+            const SizedBox(width: 2),
+            _drawerControl(
+              tooltip: widget.embedded ? 'Close sidebar' : 'Close menu',
+              icon: Icons.close_rounded,
+              onPressed: widget.onClose!,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _brandMark() {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(11),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(color: Color(0x16000000), blurRadius: 12, offset: Offset(0, 5)),
+        ],
+      ),
+      child: const Icon(Icons.school_rounded, color: AppColors.navigation, size: 22),
+    );
+  }
+
+  Widget _drawerControl({
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(9),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(9),
+          onTap: onPressed,
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(icon, color: const Color(0xFFE7EEF4), size: 18),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _searchBox() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 3, 12, 10),
+      child: TextField(
+        controller: _searchController,
+        onChanged: _queueSearch,
+        style: const TextStyle(color: Colors.white, fontSize: 12),
+        decoration: InputDecoration(
+          hintText: 'Find a module...',
+          hintStyle: const TextStyle(color: Color(0xFFB8C6D2), fontSize: 11.5),
+          prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFFB8C6D2)),
+          suffixIcon: _query.isEmpty
+              ? null
+              : IconButton(
+                  tooltip: 'Clear',
+                  onPressed: () {
+                    _searchDebounce?.cancel();
+                    _searchController.clear();
+                    setState(() => _query = '');
+                  },
+                  icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFFD7E1E9)),
+                ),
+          fillColor: Colors.white.withOpacity(0.08),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.34)),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        ),
+      ),
+    );
+  }
+
+  Widget _routeTile(IconData icon, String label, String route, {bool replaceRoot = false}) {
+    final selected = widget.activeRoute == route;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Tooltip(
+        message: widget.compact ? label : '',
+        waitDuration: const Duration(milliseconds: 350),
+        child: Material(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => _navigate(route, replaceRoot: replaceRoot),
+            child: SizedBox(
+              height: 44,
+              child: Row(
+                mainAxisAlignment: widget.compact ? MainAxisAlignment.center : MainAxisAlignment.start,
+                children: <Widget>[
+                  if (!widget.compact) const SizedBox(width: 13),
+                  Icon(
+                    icon,
+                    size: 19,
+                    color: selected ? AppColors.navigation : const Color(0xFFD2DCE5),
+                  ),
+                  if (!widget.compact) ...<Widget>[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          color: selected ? AppColors.navigation : const Color(0xFFF2F6F9),
+                          fontSize: 12.5,
+                          fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (selected)
+                      Container(
+                        width: 5,
+                        height: 5,
+                        margin: const EdgeInsets.only(right: 13),
+                        decoration: const BoxDecoration(
+                          color: AppColors.navigation,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _moduleTile(ErpModule module, SessionState state) {
+    final entities = module.entities
+        .where((ErpEntity entity) =>
+            ErpAccessPolicy.canViewEntity(entity, state.user, state.hasPermission))
+        .toList(growable: false);
+    final selected = widget.activeModuleId == module.id;
+
+    if (widget.compact) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Tooltip(
+          message: module.title,
+          waitDuration: const Duration(milliseconds: 350),
+          child: Material(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => _navigate('/erp-module', arguments: module),
+              child: SizedBox(
+                height: 44,
+                child: Icon(
+                  module.icon,
+                  size: 19,
+                  color: selected ? AppColors.navigation : const Color(0xFFD2DCE5),
                 ),
               ),
             ),
           ),
-        Expanded(
-          child: Scrollbar(
-            controller: _scrollController,
-            child: ListView(
-              controller: _scrollController,
-              primary: false,
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 16),
-              children: <Widget>[
-                _tile(
-                  context,
-                  Icons.dashboard_outlined,
-                  'Dashboard',
-                  '/home',
-                  replaceRoot: true,
-                ),
-                if (state.hasPermission(AppPermission.profileView))
-                  _tile(
-                    context,
-                    Icons.person_outline_rounded,
-                    'My Profile',
-                    '/profile',
-                  ),
-                if (state.hasPermission(AppPermission.notificationsView))
-                  _tile(
-                    context,
-                    Icons.notifications_none_rounded,
-                    'Notifications',
-                    '/notifications',
-                  ),
-                if (state.hasAnyPermission(const <String>[
-                  AppPermission.saasAdminView,
-                  AppPermission.subscriptionManage,
-                  AppPermission.tenantManage,
-                ])) ...<Widget>[
-                  _tile(
-                    context,
-                    Icons.grid_view_rounded,
-                    'SaaS Control Center',
-                    '/saas',
-                  ),
-                  _tile(
-                    context,
-                    Icons.rocket_launch_outlined,
-                    'School Onboarding',
-                    '/onboarding',
-                  ),
-                ],
-                if (_canViewApprovals(state))
-                  _tile(
-                    context,
-                    Icons.approval_outlined,
-                    'Approval Inbox',
-                    '/approvals',
-                  ),
-                if (modules.isNotEmpty) ...<Widget>[
-                  const Divider(height: 22),
-                  _section('School ERP'),
-                  ...modules.map(
-                    (ErpModule module) => _moduleMenu(
-                      context,
-                      module,
-                      _visibleEntities(module, state),
-                    ),
-                  ),
-                ] else if (_query.isNotEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Column(
-                      children: <Widget>[
-                        Icon(Icons.search_off_rounded, size: 32),
-                        SizedBox(height: 8),
-                        Text(
-                          'No matching modules',
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                const Divider(height: 22),
-                _section('Workspace'),
-                if (state.hasPermission(AppPermission.settingsView))
-                  _tile(
-                    context,
-                    Icons.settings_outlined,
-                    'Settings',
-                    '/settings',
-                  ),
-                if (state.hasPermission(AppPermission.usersManage))
-                  _tile(
-                    context,
-                    Icons.manage_accounts_outlined,
-                    'School Accounts',
-                    '/accounts',
-                  ),
-                _actionTile(
-                  context,
-                  Icons.logout_rounded,
-                  'Logout',
-                  () => _logout(context),
-                  color: AppColors.danger,
-                ),
-              ],
-            ),
-          ),
         ),
-      ],
+      );
+    }
+
+    return Theme(
+      data: Theme.of(context).copyWith(
+        dividerColor: Colors.transparent,
+        expansionTileTheme: const ExpansionTileThemeData(
+          iconColor: Colors.white,
+          collapsedIconColor: Color(0xFFCFD9E2),
+          textColor: Colors.white,
+          collapsedTextColor: Colors.white,
+          shape: Border(),
+          collapsedShape: Border(),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white.withOpacity(0.09) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: ExpansionTile(
+          key: PageStorageKey<String>('module-${module.id}'),
+          initiallyExpanded: selected,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 13),
+          childrenPadding: const EdgeInsets.fromLTRB(10, 0, 8, 7),
+          leading: Icon(module.icon, color: const Color(0xFFD2DCE5), size: 18),
+          title: Text(
+            module.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white, fontSize: 12.2, fontWeight: FontWeight.w600),
+          ),
+          children: <Widget>[
+            _subTile(
+              icon: Icons.space_dashboard_outlined,
+              label: 'Overview',
+              selected: selected && widget.activeRoute == '/erp-module',
+              onTap: () => _navigate('/erp-module', arguments: module),
+            ),
+            ...entities.map(
+              (ErpEntity entity) => _subTile(
+                icon: entity.icon,
+                label: entity.title,
+                selected: widget.activeEntityCollection == entity.collection,
+                onTap: () => _navigate('/erp-entity', arguments: entity),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildCompact(
-    BuildContext context,
-    SessionState state,
-    Tenant? tenant,
-    List<ErpModule> modules,
-  ) {
-    return Column(
-      children: <Widget>[
-        _DrawerHeader(
-          tenant: tenant,
-          compact: true,
-          onToggleCompact: widget.onToggleCompact,
-          embedded: widget.embedded,
-        ),
-        Expanded(
-          child: Scrollbar(
-            controller: _scrollController,
-            child: ListView(
-              controller: _scrollController,
-              primary: false,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-              children: <Widget>[
-                _compactRouteButton(
-                  context,
-                  icon: Icons.dashboard_outlined,
-                  tooltip: 'Dashboard',
-                  route: '/home',
-                  replaceRoot: true,
-                ),
-                if (state.hasPermission(AppPermission.profileView))
-                  _compactRouteButton(
-                    context,
-                    icon: Icons.person_outline_rounded,
-                    tooltip: 'My Profile',
-                    route: '/profile',
-                  ),
-                if (state.hasPermission(AppPermission.notificationsView))
-                  _compactRouteButton(
-                    context,
-                    icon: Icons.notifications_none_rounded,
-                    tooltip: 'Notifications',
-                    route: '/notifications',
-                  ),
-                if (state.hasAnyPermission(const <String>[
-                  AppPermission.saasAdminView,
-                  AppPermission.subscriptionManage,
-                  AppPermission.tenantManage,
-                ]))
-                  _compactRouteButton(
-                    context,
-                    icon: Icons.grid_view_rounded,
-                    tooltip: 'SaaS Control Center',
-                    route: '/saas',
-                  ),
-                if (_canViewApprovals(state))
-                  _compactRouteButton(
-                    context,
-                    icon: Icons.approval_outlined,
-                    tooltip: 'Approval Inbox',
-                    route: '/approvals',
-                  ),
-                const Divider(height: 20),
-                ...modules.map(
-                  (ErpModule module) => _compactModuleButton(
-                    context,
-                    module,
-                    _visibleEntities(module, state),
+  Widget _subTile({
+    required IconData icon,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: selected ? Colors.white : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: <Widget>[
+              Icon(icon, size: 15, color: selected ? AppColors.navigation : const Color(0xFFBFCCD7)),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: selected ? AppColors.navigation : const Color(0xFFE3EAF0),
+                    fontSize: 11.3,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
-                const Divider(height: 20),
-                if (state.hasPermission(AppPermission.settingsView))
-                  _compactRouteButton(
-                    context,
-                    icon: Icons.settings_outlined,
-                    tooltip: 'Settings',
-                    route: '/settings',
-                  ),
-                if (state.hasPermission(AppPermission.usersManage))
-                  _compactRouteButton(
-                    context,
-                    icon: Icons.manage_accounts_outlined,
-                    tooltip: 'School Accounts',
-                    route: '/accounts',
-                  ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: IconButton(
-                    tooltip: 'Logout',
-                    onPressed: () => _logout(context),
-                    color: AppColors.danger,
-                    icon: const Icon(Icons.logout_rounded),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
-  List<ErpEntity> _visibleEntities(ErpModule module, SessionState state) {
-    return module.entities
-        .where(
-          (ErpEntity entity) => ErpAccessPolicy.canViewEntity(
-            entity,
-            state.user,
-            state.hasPermission,
-          ),
-        )
-        .toList(growable: false);
+  Widget _footer(SessionState state) {
+    final displayName = state.user?.displayName?.trim();
+    final name = displayName?.isNotEmpty == true ? displayName! : 'School User';
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(widget.compact ? 8 : 12, 11, widget.compact ? 8 : 10, 13),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.10))),
+      ),
+      child: widget.compact
+          ? Column(
+              children: <Widget>[
+                Tooltip(
+                  message: name,
+                  child: CircleAvatar(
+                    radius: 17,
+                    backgroundColor: Colors.white,
+                    child: Text(
+                      name.substring(0, 1).toUpperCase(),
+                      style: const TextStyle(color: AppColors.navigation, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 7),
+                IconButton(
+                  tooltip: 'Logout',
+                  onPressed: () => _logout(context),
+                  icon: const Icon(Icons.logout_rounded, color: Color(0xFFFFC2C2), size: 19),
+                ),
+              ],
+            )
+          : Row(
+              children: <Widget>[
+                CircleAvatar(
+                  radius: 17,
+                  backgroundColor: Colors.white,
+                  child: Text(
+                    name.substring(0, 1).toUpperCase(),
+                    style: const TextStyle(color: AppColors.navigation, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        state.user?.roleLabel ?? 'School user',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Color(0xFFB8C6D2), fontSize: 9.5),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Logout',
+                  onPressed: () => _logout(context),
+                  icon: const Icon(Icons.logout_rounded, color: Color(0xFFFFC2C2), size: 19),
+                ),
+              ],
+            ),
+    );
   }
 
   bool _canViewApprovals(SessionState state) {
@@ -356,294 +569,15 @@ class _MainDrawerState extends State<MainDrawer> {
     ]);
   }
 
-  Widget _moduleMenu(
-    BuildContext context,
-    ErpModule module,
-    List<ErpEntity> entities,
-  ) {
-    final moduleActive = widget.activeModuleId == module.id;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 3),
-      decoration: BoxDecoration(
-        color: moduleActive
-            ? module.color.withOpacity(
-                Theme.of(context).brightness == Brightness.dark ? 0.16 : 0.08,
-              )
-            : null,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ExpansionTile(
-        key: PageStorageKey<String>('drawer-${module.id}'),
-        initiallyExpanded: moduleActive,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-        childrenPadding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
-        leading: Icon(module.icon, color: module.color, size: 22),
-        title: Text(
-          module.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-        ),
-        children: <Widget>[
-          _subTile(
-            context,
-            icon: Icons.dashboard_customize_outlined,
-            label: 'Module Overview',
-            selected: moduleActive && widget.activeRoute == '/erp-module',
-            color: module.color,
-            onTap: () => _named(
-              context,
-              '/erp-module',
-              arguments: module,
-            ),
-          ),
-          ...entities.map(
-            (ErpEntity entity) => _subTile(
-              context,
-              icon: entity.icon,
-              label: entity.title,
-              selected: widget.activeEntityCollection == entity.collection,
-              color: entity.color,
-              onTap: () => _named(
-                context,
-                '/erp-entity',
-                arguments: entity,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _compactModuleButton(
-    BuildContext context,
-    ErpModule module,
-    List<ErpEntity> entities,
-  ) {
-    final selected = widget.activeModuleId == module.id;
-    final background = selected
-        ? module.color.withOpacity(
-            Theme.of(context).brightness == Brightness.dark ? 0.22 : 0.12,
-          )
-        : Colors.transparent;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: PopupMenuButton<_CompactTarget>(
-        tooltip: module.title,
-        position: PopupMenuPosition.under,
-        onSelected: (_CompactTarget target) {
-          _named(context, target.route, arguments: target.arguments);
-        },
-        itemBuilder: (BuildContext context) => <PopupMenuEntry<_CompactTarget>>[
-          PopupMenuItem<_CompactTarget>(
-            value: _CompactTarget('/erp-module', module),
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(module.icon, color: module.color),
-              title: Text(
-                module.title,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              subtitle: const Text('Module overview'),
-            ),
-          ),
-          if (entities.isNotEmpty) const PopupMenuDivider(),
-          ...entities.map(
-            (ErpEntity entity) => PopupMenuItem<_CompactTarget>(
-              value: _CompactTarget('/erp-entity', entity),
-              child: Row(
-                children: <Widget>[
-                  Icon(entity.icon, color: entity.color, size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      entity.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-        child: Tooltip(
-          message: module.title,
-          child: Ink(
-            height: 48,
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Icon(module.icon, color: module.color, size: 23),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _tile(
-    BuildContext context,
-    IconData icon,
-    String label,
-    String route, {
-    bool replaceRoot = false,
-  }) {
-    final selected = widget.activeRoute == route;
-    final primary = Theme.of(context).colorScheme.primary;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
-      child: ListTile(
-        selected: selected,
-        selectedTileColor: primary.withOpacity(
-          Theme.of(context).brightness == Brightness.dark ? 0.18 : 0.09,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        leading: Icon(icon, color: selected ? primary : null),
-        title: Text(
-          label,
-          style: TextStyle(
-            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
-        trailing: selected
-            ? Icon(Icons.circle, size: 7, color: primary)
-            : const Icon(Icons.chevron_right_rounded, size: 18),
-        onTap: () => _named(context, route, replaceRoot: replaceRoot),
-      ),
-    );
-  }
-
-  Widget _actionTile(
-    BuildContext context,
-    IconData icon,
-    String label,
-    VoidCallback onTap, {
-    Color? color,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 3),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        leading: Icon(icon, color: color),
-        title: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-          ),
-        ),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  Widget _subTile(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required bool selected,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      dense: true,
-      selected: selected,
-      selectedTileColor: color.withOpacity(
-        Theme.of(context).brightness == Brightness.dark ? 0.18 : 0.09,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      leading: Icon(icon, color: color, size: 19),
-      title: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 12.5,
-          fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-        ),
-      ),
-      trailing: selected
-          ? Icon(Icons.check_rounded, color: color, size: 17)
-          : const Icon(Icons.chevron_right_rounded, size: 16),
-      onTap: onTap,
-    );
-  }
-
-  Widget _compactRouteButton(
-    BuildContext context, {
-    required IconData icon,
-    required String tooltip,
-    required String route,
-    bool replaceRoot = false,
-  }) {
-    final selected = widget.activeRoute == route;
-    final primary = Theme.of(context).colorScheme.primary;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Tooltip(
-        message: tooltip,
-        child: Material(
-          color: selected
-              ? primary.withOpacity(
-                  Theme.of(context).brightness == Brightness.dark ? 0.22 : 0.12,
-                )
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => _named(context, route, replaceRoot: replaceRoot),
-            child: SizedBox(
-              height: 48,
-              child: Icon(icon, color: selected ? primary : null),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _section(String label) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 5),
-      child: Text(
-        label.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-
-  void _named(
-    BuildContext context,
-    String route, {
-    bool replaceRoot = false,
-    Object? arguments,
-  }) {
+  void _navigate(String route, {bool replaceRoot = false, Object? arguments}) {
     final navigator = Navigator.of(context);
     if (!widget.embedded) navigator.pop();
-
     if (arguments == null && widget.activeRoute == route) return;
-
     if (replaceRoot) {
-      navigator.pushNamedAndRemoveUntil(
-        route,
-        (Route<dynamic> _) => false,
-        arguments: arguments,
-      );
-      return;
+      navigator.pushNamedAndRemoveUntil(route, (Route<dynamic> _) => false, arguments: arguments);
+    } else {
+      navigator.pushNamed(route, arguments: arguments);
     }
-    navigator.pushNamed(route, arguments: arguments);
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -652,220 +586,25 @@ class _MainDrawerState extends State<MainDrawer> {
     await AuthService().signOut();
     SessionState.instance.clear();
     if (!context.mounted) return;
-    navigator.pushNamedAndRemoveUntil(
-      '/login',
-      (Route<dynamic> route) => false,
-    );
+    navigator.pushNamedAndRemoveUntil('/login', (Route<dynamic> route) => false);
   }
 }
 
-class _CompactTarget {
-  final String route;
-  final Object arguments;
-
-  const _CompactTarget(this.route, this.arguments);
-}
-
-class _DrawerHeader extends StatelessWidget {
-  final Tenant? tenant;
-  final bool compact;
-  final VoidCallback? onToggleCompact;
-  final bool embedded;
-
-  const _DrawerHeader({
-    required this.tenant,
-    required this.compact,
-    required this.onToggleCompact,
-    required this.embedded,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final state = SessionState.instance;
-    final user = state.user;
-    final scheme = Theme.of(context).colorScheme;
-
-    if (compact) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
-        color: scheme.primaryContainer,
-        child: Column(
-          children: <Widget>[
-            _TenantLogo(tenant: tenant, compact: true),
-            const SizedBox(height: 10),
-            IconButton(
-              tooltip: 'Expand navigation',
-              onPressed: onToggleCompact,
-              color: scheme.onPrimaryContainer,
-              icon: const Icon(Icons.keyboard_double_arrow_right_rounded),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(
-        16,
-        embedded ? 16 : MediaQuery.paddingOf(context).top + 16,
-        12,
-        16,
-      ),
-      color: scheme.primaryContainer,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              _TenantLogo(tenant: tenant),
-              const Spacer(),
-              if (TenantErpService().isDemoMode)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: scheme.surface.withOpacity(0.65),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'DEMO',
-                    style: TextStyle(
-                      color: scheme.onPrimaryContainer,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              if (onToggleCompact != null)
-                IconButton(
-                  tooltip: 'Collapse navigation',
-                  onPressed: onToggleCompact,
-                  color: scheme.onPrimaryContainer,
-                  icon: const Icon(Icons.keyboard_double_arrow_left_rounded),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            tenant?.name ?? 'SEEF',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: scheme.onPrimaryContainer,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            user?.displayName?.trim().isNotEmpty == true
-                ? user!.displayName!.trim()
-                : 'User',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: scheme.onPrimaryContainer,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          Text(
-            user?.roleLabel ?? '',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: scheme.onPrimaryContainer.withOpacity(0.72),
-              fontSize: 11,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: <Widget>[
-              _HeaderPill(label: tenant?.subscription.planLabel ?? 'No plan'),
-              const SizedBox(width: 6),
-              _HeaderPill(
-                label: tenant?.subscription.isUsable == true
-                    ? 'ACTIVE'
-                    : 'ACTION REQUIRED',
-              ),
-            ],
-          ),
-          if (state.canSwitchTenant) ...<Widget>[
-            const SizedBox(height: 12),
-            const TenantSwitcher(),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _TenantLogo extends StatelessWidget {
-  final Tenant? tenant;
-  final bool compact;
-
-  const _TenantLogo({required this.tenant, this.compact = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final size = compact ? 42.0 : 54.0;
-    final url = tenant?.logoUrl?.trim();
-    if (url != null && url.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(compact ? 12 : 14),
-        child: Container(
-          width: size,
-          height: size,
-          color: Colors.white,
-          child: Image.network(
-            url,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const Icon(
-              Icons.school_outlined,
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-      );
-    }
-    return CircleAvatar(
-      radius: size / 2,
-      backgroundColor: Colors.white24,
-      child: Icon(
-        Icons.school_outlined,
-        color: Colors.white,
-        size: compact ? 23 : 29,
-      ),
-    );
-  }
-}
-
-class _HeaderPill extends StatelessWidget {
+class _DrawerLabel extends StatelessWidget {
   final String label;
-
-  const _HeaderPill({required this.label});
+  const _DrawerLabel(this.label);
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Flexible(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: scheme.surface.withOpacity(0.62),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: scheme.outlineVariant.withOpacity(0.55)),
-        ),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: scheme.onPrimaryContainer,
-            fontSize: 9,
-            fontWeight: FontWeight.w800,
-          ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 16, 12, 7),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF9FB0BF),
+          fontSize: 9.5,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.1,
         ),
       ),
     );

@@ -1,5 +1,7 @@
 # SEEF School Management SaaS
 
+> **Current UI release: 3.0.0+13.** The authenticated application now uses one modern solid design system with persistent mobile bottom navigation and a dedicated responsive desktop workspace. See [`FULL_MODERN_REDESIGN.md`](FULL_MODERN_REDESIGN.md).
+
 Production-oriented Flutter + Firebase School ERP foundation for schools, colleges and education groups.
 
 ## Current build

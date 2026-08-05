@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../Widgets/saas_scaffold.dart';
@@ -22,6 +24,7 @@ class GlobalSearchScreen extends StatefulWidget {
 class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  Timer? _searchDebounce;
   String _query = '';
 
   @override
@@ -34,9 +37,20 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _controller.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+
+  void _queueSearch(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 140), () {
+      if (!mounted) return;
+      final next = value.trim().toLowerCase();
+      if (next == _query) return;
+      setState(() => _query = next);
+    });
   }
 
   @override
@@ -108,9 +122,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                     child: TextField(
                       controller: _controller,
                       focusNode: _focusNode,
-                      onChanged: (String value) {
-                        setState(() => _query = value);
-                      },
+                      onChanged: _queueSearch,
                       decoration: InputDecoration(
                         hintText: 'Search modules and options...',
                         prefixIcon: const Icon(Icons.search_rounded),
@@ -119,6 +131,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                             : IconButton(
                                 tooltip: 'Clear search',
                                 onPressed: () {
+                                  _searchDebounce?.cancel();
                                   _controller.clear();
                                   setState(() => _query = '');
                                   _focusNode.requestFocus();

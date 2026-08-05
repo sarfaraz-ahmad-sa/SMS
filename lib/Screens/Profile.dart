@@ -191,7 +191,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       vertical: 28,
                     ),
                     decoration: BoxDecoration(
-                      gradient: AppColors.tenantGradient(tenant),
+                      color: AppColors.navigation,
                       borderRadius: BorderRadius.circular(22),
                     ),
                     child: Column(

@@ -224,7 +224,7 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 28),
                   const Center(
                     child: Text(
-                      'SEEF School ERP SaaS',
+                      'SEEF School ERP',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontWeight: FontWeight.w600,

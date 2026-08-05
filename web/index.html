@@ -4,9 +4,8 @@
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="SEEF multi-tenant School ERP and SaaS platform.">
-  <meta name="theme-color" content="#4F46E5">
-
+  <meta name="description" content="SEEF School ERP — modern multi-tenant school management for web and mobile.">
+  <meta name="theme-color" content="#3F566C">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="SEEF School ERP">
@@ -14,8 +13,290 @@
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="manifest" href="manifest.json">
   <title>SEEF School ERP</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --nav: #3f566c;
+      --nav-deep: #30475d;
+      --canvas: #f1f5f9;
+      --surface: #ffffff;
+      --line: #e3e9ef;
+      --ink: #26384a;
+      --muted: #7a8795;
+      --cyan: #dff4f7;
+      --gold: #fff2ce;
+      --rose: #fde8e9;
+      --green: #e4f4e8;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; background: var(--canvas); }
+    body {
+      overflow: hidden;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+    }
+
+    #boot-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      background: var(--canvas);
+      opacity: 1;
+      transition: opacity .24s ease;
+    }
+
+    .boot-sidebar {
+      width: 246px;
+      min-width: 246px;
+      padding: 24px 18px;
+      color: #fff;
+      background: var(--nav);
+    }
+
+    .boot-brand { display: flex; align-items: center; gap: 12px; padding: 2px 8px 26px; }
+    .boot-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: #fff;
+      color: var(--nav);
+      font-size: 22px;
+      font-weight: 900;
+    }
+    .boot-brand-copy strong { display: block; font-size: 14px; letter-spacing: .8px; }
+    .boot-brand-copy span { display: block; margin-top: 3px; color: rgba(255,255,255,.65); font-size: 10px; }
+
+    .boot-nav-item {
+      height: 42px;
+      margin-bottom: 7px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      border-radius: 10px;
+      color: rgba(255,255,255,.72);
+    }
+    .boot-nav-item.active { color: var(--nav); background: #fff; }
+    .boot-nav-icon { width: 20px; height: 20px; border-radius: 6px; background: currentColor; opacity: .28; }
+    .boot-nav-text { height: 8px; border-radius: 99px; background: currentColor; opacity: .38; }
+    .boot-nav-text.w1 { width: 78px; }
+    .boot-nav-text.w2 { width: 104px; }
+    .boot-nav-text.w3 { width: 62px; }
+
+    .boot-main { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+    .boot-topbar {
+      height: 72px;
+      padding: 0 26px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+    .boot-title-group { min-width: 180px; }
+    .skeleton { position: relative; overflow: hidden; background: #e8edf2; }
+    .skeleton::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-100%);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.68), transparent);
+      animation: shimmer 1.35s infinite;
+    }
+    .boot-title-line { width: 116px; height: 12px; border-radius: 99px; }
+    .boot-subtitle-line { width: 84px; height: 7px; margin-top: 8px; border-radius: 99px; }
+    .boot-search { height: 42px; max-width: 540px; flex: 1; border-radius: 11px; border: 1px solid var(--line); background: #f8fafc; }
+    .boot-top-circle { width: 38px; height: 38px; border-radius: 50%; }
+
+    .boot-content { flex: 1; overflow: hidden; padding: 24px 26px 28px; }
+    .boot-heading { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 18px; }
+    .boot-heading-left .large { width: 202px; height: 17px; border-radius: 99px; }
+    .boot-heading-left .small { width: 280px; height: 8px; margin-top: 9px; border-radius: 99px; }
+    .boot-heading-button { width: 118px; height: 38px; border-radius: 10px; background: var(--nav); }
+
+    .boot-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .boot-card { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+    .boot-kpi { min-height: 112px; padding: 16px; display: flex; gap: 13px; }
+    .boot-kpi-icon { width: 42px; height: 42px; flex: 0 0 auto; border-radius: 11px; }
+    .boot-kpi:nth-child(1) .boot-kpi-icon { background: var(--cyan); }
+    .boot-kpi:nth-child(2) .boot-kpi-icon { background: var(--gold); }
+    .boot-kpi:nth-child(3) .boot-kpi-icon { background: var(--rose); }
+    .boot-kpi:nth-child(4) .boot-kpi-icon { background: var(--green); }
+    .boot-kpi-copy { flex: 1; padding-top: 2px; }
+    .boot-kpi-label { width: 66%; height: 7px; border-radius: 99px; }
+    .boot-kpi-value { width: 42%; height: 18px; margin-top: 13px; border-radius: 99px; background: #dbe3ea; }
+    .boot-kpi-foot { width: 82%; height: 6px; margin-top: 12px; border-radius: 99px; }
+
+    .boot-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(280px, .85fr); gap: 14px; margin-top: 14px; }
+    .boot-panel { min-height: 290px; padding: 18px; }
+    .boot-panel-title { width: 150px; height: 10px; border-radius: 99px; }
+    .boot-panel-subtitle { width: 220px; height: 7px; margin-top: 8px; border-radius: 99px; }
+    .boot-bars { height: 190px; margin-top: 25px; display: flex; align-items: flex-end; gap: 12px; border-bottom: 1px solid var(--line); }
+    .boot-bar { flex: 1; min-width: 16px; border-radius: 8px 8px 0 0; background: #dce5ec; }
+    .boot-bar:nth-child(1) { height: 42%; }
+    .boot-bar:nth-child(2) { height: 66%; background: #cce9ed; }
+    .boot-bar:nth-child(3) { height: 54%; }
+    .boot-bar:nth-child(4) { height: 82%; background: #f7e9bd; }
+    .boot-bar:nth-child(5) { height: 68%; }
+    .boot-bar:nth-child(6) { height: 91%; background: #d9ecde; }
+    .boot-bar:nth-child(7) { height: 60%; }
+    .boot-list { margin-top: 21px; }
+    .boot-list-row { display: flex; align-items: center; gap: 11px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .boot-list-icon { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 10px; }
+    .boot-list-row:nth-child(1) .boot-list-icon { background: var(--cyan); }
+    .boot-list-row:nth-child(2) .boot-list-icon { background: var(--gold); }
+    .boot-list-row:nth-child(3) .boot-list-icon { background: var(--rose); }
+    .boot-list-copy { flex: 1; }
+    .boot-list-copy div:first-child { width: 62%; height: 7px; border-radius: 99px; }
+    .boot-list-copy div:last-child { width: 42%; height: 6px; margin-top: 7px; border-radius: 99px; }
+
+    .boot-mobile-header, .boot-mobile-nav { display: none; }
+
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
+
+    @media (max-width: 860px) {
+      #boot-loader { display: block; overflow: hidden; }
+      .boot-sidebar, .boot-topbar { display: none; }
+      .boot-main { height: 100%; }
+      .boot-mobile-header {
+        height: 66px;
+        padding: 0 17px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+      }
+      .boot-mobile-brand { display: flex; align-items: center; gap: 10px; }
+      .boot-mobile-brand .boot-mark { width: 36px; height: 36px; border-radius: 10px; color: #fff; background: var(--nav); font-size: 18px; }
+      .boot-mobile-brand strong { font-size: 13px; letter-spacing: .5px; }
+      .boot-content { padding: 18px 15px 92px; overflow: hidden; }
+      .boot-heading { margin-bottom: 15px; }
+      .boot-heading-left .large { width: 160px; height: 15px; }
+      .boot-heading-left .small { width: 210px; }
+      .boot-heading-button { display: none; }
+      .boot-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .boot-kpi { min-height: 94px; padding: 12px; gap: 9px; }
+      .boot-kpi-icon { width: 34px; height: 34px; border-radius: 9px; }
+      .boot-kpi-value { height: 14px; margin-top: 10px; }
+      .boot-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }
+      .boot-panel { min-height: 238px; padding: 15px; }
+      .boot-grid .boot-panel:last-child { display: none; }
+      .boot-bars { height: 145px; margin-top: 20px; gap: 8px; }
+      .boot-mobile-nav {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 74px;
+        padding: 8px 12px 10px;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
+        background: var(--surface);
+        border-top: 1px solid var(--line);
+      }
+      .boot-mobile-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: var(--muted); }
+      .boot-mobile-tab.active { color: var(--nav); }
+      .boot-mobile-tab-icon { width: 22px; height: 22px; border-radius: 7px; background: currentColor; opacity: .3; }
+      .boot-mobile-tab.center .boot-mobile-tab-icon { width: 44px; height: 44px; margin-top: -24px; border-radius: 14px; background: var(--nav); opacity: 1; border: 4px solid var(--surface); }
+      .boot-mobile-tab-line { width: 30px; height: 5px; border-radius: 99px; background: currentColor; opacity: .38; }
+    }
+
+    @media (max-width: 410px) {
+      .boot-kpi:nth-child(4) { display: none; }
+      .boot-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .boot-kpi { display: block; min-height: 104px; }
+      .boot-kpi-icon { margin-bottom: 10px; }
+      .boot-kpi-label { width: 78%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .skeleton::after, .boot-line::after { animation: none; }
+      #boot-loader { transition: none; }
+    }
+  </style>
 </head>
 <body>
+  <div id="boot-loader" aria-label="Loading SEEF School ERP">
+    <aside class="boot-sidebar" aria-hidden="true">
+      <div class="boot-brand">
+        <div class="boot-mark">S</div>
+        <div class="boot-brand-copy"><strong>SEEF SCHOOL</strong><span>SMART CAMPUS ERP</span></div>
+      </div>
+      <div class="boot-nav-item active"><span class="boot-nav-icon"></span><span class="boot-nav-text w1"></span></div>
+      <div class="boot-nav-item"><span class="boot-nav-icon"></span><span class="boot-nav-text w2"></span></div>
+      <div class="boot-nav-item"><span class="boot-nav-icon"></span><span class="boot-nav-text w1"></span></div>
+      <div class="boot-nav-item"><span class="boot-nav-icon"></span><span class="boot-nav-text w3"></span></div>
+      <div class="boot-nav-item"><span class="boot-nav-icon"></span><span class="boot-nav-text w2"></span></div>
+      <div class="boot-nav-item"><span class="boot-nav-icon"></span><span class="boot-nav-text w1"></span></div>
+      <div class="boot-nav-item"><span class="boot-nav-icon"></span><span class="boot-nav-text w3"></span></div>
+    </aside>
+
+    <main class="boot-main">
+      <header class="boot-topbar" aria-hidden="true">
+        <div class="boot-title-group"><div class="skeleton boot-title-line"></div><div class="skeleton boot-subtitle-line"></div></div>
+        <div class="boot-search"></div>
+        <div class="skeleton boot-top-circle"></div>
+        <div class="skeleton boot-top-circle"></div>
+      </header>
+
+      <header class="boot-mobile-header" aria-hidden="true">
+        <div class="boot-mobile-brand"><div class="boot-mark">S</div><strong>SEEF SCHOOL</strong></div>
+        <div class="skeleton boot-top-circle"></div>
+      </header>
+
+      <section class="boot-content" aria-hidden="true">
+        <div class="boot-heading">
+          <div class="boot-heading-left"><div class="skeleton large"></div><div class="skeleton small"></div></div>
+          <div class="boot-heading-button"></div>
+        </div>
+
+        <div class="boot-kpis">
+          <div class="boot-card boot-kpi"><div class="boot-kpi-icon"></div><div class="boot-kpi-copy"><div class="skeleton boot-kpi-label"></div><div class="boot-kpi-value"></div><div class="skeleton boot-kpi-foot"></div></div></div>
+          <div class="boot-card boot-kpi"><div class="boot-kpi-icon"></div><div class="boot-kpi-copy"><div class="skeleton boot-kpi-label"></div><div class="boot-kpi-value"></div><div class="skeleton boot-kpi-foot"></div></div></div>
+          <div class="boot-card boot-kpi"><div class="boot-kpi-icon"></div><div class="boot-kpi-copy"><div class="skeleton boot-kpi-label"></div><div class="boot-kpi-value"></div><div class="skeleton boot-kpi-foot"></div></div></div>
+          <div class="boot-card boot-kpi"><div class="boot-kpi-icon"></div><div class="boot-kpi-copy"><div class="skeleton boot-kpi-label"></div><div class="boot-kpi-value"></div><div class="skeleton boot-kpi-foot"></div></div></div>
+        </div>
+
+        <div class="boot-grid">
+          <div class="boot-card boot-panel">
+            <div class="skeleton boot-panel-title"></div><div class="skeleton boot-panel-subtitle"></div>
+            <div class="boot-bars"><div class="boot-bar"></div><div class="boot-bar"></div><div class="boot-bar"></div><div class="boot-bar"></div><div class="boot-bar"></div><div class="boot-bar"></div><div class="boot-bar"></div></div>
+          </div>
+          <div class="boot-card boot-panel">
+            <div class="skeleton boot-panel-title"></div><div class="skeleton boot-panel-subtitle"></div>
+            <div class="boot-list">
+              <div class="boot-list-row"><div class="boot-list-icon"></div><div class="boot-list-copy"><div class="skeleton"></div><div class="skeleton"></div></div></div>
+              <div class="boot-list-row"><div class="boot-list-icon"></div><div class="boot-list-copy"><div class="skeleton"></div><div class="skeleton"></div></div></div>
+              <div class="boot-list-row"><div class="boot-list-icon"></div><div class="boot-list-copy"><div class="skeleton"></div><div class="skeleton"></div></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="boot-mobile-nav" aria-hidden="true">
+      <div class="boot-mobile-tab active"><div class="boot-mobile-tab-icon"></div><div class="boot-mobile-tab-line"></div></div>
+      <div class="boot-mobile-tab"><div class="boot-mobile-tab-icon"></div><div class="boot-mobile-tab-line"></div></div>
+      <div class="boot-mobile-tab center"><div class="boot-mobile-tab-icon"></div></div>
+      <div class="boot-mobile-tab"><div class="boot-mobile-tab-icon"></div><div class="boot-mobile-tab-line"></div></div>
+      <div class="boot-mobile-tab"><div class="boot-mobile-tab-icon"></div><div class="boot-mobile-tab-line"></div></div>
+    </nav>
+  </div>
+
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      const loader = document.getElementById('boot-loader');
+      if (!loader) return;
+      loader.style.opacity = '0';
+      window.setTimeout(function () { loader.remove(); }, 260);
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

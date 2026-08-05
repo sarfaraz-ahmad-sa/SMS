@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../Widgets/PermissionGate.dart';
 import '../../Widgets/saas_scaffold.dart';
+import '../../Widgets/jinn_ui.dart';
 
 import '../../core/erp/erp_access_policy.dart';
 import '../../core/erp/erp_catalog.dart';
@@ -29,6 +32,7 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
   final ErpRepository _service = TenantErpService();
   final TextEditingController _searchController = TextEditingController();
   final List<ErpRecord> _records = <ErpRecord>[];
+  Timer? _filterDebounce;
   String _query = '';
   String? _status;
   Object? _cursor;
@@ -118,8 +122,19 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
 
   @override
   void dispose() {
+    _filterDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _queueFilter(String value) {
+    _filterDebounce?.cancel();
+    _filterDebounce = Timer(const Duration(milliseconds: 140), () {
+      if (!mounted) return;
+      final next = value.trim().toLowerCase();
+      if (next == _query) return;
+      setState(() => _query = next);
+    });
   }
 
   Future<void> _openForm([ErpRecord? record]) async {
@@ -238,7 +253,7 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
           : null,
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1280),
+          constraints: const BoxConstraints(maxWidth: 1380),
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _loadError != null
@@ -267,13 +282,12 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
           controller: _searchController,
           status: _status,
           statusOptions: statusOptions,
-          onQueryChanged: (String value) {
-            setState(() => _query = value.trim().toLowerCase());
-          },
+          onQueryChanged: _queueFilter,
           onStatusChanged: (String? value) {
             setState(() => _status = value);
           },
           onClear: () {
+            _filterDebounce?.cancel();
             _searchController.clear();
             setState(() {
               _query = '';
@@ -295,22 +309,26 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
                     BoxConstraints constraints,
                   ) {
                     if (constraints.maxWidth >= 900) {
-                      return _DesktopTable(
-                        entity: widget.entity,
-                        records: records,
+                      return RepaintBoundary(
+                        child: _DesktopTable(
+                          entity: widget.entity,
+                          records: records,
                         canManage: _canEdit,
                         onView: _showDetails,
                         onEdit: _openForm,
-                        onArchive: _archive,
+                          onArchive: _archive,
+                        ),
                       );
                     }
-                    return _MobileList(
-                      entity: widget.entity,
-                      records: records,
+                    return RepaintBoundary(
+                      child: _MobileList(
+                        entity: widget.entity,
+                        records: records,
                       canManage: _canEdit,
                       onView: _showDetails,
                       onEdit: _openForm,
-                      onArchive: _archive,
+                        onArchive: _archive,
+                      ),
                     );
                   },
                 ),
@@ -402,8 +420,9 @@ class _Header extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.hero),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: <Widget>[
@@ -412,7 +431,7 @@ class _Header extends StatelessWidget {
             height: 54,
             decoration: BoxDecoration(
               color: entity.color.withOpacity(0.12),
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(entity.icon, color: entity.color, size: 28),
           ),
@@ -467,7 +486,7 @@ class _Header extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: scheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(7),
                   ),
                   child: Text(
                     'DEMO DATA',
@@ -603,16 +622,14 @@ class _DesktopTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final fields = entity.listFields.take(5).toList();
     return Card(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 90),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 92),
       clipBehavior: Clip.antiAlias,
       child: SingleChildScrollView(
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: DataTable(
             showCheckboxColumn: false,
-            headingRowColor: MaterialStatePropertyAll<Color>(
-              entity.color.withOpacity(0.07),
-            ),
+            headingRowColor: const MaterialStatePropertyAll<Color>(AppColors.surfaceMuted),
             columns: <DataColumn>[
               ...fields.map(
                 (ErpField field) => DataColumn(
@@ -699,7 +716,7 @@ class _MobileList extends StatelessWidget {
 
         return Card(
           child: InkWell(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.card),
             onTap: () => onView(record),
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -711,7 +728,7 @@ class _MobileList extends StatelessWidget {
                     height: 46,
                     decoration: BoxDecoration(
                       color: entity.color.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(entity.icon, color: entity.color),
                   ),

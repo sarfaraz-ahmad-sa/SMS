@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../Widgets/solid_auth_shell.dart';
 import '../services/access_request_service.dart';
 import '../theme/app_theme.dart';
 
 class RequestLogin extends StatefulWidget {
-  const RequestLogin({Key? key}) : super(key: key);
+  const RequestLogin({super.key});
 
   @override
   State<RequestLogin> createState() => _RequestLoginState();
@@ -25,17 +26,14 @@ class _RequestLoginState extends State<RequestLogin> {
 
   @override
   void dispose() {
-    _schoolCode.dispose();
-    _name.dispose();
-    _rollNumber.dispose();
-    _className.dispose();
-    _email.dispose();
-    _phone.dispose();
+    for (final controller in <TextEditingController>[_schoolCode, _name, _rollNumber, _className, _email, _phone]) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _saving = true);
 
     try {
@@ -47,32 +45,22 @@ class _RequestLoginState extends State<RequestLogin> {
         email: _email.text,
         phone: _phone.text,
       );
-
       if (!mounted) return;
       await showDialog<void>(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (BuildContext dialogContext) => AlertDialog(
+          icon: const Icon(Icons.mark_email_read_rounded, color: AppColors.success),
           title: const Text('Request submitted'),
-          content: Text(
-            'Your school administrator can now review the request.\n\nReference: $requestId',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
+          content: Text('Your school administrator can now review your request.\n\nReference: $requestId'),
+          actions: <Widget>[
+            FilledButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Done')),
           ],
         ),
       );
       if (mounted) Navigator.pop(context);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Request could not be submitted. Please try again.'),
-          backgroundColor: AppColors.danger,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Request could not be submitted. Please try again.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -80,138 +68,99 @@ class _RequestLoginState extends State<RequestLogin> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Request Login ID')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Card(
-              elevation: 0,
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Icon(
-                        Icons.badge_outlined,
-                        size: 56,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Request school access',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Use the school code provided by your institute. The administrator must approve and create your account.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                      const SizedBox(height: 24),
-                      _field(
-                        controller: _schoolCode,
-                        label: 'School code',
-                        icon: Icons.school_outlined,
-                      ),
-                      _field(
-                        controller: _name,
-                        label: 'Full name',
-                        icon: Icons.person_outline,
-                      ),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _field(
-                              controller: _rollNumber,
-                              label: 'Roll / employee no.',
-                              icon: Icons.numbers_outlined,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _field(
-                              controller: _className,
-                              label: 'Class / department',
-                              icon: Icons.class_outlined,
-                            ),
-                          ),
-                        ],
-                      ),
-                      _field(
-                        controller: _email,
-                        label: 'Email address',
-                        icon: Icons.mail_outline,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          final email = value?.trim() ?? '';
-                          if (email.isEmpty) return 'Required';
-                          if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                              .hasMatch(email)) {
-                            return 'Invalid email';
-                          }
-                          return null;
-                        },
-                      ),
-                      _field(
-                        controller: _phone,
-                        label: 'Phone number',
-                        icon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        onPressed: _saving ? null : _submit,
-                        icon: _saving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : const Icon(Icons.send_outlined),
-                        label: Text(_saving ? 'Submitting...' : 'Submit request'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+    return SolidAuthShell(
+      icon: Icons.badge_outlined,
+      eyebrow: 'School access',
+      title: 'Request a login ID',
+      subtitle: 'Use the school code provided by your institute. Your administrator will verify the details and create your account.',
+      maxWidth: 620,
+      footer: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Icon(Icons.info_outline_rounded, color: AppColors.info, size: 17),
+          SizedBox(width: 7),
+          Flexible(child: Text('Account access is granted only after school approval.', textAlign: TextAlign.center, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary))),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            TextFormField(
+              controller: _schoolCode,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(labelText: 'School Code', prefixIcon: Icon(Icons.school_outlined)),
+              validator: _required('school code'),
             ),
-          ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _name,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person_outline_rounded)),
+              validator: _required('full name'),
+            ),
+            const SizedBox(height: 12),
+            LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final compact = constraints.maxWidth < 460;
+                final roll = TextFormField(
+                  controller: _rollNumber,
+                  decoration: const InputDecoration(labelText: 'Roll / Employee ID', prefixIcon: Icon(Icons.numbers_rounded)),
+                  validator: _required('roll or employee ID'),
+                );
+                final classField = TextFormField(
+                  controller: _className,
+                  decoration: const InputDecoration(labelText: 'Class / Department', prefixIcon: Icon(Icons.groups_outlined)),
+                  validator: _required('class or department'),
+                );
+                if (compact) {
+                  return Column(children: <Widget>[roll, const SizedBox(height: 12), classField]);
+                }
+                return Row(children: <Widget>[Expanded(child: roll), const SizedBox(width: 12), Expanded(child: classField)]);
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _email,
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: const <String>[AutofillHints.email],
+              decoration: const InputDecoration(labelText: 'Email Address', prefixIcon: Icon(Icons.mail_outline_rounded)),
+              validator: (String? value) {
+                final email = (value ?? '').trim();
+                if (email.isEmpty) return 'Enter email address';
+                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) return 'Enter a valid email address';
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Phone Number', prefixIcon: Icon(Icons.phone_outlined)),
+              validator: _required('phone number'),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: _saving ? null : _submit,
+              icon: _saving
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.send_rounded, size: 18),
+              label: Text(_saving ? 'Submitting…' : 'Submit Access Request'),
+            ),
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: _saving ? null : () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back_rounded, size: 17),
+              label: const Text('Back to Sign In'),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _field({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: TextFormField(
-        controller: controller,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon),
-        ),
-        validator: validator ??
-            (value) => value == null || value.trim().isEmpty ? 'Required' : null,
-      ),
-    );
+  FormFieldValidator<String> _required(String field) {
+    return (String? value) => (value ?? '').trim().isEmpty ? 'Enter $field' : null;
   }
 }

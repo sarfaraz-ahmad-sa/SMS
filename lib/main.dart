@@ -9,6 +9,7 @@ import 'Screens/Enterprise/ErpModuleScreen.dart';
 import 'Screens/FirstLoginPasswordScreen.dart';
 import 'Screens/GlobalSearch.dart';
 import 'Screens/LoginPage.dart';
+import 'Screens/ModulesHub.dart';
 import 'Screens/Notifications.dart';
 import 'Screens/Profile.dart';
 import 'Screens/Saas/approval_inbox_screen.dart';
@@ -28,19 +29,154 @@ import 'services/supabase_bootstrap.dart';
 import 'services/supabase_error_reporter.dart';
 import 'theme/app_theme.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  if (!BackendConfig.isSupabasePrimary) {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+  runApp(const _BackendBootstrapHost());
+}
+
+class _BackendBootstrapHost extends StatefulWidget {
+  const _BackendBootstrapHost();
+
+  @override
+  State<_BackendBootstrapHost> createState() => _BackendBootstrapHostState();
+}
+
+class _BackendBootstrapHostState extends State<_BackendBootstrapHost> {
+  late Future<void> _bootstrapFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrapFuture = _initializeBackends();
+  }
+
+  Future<void> _initializeBackends() async {
+    final tasks = <Future<void>>[];
+    if (!BackendConfig.isSupabasePrimary) {
+      tasks.add(() async {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        await _activateFirebaseAppCheck();
+      }());
+    }
+    if (BackendConfig.shouldInitializeSupabase) {
+      tasks.add(() async {
+        await SupabaseBootstrap.initializeClient();
+        SupabaseErrorReporter.install();
+      }());
+    }
+    await Future.wait(tasks);
+  }
+
+  void _retry() {
+    setState(() => _bootstrapFuture = _initializeBackends());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _bootstrapFuture,
+      builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
+        if (snapshot.connectionState == ConnectionState.done &&
+            !snapshot.hasError) {
+          return const MyApp();
+        }
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightFor(null),
+          home: Scaffold(
+            body: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: snapshot.hasError
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            const Icon(
+                              Icons.cloud_off_rounded,
+                              size: 46,
+                              color: AppColors.danger,
+                            ),
+                            const SizedBox(height: 14),
+                            const Text(
+                              'Could not start the school workspace.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              snapshot.error.toString(),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed: _retry,
+                              icon: const Icon(Icons.refresh_rounded),
+                              label: const Text('Retry'),
+                            ),
+                          ],
+                        )
+                      : const _FastStartupView(),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
-    await _activateFirebaseAppCheck();
   }
-  if (BackendConfig.shouldInitializeSupabase) {
-    await SupabaseBootstrap.initializeClient();
-    SupabaseErrorReporter.install();
+}
+
+class _FastStartupView extends StatelessWidget {
+  const _FastStartupView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.navigation,
+            borderRadius: BorderRadius.all(Radius.circular(20)),
+          ),
+          child: SizedBox(
+            width: 72,
+            height: 72,
+            child: Icon(Icons.school_rounded, color: Colors.white, size: 34),
+          ),
+        ),
+        SizedBox(height: 18),
+        Text(
+          'SEEF School ERP',
+          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+        ),
+        SizedBox(height: 6),
+        Text(
+          'Starting your workspace…',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+        ),
+        SizedBox(height: 22),
+        SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2.3),
+        ),
+      ],
+    );
   }
-  runApp(const MyApp());
 }
 
 Future<void> _activateFirebaseAppCheck() async {
@@ -79,15 +215,16 @@ class MyApp extends StatelessWidget {
       builder: (BuildContext context, Widget? child) {
         final state = SessionState.instance;
         return MaterialApp(
-          title: 'SEEF SMS',
+          title: 'SEEF School ERP',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightFor(state.tenant),
           darkTheme: AppTheme.darkFor(state.tenant),
           themeMode: state.themeMode,
           home: _initialScreen(),
           routes: <String, WidgetBuilder>{
-            '/login': (_) => const MyHomePage(title: 'SEEF SMS'),
+            '/login': (_) => const MyHomePage(title: 'SEEF School ERP'),
             '/home': (_) => const Home(),
+            '/modules': (_) => const ModulesHubScreen(),
             '/secure-account': (_) => const FirstLoginPasswordScreen(),
             '/profile': (_) => const ProfileScreen(),
             '/notifications': (_) => const NotificationsScreen(),

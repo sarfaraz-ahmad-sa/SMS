@@ -182,7 +182,7 @@ class _ErpEntityFormState extends State<ErpEntityForm> {
     return Column(
       children: <Widget>[
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 18, 12, 12),
+          padding: const EdgeInsets.fromLTRB(22, 17, 12, 14),
           child: Row(
             children: <Widget>[
               Container(
@@ -190,7 +190,7 @@ class _ErpEntityFormState extends State<ErpEntityForm> {
                 height: 44,
                 decoration: BoxDecoration(
                   color: widget.entity.color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(widget.entity.icon, color: widget.entity.color),
               ),
@@ -232,12 +232,33 @@ class _ErpEntityFormState extends State<ErpEntityForm> {
         Expanded(
           child: Form(
             key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(22),
-              children: widget.entity.fields
-                  .where((ErpField field) => !field.internal)
-                  .map((ErpField field) => _field(field))
-                  .toList(),
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final fields = widget.entity.fields
+                    .where((ErpField field) => !field.internal)
+                    .toList(growable: false);
+                final twoColumns = constraints.maxWidth >= 680;
+                final available = constraints.maxWidth - 44;
+                final columnWidth = twoColumns ? (available - 14) / 2 : available;
+                return ListView(
+                  padding: const EdgeInsets.all(22),
+                  children: <Widget>[
+                    Wrap(
+                      spacing: 14,
+                      runSpacing: 0,
+                      children: fields.map((ErpField field) {
+                        final fullWidth = !twoColumns ||
+                            field.type == ErpFieldType.multiline ||
+                            field.type == ErpFieldType.boolean;
+                        return SizedBox(
+                          width: fullWidth ? available : columnWidth,
+                          child: _field(field),
+                        );
+                      }).toList(growable: false),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),

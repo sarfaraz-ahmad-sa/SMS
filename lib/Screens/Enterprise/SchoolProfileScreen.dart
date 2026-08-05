@@ -140,7 +140,7 @@ class _SchoolProfileScreenState extends State<SchoolProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: AppColors.tenantGradient(tenant),
+                  color: AppColors.navigation,
                   borderRadius: BorderRadius.circular(22),
                 ),
                 child: Row(

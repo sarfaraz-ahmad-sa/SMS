@@ -366,23 +366,7 @@ class _MyHomePageState extends State<MyHomePage>
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: dark
-                ? const <Color>[
-                    AppColors.darkBackground,
-                    Color(0xFF101D33),
-                    Color(0xFF0D2428),
-                  ]
-                : const <Color>[
-                    Color(0xFFF8FAFF),
-                    Color(0xFFF3F7FF),
-                    Color(0xFFF2FBF9),
-                  ],
-          ),
-        ),
+        color: dark ? AppColors.darkBackground : AppColors.background,
         child: SafeArea(
           child: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints constraints) {
@@ -469,7 +453,7 @@ class _MyHomePageState extends State<MyHomePage>
                     width: 54,
                     height: 54,
                     decoration: BoxDecoration(
-                      gradient: AppColors.brandGradient,
+                      color: AppColors.navigation,
                       borderRadius: BorderRadius.circular(17),
                       boxShadow: <BoxShadow>[
                         BoxShadow(
@@ -491,14 +475,14 @@ class _MyHomePageState extends State<MyHomePage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          'SEEF',
+                          'SEEF SCHOOL',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
                         Text(
-                          'School ERP & SaaS',
+                          'Modern School Management',
                           style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 12,
@@ -702,32 +686,18 @@ class _LoginBrandPanel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                Color(0xFF0F172A),
-                Color(0xFF163B73),
-                Color(0xFF0F766E),
-              ],
-            ),
-          ),
+          decoration: const BoxDecoration(color: AppColors.navigation),
           child: Stack(
             children: <Widget>[
-              const Positioned(
-                right: -90,
-                top: -100,
-                child: _GlowOrb(size: 330),
-              ),
               Positioned(
-                left: -130,
-                bottom: -160,
-                child: _GlowOrb(
-                  size: 390,
-                  color: Colors.tealAccent.withOpacity(0.14),
+                right: 36,
+                top: 42,
+                child: Icon(
+                  Icons.auto_stories_rounded,
+                  size: 160,
+                  color: Colors.white10,
                 ),
               ),
               Padding(
@@ -743,7 +713,7 @@ class _LoginBrandPanel extends StatelessWidget {
                         border: Border.all(
                           color: Colors.white.withOpacity(0.18),
                         ),
-                        borderRadius: BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Icon(
                         Icons.school_rounded,
@@ -796,7 +766,7 @@ class _LoginBrandPanel extends StatelessWidget {
                     ),
                     const Spacer(),
                     Text(
-                      'SEEF School ERP  •  Enterprise SaaS',
+                      'SEEF School ERP  •  Web & Mobile',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.55),
                         fontSize: 12,
@@ -826,7 +796,7 @@ class _LoginFeature extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.white.withOpacity(0.12)),
       ),
       child: Row(

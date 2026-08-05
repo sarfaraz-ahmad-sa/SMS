@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../Widgets/solid_auth_shell.dart';
 import '../../config/backend_config.dart';
 import '../../services/supabase_auth_service.dart';
 import '../../services/supabase_student_service.dart';
@@ -195,29 +196,25 @@ class _SupabaseAuthPilotScreenState extends State<SupabaseAuthPilotScreen> {
   @override
   Widget build(BuildContext context) {
     if (!BackendConfig.enableSupabaseAuthPilot) {
-      return const Scaffold(
-        body: Center(child: Text('Supabase authentication pilot is disabled.')),
+      return const SolidAuthShell(
+        icon: Icons.block_rounded,
+        eyebrow: 'Unavailable',
+        title: 'Supabase pilot disabled',
+        subtitle: 'The PostgreSQL authentication pilot is not enabled for this build.',
+        child: SizedBox.shrink(),
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Supabase Auth Pilot')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: _authenticatedEmail != null
-                    ? _buildAuthenticatedState()
-                    : _buildLoginForm(),
-              ),
-            ),
-          ),
-        ),
-      ),
+    final authenticated = _authenticatedEmail != null;
+    return SolidAuthShell(
+      icon: authenticated ? Icons.verified_user_rounded : Icons.cloud_done_rounded,
+      eyebrow: 'Migration workspace',
+      title: authenticated ? 'Authentication verified' : 'Supabase pilot login',
+      subtitle: authenticated
+          ? 'Review the resolved school scope and PostgreSQL student access below.'
+          : 'Validate the new PostgreSQL authentication flow without changing the live Firebase session.',
+      maxWidth: 650,
+      child: authenticated ? _buildAuthenticatedState() : _buildLoginForm(),
     );
   }
 
@@ -225,21 +222,27 @@ class _SupabaseAuthPilotScreenState extends State<SupabaseAuthPilotScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        const Icon(Icons.verified_user_rounded,
-            color: AppColors.success, size: 58),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.pastelGreen,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.success.withValues(alpha: 0.22)),
+          ),
+          child: Row(
+            children: <Widget>[
+              const Icon(Icons.verified_rounded, color: AppColors.success),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _authenticatedEmail!,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 18),
-        const Text(
-          'Authentication successful',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          _authenticatedEmail!,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 20),
         if (_loading && _tenantSession == null)
           const Center(child: CircularProgressIndicator())
         else if (_tenantSession != null)
@@ -389,22 +392,6 @@ class _SupabaseAuthPilotScreenState extends State<SupabaseAuthPilotScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Icon(Icons.cloud_done_rounded,
-              color: AppColors.primary, size: 58),
-          const SizedBox(height: 18),
-          const Text(
-            'Supabase pilot login',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'This isolated login validates the new PostgreSQL authentication '
-            'flow without changing the live Firebase session.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 24),
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,

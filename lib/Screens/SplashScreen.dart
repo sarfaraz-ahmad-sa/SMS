@@ -40,7 +40,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 420),
     )..forward();
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -145,7 +145,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _waitForBrandAnimation(DateTime startedAt) async {
-    const minimumDuration = Duration(milliseconds: 1100);
+    const minimumDuration = Duration(milliseconds: 360);
     final elapsed = DateTime.now().difference(startedAt);
     if (elapsed < minimumDuration) {
       await Future<void>.delayed(minimumDuration - elapsed);
@@ -169,54 +169,70 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
-        width: double.infinity,
+      backgroundColor: AppColors.surface,
+      body: SafeArea(
         child: FadeTransition(
           opacity: _fade,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  shape: BoxShape.circle,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Container(
+                  width: 104,
+                  height: 104,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: AppColors.border),
+                    boxShadow: const <BoxShadow>[
+                      BoxShadow(
+                        color: Color(0x160F2740),
+                        blurRadius: 26,
+                        offset: Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: const Stack(
+                    alignment: Alignment.center,
+                    children: <Widget>[
+                      Positioned(left: 24, top: 28, child: Icon(Icons.person_rounded, color: AppColors.danger, size: 28)),
+                      Positioned(right: 23, top: 28, child: Icon(Icons.person_rounded, color: AppColors.info, size: 28)),
+                      Positioned(top: 18, child: Icon(Icons.circle, color: AppColors.warning, size: 18)),
+                      Positioned(bottom: 20, child: Icon(Icons.menu_book_rounded, color: AppColors.navigation, size: 36)),
+                    ],
+                  ),
                 ),
-                child: const Icon(
-                  Icons.school_rounded,
-                  size: 72,
-                  color: Colors.white,
+                const SizedBox(height: 24),
+                const Text(
+                  'SEEF SCHOOL',
+                  style: TextStyle(
+                    color: AppColors.navigation,
+                    fontSize: 27,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'SEEF',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
+                const SizedBox(height: 5),
+                const Text(
+                  'School Management App',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    letterSpacing: 1.5,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'School ERP & SaaS',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.85),
-                  fontSize: 15,
+                const SizedBox(height: 42),
+                const SizedBox(
+                  width: 26,
+                  height: 26,
+                  child: CircularProgressIndicator(
+                    color: AppColors.navigation,
+                    strokeWidth: 2.4,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 40),
-              const SizedBox(
-                width: 26,
-                height: 26,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2.5,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
