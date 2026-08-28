@@ -120,6 +120,8 @@ class SupabaseStudentService {
     required String academicYearId,
     int pageSize = 25,
     String? afterId,
+    String? query,
+    String? status,
   }) async {
     _requireScope('tenantId', tenantId);
     _requireScope('campusId', campusId);
@@ -128,7 +130,7 @@ class SupabaseStudentService {
       throw RangeError.range(pageSize, 1, 100, 'pageSize');
     }
 
-    var query = _client
+    var request = _client
         .from('students')
         .select(
           'tenant_id,id,campus_id,academic_year_id,admission_no,full_name,'
@@ -139,9 +141,21 @@ class SupabaseStudentService {
         .eq('academic_year_id', academicYearId)
         .eq('is_archived', false);
     final cursor = _optionalText(afterId);
-    if (cursor != null) query = query.gt('id', cursor);
+    final search = _optionalText(query);
+    final statusFilter = _optionalText(status);
+    if (search != null) {
+      final escaped = search
+          .replaceAll('\\', '\\\\')
+          .replaceAll('%', '\\%')
+          .replaceAll('_', '\\_');
+      request = request.ilike('search_text', '%$escaped%');
+    }
+    if (statusFilter != null) {
+      request = request.eq('status', statusFilter.toLowerCase());
+    }
+    if (cursor != null) request = request.gt('id', cursor);
 
-    final response = await query.order('id').limit(pageSize + 1);
+    final response = await request.order('id').limit(pageSize + 1);
     final rows = response
         .whereType<Map>()
         .map((Map<dynamic, dynamic> row) => Map<String, dynamic>.from(row))

@@ -1,5 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/backend_config.dart';
 import 'models/user_role.dart';
 import 'supabase_bootstrap.dart';
 
@@ -36,10 +40,24 @@ class SchoolAccountRecord {
 }
 
 class SchoolAccountService {
-  SchoolAccountService({SupabaseClient? client})
-      : _client = client ?? SupabaseBootstrap.client;
+  SchoolAccountService({
+    SupabaseClient? client,
+    FirebaseFirestore? firestore,
+    FirebaseFunctions? functions,
+  })  : _client = client ??
+            (BackendConfig.isSupabasePrimary ? SupabaseBootstrap.client : null),
+        _firestore = firestore ??
+            (BackendConfig.isSupabasePrimary
+                ? null
+                : FirebaseFirestore.instance),
+        _functions = functions ??
+            (BackendConfig.isSupabasePrimary
+                ? null
+                : FirebaseFunctions.instanceFor(region: 'asia-south1'));
 
-  final SupabaseClient _client;
+  final SupabaseClient? _client;
+  final FirebaseFirestore? _firestore;
+  final FirebaseFunctions? _functions;
 
   Stream<List<SchoolAccountRecord>> watchMembers(String tenantId) async* {
     // Account management does not need a permanent realtime subscription.
@@ -48,7 +66,18 @@ class SchoolAccountService {
   }
 
   Future<List<SchoolAccountRecord>> listMembers(String tenantId) async {
-    final rows = await _client
+    if (!BackendConfig.isSupabasePrimary) {
+      return _firestoreRecords(
+        await _firestore!
+            .collection('tenants')
+            .doc(tenantId)
+            .collection('members')
+            .orderBy('displayName')
+            .limit(300)
+            .get(),
+      );
+    }
+    final rows = await _client!
         .from('tenant_members')
         .select()
         .eq('tenant_id', tenantId)
@@ -58,7 +87,18 @@ class SchoolAccountService {
   }
 
   Future<List<SchoolAccountRecord>> listCampuses(String tenantId) async {
-    final rows = await _client
+    if (!BackendConfig.isSupabasePrimary) {
+      return _firestoreRecords(
+        await _firestore!
+            .collection('tenants')
+            .doc(tenantId)
+            .collection('campuses')
+            .where('isArchived', isEqualTo: false)
+            .limit(100)
+            .get(),
+      );
+    }
+    final rows = await _client!
         .from('campuses')
         .select('id, code, name, is_archived')
         .eq('tenant_id', tenantId)
@@ -72,8 +112,24 @@ class SchoolAccountService {
     required String tenantId,
     required String recordType,
   }) async {
+    if (!BackendConfig.isSupabasePrimary) {
+      final collection = switch (recordType) {
+        'student' => 'students',
+        'guardian' => 'guardians',
+        _ => 'teachers',
+      };
+      return _firestoreRecords(
+        await _firestore!
+            .collection('tenants')
+            .doc(tenantId)
+            .collection(collection)
+            .where('isArchived', isEqualTo: false)
+            .limit(300)
+            .get(),
+      );
+    }
     if (recordType == 'student') {
-      final rows = await _client
+      final rows = await _client!
           .from('students')
           .select('id, full_name, admission_no, is_archived')
           .eq('tenant_id', tenantId)
@@ -83,7 +139,7 @@ class SchoolAccountService {
       return _records(rows);
     }
     if (recordType == 'guardian') {
-      final rows = await _client
+      final rows = await _client!
           .from('guardians')
           .select('id, full_name, phone, is_archived')
           .eq('tenant_id', tenantId)
@@ -93,7 +149,7 @@ class SchoolAccountService {
       return _records(rows);
     }
 
-    final rows = await _client
+    final rows = await _client!
         .from('erp_records')
         .select('id, data')
         .eq('tenant_id', tenantId)
@@ -116,7 +172,7 @@ class SchoolAccountService {
     String? recordType,
     String? recordId,
   }) async {
-    final data = await _invoke(<String, dynamic>{
+    final body = <String, dynamic>{
       'action': 'provision',
       'tenantId': tenantId,
       'email': email.trim().toLowerCase(),
@@ -128,7 +184,10 @@ class SchoolAccountService {
       'setupMethod': setupMethod.name,
       'temporaryPassword': temporaryPassword ?? '',
       'forcePasswordChange': forcePasswordChange,
-    });
+    };
+    final data = BackendConfig.isSupabasePrimary
+        ? await _invoke(body)
+        : await _callFirebase('provisionSchoolUser', body);
 
     return ProvisionAccountResult(
       uid: data['uid']?.toString() ?? '',
@@ -148,14 +207,19 @@ class SchoolAccountService {
     required List<UserRole> roles,
     required List<String> campusIds,
   }) async {
-    await _invoke(<String, dynamic>{
+    final body = <String, dynamic>{
       'action': 'updateAccess',
       'tenantId': tenantId,
       'targetUid': targetUid,
       'displayName': displayName.trim(),
       'roles': roles.map((UserRole role) => role.value).toList(),
       'campusIds': campusIds,
-    });
+    };
+    if (BackendConfig.isSupabasePrimary) {
+      await _invoke(body);
+    } else {
+      await _callFirebase('manageSchoolUser', body);
+    }
   }
 
   Future<void> setAccountActive({
@@ -164,12 +228,17 @@ class SchoolAccountService {
     required bool active,
     String? reason,
   }) async {
-    await _invoke(<String, dynamic>{
+    final body = <String, dynamic>{
       'action': active ? 'activate' : 'suspend',
       'tenantId': tenantId,
       'targetUid': targetUid,
       'reason': reason?.trim() ?? '',
-    });
+    };
+    if (BackendConfig.isSupabasePrimary) {
+      await _invoke(body);
+    } else {
+      await _callFirebase('manageSchoolUser', body);
+    }
   }
 
   Future<void> resetTemporaryPassword({
@@ -177,26 +246,60 @@ class SchoolAccountService {
     required String targetUid,
     required String temporaryPassword,
   }) async {
-    await _invoke(<String, dynamic>{
+    final body = <String, dynamic>{
       'action': 'resetPassword',
       'tenantId': tenantId,
       'targetUid': targetUid,
       'temporaryPassword': temporaryPassword,
-    });
+    };
+    if (BackendConfig.isSupabasePrimary) {
+      await _invoke(body);
+    } else {
+      await _callFirebase('manageSchoolUser', body);
+    }
   }
 
   Future<void> completeInitialPasswordChange(
     String tenantId,
     String newPassword,
   ) async {
-    await _client.auth.updateUser(UserAttributes(password: newPassword));
-    await _invoke(<String, dynamic>{
+    if (!BackendConfig.isSupabasePrimary) {
+      await _callFirebase('completeInitialPasswordChange', <String, dynamic>{
+        'tenantId': tenantId,
+        'newPassword': newPassword,
+      });
+      return;
+    }
+    await _client!.auth.updateUser(UserAttributes(password: newPassword));
+    final request = <String, dynamic>{
       'action': 'completePasswordChange',
       'tenantId': tenantId,
-    });
+    };
+    try {
+      await _invoke(request);
+    } on SchoolAccountException {
+      // Updating the password can rotate the Supabase session. Refresh once
+      // and retry the idempotent membership completion with the fresh token.
+      try {
+        await _client.auth.refreshSession();
+        await _invoke(request);
+      } catch (_) {
+        throw const SchoolAccountException(
+          'password-profile-sync-failed',
+          'Your password was changed, but school access could not be finalized. '
+              'Sign in with the new password and contact the school administrator.',
+        );
+      }
+    }
   }
 
   Future<void> recordSuccessfulLogin(String tenantId) async {
+    if (!BackendConfig.isSupabasePrimary) {
+      await _callFirebase('recordSuccessfulLogin', <String, dynamic>{
+        'tenantId': tenantId,
+      });
+      return;
+    }
     await _invoke(<String, dynamic>{
       'action': 'recordLogin',
       'tenantId': tenantId,
@@ -204,12 +307,18 @@ class SchoolAccountService {
   }
 
   Future<void> sendPasswordSetupEmail(String email) async {
-    await _client.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    if (BackendConfig.isSupabasePrimary) {
+      await _client!.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    } else {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: email.trim().toLowerCase(),
+      );
+    }
   }
 
   Future<Map<String, dynamic>> _invoke(Map<String, dynamic> body) async {
     try {
-      final response = await _client.functions.invoke(
+      final response = await _client!.functions.invoke(
         'school-accounts',
         body: body,
       );
@@ -227,6 +336,30 @@ class SchoolAccountService {
         _errorMessage(error.details),
       );
     }
+  }
+
+  Future<Map<String, dynamic>> _callFirebase(
+    String name,
+    Map<String, dynamic> body,
+  ) async {
+    final result = await _functions!.httpsCallable(name).call(body);
+    if (result.data is Map) {
+      return Map<String, dynamic>.from(result.data as Map);
+    }
+    return const <String, dynamic>{};
+  }
+
+  static List<SchoolAccountRecord> _firestoreRecords(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+  ) {
+    return snapshot.docs
+        .map(
+          (document) => SchoolAccountRecord(
+            id: document.id,
+            data: document.data(),
+          ),
+        )
+        .toList(growable: false);
   }
 
   static List<SchoolAccountRecord> _records(

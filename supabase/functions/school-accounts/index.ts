@@ -1,23 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const commonPermissions = ["dashboard.view", "profile.view", "notifications.view", "timetable.view", "communication.view", "events.view"];
-const rolePermissions: Record<string, string[]> = {
-  superAdmin: ["*"], schoolOwner: ["*"], principal: ["*"], vicePrincipal: ["*"],
-  adminStaff: [...commonPermissions, "school_setup.view", "school_setup.manage", "admissions.view", "admissions.manage", "students.view", "students.create", "students.update", "students.manage", "parents.view", "parents.manage", "teachers.view", "employees.view", "attendance.view", "attendance.manage", "academics.view", "exams.view", "fees.view", "library.view", "transport.view", "hostel.view", "inventory.view", "communication.manage", "events.manage", "documents.view", "documents.manage", "welfare.view", "welfare.manage", "compliance.view", "reports.view", "helpdesk.view", "helpdesk.manage", "settings.view", "users.manage"],
-  accountant: [...commonPermissions, "students.view", "parents.view", "fees.view", "fees.manage", "fees.collect", "fees.refund", "accounting.view", "accounting.manage", "payroll.manage", "inventory.view", "reports.view", "documents.view"],
-  teacher: [...commonPermissions, "students.view", "attendance.view", "attendance.mark", "academics.view", "academics.manage", "exams.view", "exams.marks.enter", "activities.view", "activities.manage", "leave.view", "leave.apply", "library.view", "documents.view"],
-  classTeacher: [...commonPermissions, "students.view", "students.update", "parents.view", "attendance.view", "attendance.mark", "attendance.manage", "academics.view", "academics.manage", "exams.view", "exams.marks.enter", "communication.manage", "activities.view", "activities.manage", "leave.view", "leave.apply", "library.view", "reports.view", "documents.view"],
-  student: [...commonPermissions, "students.view", "academics.view", "welfare.view", "helpdesk.view", "attendance.view", "exams.view", "fees.view", "library.view", "transport.view", "hostel.view", "activities.view", "leave.view", "leave.apply", "documents.view"],
-  parent: [...commonPermissions, "parents.view", "academics.view", "library.view", "hostel.view", "welfare.view", "helpdesk.view", "students.view", "attendance.view", "exams.view", "fees.view", "transport.view", "activities.view", "leave.view", "leave.apply", "documents.view"],
-  librarian: [...commonPermissions, "library.view", "library.manage", "students.view", "teachers.view", "employees.view", "reports.view"],
-  hrManager: [...commonPermissions, "teachers.view", "teachers.manage", "employees.view", "employees.manage", "hr.view", "hr.manage", "payroll.manage", "attendance.view", "attendance.manage", "leave.view", "leave.manage", "reports.view", "documents.view", "documents.manage", "welfare.view", "compliance.view", "compliance.manage"],
-  receptionist: [...commonPermissions, "admissions.view", "admissions.manage", "students.view", "students.create", "parents.view", "transport.view", "helpdesk.view", "helpdesk.manage"],
-  transportManager: [...commonPermissions, "transport.view", "transport.manage", "students.view", "parents.view", "employees.view", "reports.view"],
-  hostelManager: [...commonPermissions, "hostel.view", "hostel.manage", "students.view", "parents.view", "fees.view", "inventory.view", "reports.view"],
-  itAdmin: [...commonPermissions, "school_setup.view", "settings.view", "settings.manage", "users.manage", "tenant.manage", "subscription.manage", "audit.view", "integrations.view", "integrations.manage", "compliance.view", "compliance.manage", "ai.view", "ai.manage", "saas_admin.view", "saas_admin.manage", "reports.view", "helpdesk.view", "helpdesk.manage"],
-};
-const allRoles = new Set(Object.keys(rolePermissions));
-const permissionsFor = (roles: string[]) => [...new Set(roles.flatMap((role) => rolePermissions[role] ?? []))].sort();
+import {
+  permissionsFor,
+  validateRoleDelegation,
+} from "../_shared/role_permissions.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -226,12 +211,8 @@ Deno.serve(async (request) => {
 });
 
 function validateRoles(roles: string[], actorRoles: string[]) {
-  if (roles.length === 0 || roles.some((role) => !allRoles.has(role))) {
-    throw new RequestError("One or more roles are invalid.");
-  }
-  if (roles.includes("superAdmin") && !actorRoles.includes("superAdmin")) {
-    throw new RequestError("Only a Super Admin can assign the Super Admin role.", 403);
-  }
+  const error = validateRoleDelegation(roles, actorRoles);
+  if (error) throw new RequestError(error, 403);
 }
 
 async function validateCampuses(admin: ReturnType<typeof createClient>, tenantId: string, campusIds: string[]) {

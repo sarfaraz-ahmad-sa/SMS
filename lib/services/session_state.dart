@@ -25,8 +25,9 @@ class SessionState extends ChangeNotifier {
 
   UserModel? get user => _user;
   Tenant? get tenant => _tenant;
-  List<Tenant> get availableTenants =>
-      List<Tenant>.unmodifiable(_availableTenants);
+  // Values are normalized to an unmodifiable list when written, so returning
+  // the stored view avoids allocating a new wrapper during every app rebuild.
+  List<Tenant> get availableTenants => _availableTenants;
   String? get activeCampusId => _activeCampusId;
   String? get activeAcademicYearId => _activeAcademicYearId;
   bool get initialized => _initialized;
@@ -48,7 +49,7 @@ class SessionState extends ChangeNotifier {
     if (availableTenants != null) {
       _availableTenants = List<Tenant>.unmodifiable(availableTenants);
     } else if (_availableTenants.isEmpty) {
-      _availableTenants = <Tenant>[tenant];
+      _availableTenants = List<Tenant>.unmodifiable(<Tenant>[tenant]);
     }
     _activeCampusId = activeCampusId ??
         (user.campusIds.isNotEmpty ? user.campusIds.first : null);
@@ -64,9 +65,10 @@ class SessionState extends ChangeNotifier {
       throw StateError('Cannot replace the active school with another tenant.');
     }
     _tenant = tenant;
-    _availableTenants = _availableTenants
-        .map((Tenant item) => item.id == tenant.id ? tenant : item)
-        .toList(growable: false);
+    _availableTenants = List<Tenant>.unmodifiable(
+      _availableTenants
+          .map((Tenant item) => item.id == tenant.id ? tenant : item),
+    );
     _activeAcademicYearId = tenant.activeAcademicYearId;
     notifyListeners();
   }

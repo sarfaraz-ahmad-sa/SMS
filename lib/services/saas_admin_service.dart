@@ -4,7 +4,6 @@ import '../config/backend_config.dart';
 import '../core/erp/tenant_erp_service.dart';
 import 'session_state.dart';
 import 'supabase_bootstrap.dart';
-import 'supabase_dashboard_summary_service.dart';
 import 'supabase_erp_record_service.dart';
 
 class SaasAdminService {
@@ -30,13 +29,11 @@ class SaasAdminService {
     }
 
     if (BackendConfig.isSupabasePrimary) {
-      final state = SessionState.instance;
-      final counts = await SupabaseDashboardSummaryService().load(
-        tenantId: _tenantId(),
-        campusId: state.activeCampusId ?? '',
-        academicYearId: state.activeAcademicYearId ?? '',
+      final usage = await SupabaseBootstrap.client.rpc(
+        'get_saas_usage',
+        params: <String, dynamic>{'p_tenant_id': _tenantId()},
       );
-      return _asMap(counts['counts']);
+      return _asMap(usage);
     }
 
     final tenantId = _tenantId();

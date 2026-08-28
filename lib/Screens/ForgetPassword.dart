@@ -65,13 +65,21 @@ class _ForgetPasswordState extends State<ForgetPassword> {
       eyebrow: 'Account recovery',
       title: 'Reset your password',
       subtitle: 'Enter the registered email address for your school account. We will send a secure recovery link.',
-      footer: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Icon(Icons.shield_outlined, color: AppColors.success, size: 17),
-          SizedBox(width: 7),
-          Flexible(child: Text('Recovery links are time-limited for account security.', textAlign: TextAlign.center, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary))),
-        ],
+      footer: Builder(
+        builder: (BuildContext context) => Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            const Icon(Icons.shield_outlined, color: AppColors.success, size: 17),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                'Recovery links are time-limited for account security.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11.5),
+              ),
+            ),
+          ],
+        ),
       ),
       child: Form(
         key: _formKey,
@@ -81,6 +89,7 @@ class _ForgetPasswordState extends State<ForgetPassword> {
             TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.done,
               autofillHints: const <String>[AutofillHints.email],
               decoration: const InputDecoration(labelText: 'Email address', prefixIcon: Icon(Icons.mail_outline_rounded)),
               validator: (String? value) {
@@ -89,7 +98,9 @@ class _ForgetPasswordState extends State<ForgetPassword> {
                 if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) return 'Enter a valid email address';
                 return null;
               },
-              onFieldSubmitted: (_) => _loading ? null : _sendResetLink(),
+              onFieldSubmitted: (_) {
+                if (!_loading) _sendResetLink();
+              },
             ),
             const SizedBox(height: 18),
             FilledButton.icon(

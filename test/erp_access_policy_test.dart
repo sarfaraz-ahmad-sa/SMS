@@ -106,4 +106,28 @@ void main() {
     );
   });
 
+  test('admin staff sees operational data without finance elevation', () {
+    const admin = UserModel(
+      uid: 'admin-1',
+      tenantId: 'school-1',
+      roles: <UserRole>[UserRole.adminStaff],
+    );
+    final students = ErpCatalog.entityByCollection('students')!;
+    final diary = ErpCatalog.entityByCollection('daily_diary')!;
+    final journals = ErpCatalog.entityByCollection('journal_entries')!;
+
+    expect(
+      ErpAccessPolicy.canViewEntity(students, admin, admin.hasPermission),
+      isTrue,
+    );
+    expect(
+      ErpAccessPolicy.canViewEntity(diary, admin, admin.hasPermission),
+      isTrue,
+    );
+    expect(
+      ErpAccessPolicy.canViewEntity(journals, admin, admin.hasPermission),
+      isFalse,
+    );
+  });
+
 }

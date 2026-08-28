@@ -1,5 +1,5 @@
 {
-  "buildCommand": "if [ ! -x flutter/bin/flutter ]; then git clone --depth 1 https://github.com/flutter/flutter.git -b stable flutter; fi && flutter/bin/flutter config --enable-web && flutter/bin/flutter pub get && flutter/bin/flutter build web --release --dart-define=SUPABASE_URL=$SUPABASE_URL --dart-define=SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY --dart-define=APP_VERSION=$VERCEL_GIT_COMMIT_SHA",
+  "buildCommand": "bash scripts/vercel_build.sh",
   "outputDirectory": "build/web",
   "installCommand": "echo skip",
   "headers": [

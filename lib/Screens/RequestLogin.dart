@@ -74,13 +74,21 @@ class _RequestLoginState extends State<RequestLogin> {
       title: 'Request a login ID',
       subtitle: 'Use the school code provided by your institute. Your administrator will verify the details and create your account.',
       maxWidth: 620,
-      footer: const Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Icon(Icons.info_outline_rounded, color: AppColors.info, size: 17),
-          SizedBox(width: 7),
-          Flexible(child: Text('Account access is granted only after school approval.', textAlign: TextAlign.center, style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary))),
-        ],
+      footer: Builder(
+        builder: (BuildContext context) => Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            const Icon(Icons.info_outline_rounded, color: AppColors.info, size: 17),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                'Account access is granted only after school approval.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11.5),
+              ),
+            ),
+          ],
+        ),
       ),
       child: Form(
         key: _formKey,
@@ -137,8 +145,17 @@ class _RequestLoginState extends State<RequestLogin> {
             TextFormField(
               controller: _phone,
               keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) {
+                if (!_saving) _submit();
+              },
               decoration: const InputDecoration(labelText: 'Phone Number', prefixIcon: Icon(Icons.phone_outlined)),
-              validator: _required('phone number'),
+              validator: (String? value) {
+                final phone = (value ?? '').replaceAll(RegExp(r'[^0-9+]'), '');
+                if (phone.isEmpty) return 'Enter phone number';
+                if (phone.replaceAll('+', '').length < 10) return 'Enter a valid phone number';
+                return null;
+              },
             ),
             const SizedBox(height: 18),
             FilledButton.icon(

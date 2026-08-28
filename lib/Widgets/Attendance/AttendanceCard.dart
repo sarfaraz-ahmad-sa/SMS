@@ -1,170 +1,90 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-class AttendanceCard extends StatefulWidget {
+import '../../theme/app_theme.dart';
+import '../jinn_ui.dart';
+
+class AttendanceCard extends StatelessWidget {
   final String starttime;
   final String endtime;
   final String subject;
   final String staff;
   final bool attendance;
 
-  const AttendanceCard(
-      {Key? key,
-      required this.starttime,
-      required this.endtime,
-      required this.subject,
-      required this.staff,
-      required this.attendance})
-      : super(key: key);
-
-  @override
-  _AttendanceCardState createState() => _AttendanceCardState();
-}
-
-class _AttendanceCardState extends State<AttendanceCard>
-    with SingleTickerProviderStateMixin {
-  late Animation animation, delayedAnimation;
-  late AnimationController animationController;
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-
-    animationController =
-        AnimationController(duration: Duration(seconds: 3), vsync: this);
-    animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController, curve: Curves.fastOutSlowIn));
-
-    delayedAnimation = Tween(begin: 1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.3, 0.7, curve: Curves.fastOutSlowIn)));
-  }
-
-  @override
-  void dispose() {
-    // TODO: implement dispose
-    animationController.dispose();
-    super.dispose();
-  }
+  const AttendanceCard({
+    super.key,
+    required this.starttime,
+    required this.endtime,
+    required this.subject,
+    required this.staff,
+    required this.attendance,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    animationController.forward();
-    return AnimatedBuilder(
-      animation: animationController,
-      builder: (BuildContext context, Widget? child) {
-        return Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Transform(
-            transform:
-                Matrix4.translationValues(delayedAnimation.value * width, 0, 0),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                vertical: 13,
-                horizontal: 20,
+    final theme = Theme.of(context);
+    final statusColor = attendance ? AppColors.success : AppColors.danger;
+    final statusLabel = attendance ? 'Present' : 'Absent';
+
+    return Semantics(
+      container: true,
+      label: '$subject with $staff, $starttime to $endtime, $statusLabel',
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: JinnCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 4,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  borderRadius: BorderRadius.circular(99),
+                ),
               ),
-              decoration: BoxDecoration(
-                color: Colors.white70,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    offset: Offset(0, 3),
-                    //blurRadius: 3,
-                    //spreadRadius: 1,
-                  ),
-                ],
-                borderRadius: BorderRadius.circular(10),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 72,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(starttime, style: theme.textTheme.labelLarge),
+                    const SizedBox(height: 4),
+                    Text(endtime, style: theme.textTheme.bodySmall),
+                  ],
+                ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        "${widget.starttime}",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                      SizedBox(
-                        height: 10,
-                      ),
-                      Text(
-                        "${widget.endtime}",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "${widget.subject}",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      SizedBox(
-                        height: 10,
-                      ),
-                      Text(
-                        "${widget.staff}",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(
-                    width: 10,
-                  ),
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color:
-                          widget.attendance == true ? Colors.green : Colors.red,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      subject,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
                     ),
-                    child: Center(
-                      child: widget.attendance == true
-                          ? Text(
-                              "P",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            )
-                          : Text(
-                              "A",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
+                    const SizedBox(height: 4),
+                    Text(
+                      staff,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(width: 10),
+              JinnStatusPill(
+                label: statusLabel,
+                color: statusColor,
+                icon: attendance ? Icons.check_rounded : Icons.close_rounded,
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

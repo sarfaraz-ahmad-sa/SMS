@@ -172,6 +172,9 @@ def main() -> int:
 
     account_sources = {
         "functions/index.js": (ROOT / "functions/index.js").read_text(encoding="utf-8"),
+        "supabase/functions/school-accounts/index.ts": (
+            ROOT / "supabase/functions/school-accounts/index.ts"
+        ).read_text(encoding="utf-8"),
         "AccountManagement.dart": (ROOT / "lib/Screens/AccountManagement.dart").read_text(encoding="utf-8"),
         "FirstLoginPasswordScreen.dart": (ROOT / "lib/Screens/FirstLoginPasswordScreen.dart").read_text(encoding="utf-8"),
         "firestore.rules": rules,
@@ -184,6 +187,11 @@ def main() -> int:
             "validateTemporaryPassword",
             'recordType === "guardian"',
         ],
+        "supabase/functions/school-accounts/index.ts": [
+            'new Set(["completePasswordChange", "recordLogin"])',
+            'action === "completePasswordChange"',
+            "must_change_password: false",
+        ],
         "AccountManagement.dart": [
             "AccountSetupMethod.temporaryPassword",
             "_LinkedRecordDropdown",
@@ -193,6 +201,9 @@ def main() -> int:
         "FirstLoginPasswordScreen.dart": [
             "completeInitialPasswordChange",
             "Change password & continue",
+            "AuthException",
+            "SchoolAccountException",
+            "must be different from the temporary password",
         ],
         "firestore.rules": [
             "requiresPersonalScope",
@@ -206,6 +217,188 @@ def main() -> int:
         for requirement in requirements
         if requirement not in account_sources[source]
     ]
+
+    dashboard_source = (ROOT / "lib/Screens/home.dart").read_text(
+        encoding="utf-8"
+    )
+    dashboard_errors = []
+    if "child: _LiteDashboard(" not in dashboard_source:
+        dashboard_errors.append(
+            "home.dart: lightweight dashboard is not the active render path"
+        )
+    if "countWhere('admission_applications'" in dashboard_source:
+        dashboard_errors.append(
+            "home.dart: admission dashboard fallback performs status-query fan-out"
+        )
+
+    vercel_config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
+    vercel_build_command = str(vercel_config.get("buildCommand", ""))
+    vercel_build_script = ROOT / "scripts/vercel_build.sh"
+    vercel_errors = []
+    if len(vercel_build_command) > 256:
+        vercel_errors.append(
+            "vercel.json: buildCommand exceeds Vercel's 256-character limit"
+        )
+    if vercel_build_command != "bash scripts/vercel_build.sh":
+        vercel_errors.append(
+            "vercel.json: buildCommand is not wired to scripts/vercel_build.sh"
+        )
+    if not vercel_build_script.is_file():
+        vercel_errors.append("scripts/vercel_build.sh: missing")
+    else:
+        vercel_script_source = vercel_build_script.read_text(encoding="utf-8")
+        for required in (
+            "build web --release",
+            "ENABLE_SUPABASE_PRIMARY=true",
+            "SUPABASE_URL=",
+            "SUPABASE_PUBLISHABLE_KEY=",
+            "SUPABASE_AUTH_REDIRECT_URL=",
+            'if [[ -n "${SUPABASE_URL:-}" ]]',
+            'if [[ -n "${SUPABASE_PUBLISHABLE_KEY:-}" ]]',
+        ):
+            if required not in vercel_script_source:
+                vercel_errors.append(
+                    f"scripts/vercel_build.sh: missing {required}"
+                )
+        for unsafe_override in (
+            '--dart-define="SUPABASE_URL=${SUPABASE_URL:-}"',
+            '--dart-define="SUPABASE_PUBLISHABLE_KEY=${SUPABASE_PUBLISHABLE_KEY:-}"',
+        ):
+            if unsafe_override in vercel_script_source:
+                vercel_errors.append(
+                    "scripts/vercel_build.sh: empty Supabase environment values "
+                    "can override bundled public configuration"
+                )
+
+    brand_sources = {
+        "school_brand.dart": (ROOT / "lib/Widgets/school_brand.dart").read_text(
+            encoding="utf-8"
+        ),
+        "LoginPage.dart": (ROOT / "lib/Screens/LoginPage.dart").read_text(
+            encoding="utf-8"
+        ),
+        "SplashScreen.dart": (ROOT / "lib/Screens/SplashScreen.dart").read_text(
+            encoding="utf-8"
+        ),
+        "MainDrawer.dart": (ROOT / "lib/Widgets/MainDrawer.dart").read_text(
+            encoding="utf-8"
+        ),
+        "web/index.html": (ROOT / "web/index.html").read_text(encoding="utf-8"),
+        "web/manifest.json": (ROOT / "web/manifest.json").read_text(
+            encoding="utf-8"
+        ),
+    }
+    brand_requirements = {
+        "school_brand.dart": [
+            "class SchoolBrandMark",
+            "class SchoolBrandLockup",
+            "logoUrl",
+            "class _SeefMarkPainter",
+        ],
+        "LoginPage.dart": ["SchoolBrandMark", "SchoolBrandLockup"],
+        "SplashScreen.dart": ["SchoolBrandMark"],
+        "MainDrawer.dart": ["SchoolBrandMark", "state.tenant?.logoUrl"],
+        "web/index.html": ["icons/seef-school-logo.svg", "#172554"],
+        "web/manifest.json": ["icons/Icon-192.png", "icons/Icon-512.png"],
+    }
+    brand_errors = [
+        f"{source}: missing {requirement}"
+        for source, requirements in brand_requirements.items()
+        for requirement in requirements
+        if requirement not in brand_sources[source]
+    ]
+    for asset in (
+        ROOT / "assets/seef_school_logo.svg",
+        ROOT / "assets/seef_school_logo.png",
+        ROOT / "web/icons/seef-school-logo.svg",
+        ROOT / "web/icons/Icon-192.png",
+        ROOT / "web/icons/Icon-512.png",
+        ROOT / "web/favicon.png",
+    ):
+        if not asset.is_file() or asset.stat().st_size == 0:
+            brand_errors.append(f"{asset.relative_to(ROOT)}: missing or empty")
+
+    onboarding_sources = {
+        "migration": (
+            ROOT
+            / "supabase/migrations/202608250018_platform_school_onboarding.sql"
+        ).read_text(encoding="utf-8"),
+        "function": (
+            ROOT / "supabase/functions/platform-onboarding/index.ts"
+        ).read_text(encoding="utf-8"),
+        "service": (
+            ROOT / "lib/services/platform_onboarding_service.dart"
+        ).read_text(encoding="utf-8"),
+        "screen": (
+            ROOT / "lib/Screens/Saas/platform_school_onboarding_screen.dart"
+        ).read_text(encoding="utf-8"),
+        "main": (ROOT / "lib/main.dart").read_text(encoding="utf-8"),
+        "drawer": (ROOT / "lib/Widgets/MainDrawer.dart").read_text(
+            encoding="utf-8"
+        ),
+        "login": (ROOT / "lib/Screens/LoginPage.dart").read_text(
+            encoding="utf-8"
+        ),
+        "requests": (ROOT / "lib/Screens/AccessRequests.dart").read_text(
+            encoding="utf-8"
+        ),
+    }
+    onboarding_requirements = {
+        "migration": [
+            "provision_school_tenant",
+            "security definer",
+            "array['schoolOwner']::text[]",
+            "to service_role",
+            "from public, anon, authenticated",
+            "platform.school.created",
+        ],
+        "function": [
+            '.contains("roles", ["superAdmin"])',
+            "Only a platform Super Admin can create schools.",
+            "inviteUserByEmail",
+            "createUser",
+            'admin.rpc(\n      "provision_school_tenant"',
+            "deleteUser(createdAuthUserId)",
+            "This school code is already in use.",
+        ],
+        "service": [
+            "class PlatformOnboardingService",
+            "'platform-onboarding'",
+            "OwnerSetupMethod.temporaryPassword",
+        ],
+        "screen": [
+            "UserRole.superAdmin",
+            "Create school and owner account",
+            "Generate strong password",
+            "PlatformOnboardingService",
+        ],
+        "main": ["'/platform-onboarding'"],
+        "drawer": [
+            "state.user?.roles.contains(UserRole.superAdmin)",
+            "'New School'",
+            "'/platform-onboarding'",
+        ],
+        "login": ["Request a school login ID", "const RequestLogin()"],
+        "requests": [
+            "Approve and create account",
+            "initialDisplayName: request.name",
+            "initialEmail: request.email",
+        ],
+    }
+    onboarding_errors = [
+        f"{source}: missing {requirement}"
+        for source, requirements in onboarding_requirements.items()
+        for requirement in requirements
+        if requirement not in onboarding_sources[source]
+    ]
+    hidden_request_pattern = re.compile(
+        r"if\s*\(!BackendConfig\.isSupabasePrimary\)\s*\.\.\.<Widget>\["
+        r"[\s\S]{0,700}Request a school login ID"
+    )
+    if hidden_request_pattern.search(onboarding_sources["login"]):
+        onboarding_errors.append(
+            "LoginPage.dart: access request is hidden in Supabase-primary mode"
+        )
 
     lines = [
         "SEEF School ERP static validation",
@@ -225,6 +418,10 @@ def main() -> int:
         f"JSON validation: {'PASS' if not json_errors else 'FAIL'}",
         f"Node syntax validation: {'PASS' if not node_errors else 'FAIL'}",
         f"Secure account lifecycle validation: {'PASS' if not account_errors else 'FAIL'}",
+        f"Lightweight dashboard validation: {'PASS' if not dashboard_errors else 'FAIL'}",
+        f"Vercel deployment validation: {'PASS' if not vercel_errors else 'FAIL'}",
+        f"Premium branding validation: {'PASS' if not brand_errors else 'FAIL'}",
+        f"Controlled school onboarding validation: {'PASS' if not onboarding_errors else 'FAIL'}",
         "",
         "Flutter SDK validation is separate:",
         "flutter analyze",
@@ -243,6 +440,10 @@ def main() -> int:
         + json_errors
         + node_errors
         + account_errors
+        + dashboard_errors
+        + vercel_errors
+        + brand_errors
+        + onboarding_errors
         + entitlement_errors
     )
     if details:

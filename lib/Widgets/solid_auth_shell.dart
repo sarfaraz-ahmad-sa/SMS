@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'jinn_ui.dart';
+import 'school_brand.dart';
 
 class SolidAuthShell extends StatelessWidget {
   final String title;
@@ -27,8 +28,9 @@ class SolidAuthShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
@@ -77,12 +79,14 @@ class _AuthBrandPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.navigation,
+      decoration: const BoxDecoration(
+        gradient: AppColors.navigationGradient,
+      ),
       padding: const EdgeInsets.all(52),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const _SchoolLogo(light: true),
+          const SchoolBrandLockup(light: true),
           const Spacer(),
           const Text(
             'One school.\nOne connected workspace.',
@@ -142,13 +146,17 @@ class _AuthFormArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Stack(
       children: <Widget>[
         if (compact)
-          const Positioned(
+          Positioned(
             left: 20,
             top: 18,
-            child: _SchoolLogo(light: false),
+            child: SchoolBrandLockup(
+              markSize: 38,
+              subtitle: 'SMART CAMPUS ERP',
+            ),
           ),
         if (showBack && Navigator.canPop(context))
           Positioned(
@@ -175,8 +183,8 @@ class _AuthFormArea extends StatelessWidget {
                       alignment: Alignment.centerLeft,
                       child: JinnIconBadge(
                         icon: icon,
-                        color: AppColors.primary,
-                        background: AppColors.pastelBlue,
+                        color: theme.colorScheme.primary,
+                        background: theme.colorScheme.primaryContainer,
                         size: 54,
                       ),
                     ),
@@ -184,8 +192,8 @@ class _AuthFormArea extends StatelessWidget {
                     if (eyebrow != null) ...<Widget>[
                       Text(
                         eyebrow!.toUpperCase(),
-                        style: const TextStyle(
-                          color: AppColors.primary,
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
                           fontWeight: FontWeight.w900,
                           fontSize: 10.5,
                           letterSpacing: 1.1,
@@ -215,39 +223,6 @@ class _AuthFormArea extends StatelessWidget {
                 ),
               ),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SchoolLogo extends StatelessWidget {
-  final bool light;
-  const _SchoolLogo({required this.light});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: light ? Colors.white : AppColors.navigation,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(Icons.school_rounded, color: light ? AppColors.navigation : Colors.white, size: 21),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          'SEEF SCHOOL',
-          style: TextStyle(
-            color: light ? Colors.white : AppColors.navigation,
-            fontWeight: FontWeight.w900,
-            fontSize: 13,
-            letterSpacing: 0.3,
           ),
         ),
       ],

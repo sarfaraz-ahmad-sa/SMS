@@ -14,6 +14,7 @@ import '../services/school_account_service.dart';
 import '../services/supabase_auth_service.dart';
 import '../services/supabase_tenant_service.dart';
 import '../theme/app_theme.dart';
+import '../Widgets/school_brand.dart';
 import 'FirstLoginPasswordScreen.dart';
 import 'ForgetPassword.dart';
 import 'RequestLogin.dart';
@@ -449,32 +450,13 @@ class _MyHomePageState extends State<MyHomePage>
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: AppColors.navigation,
-                      borderRadius: BorderRadius.circular(17),
-                      boxShadow: <BoxShadow>[
-                        BoxShadow(
-                          color: AppColors.primary.withOpacity(0.22),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.school_rounded,
-                      color: Colors.white,
-                      size: 29,
-                    ),
-                  ),
+                  const SchoolBrandMark(size: 54),
                   const SizedBox(width: 14),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text(
+                        const Text(
                           'SEEF SCHOOL',
                           style: TextStyle(
                             fontSize: 18,
@@ -484,7 +466,7 @@ class _MyHomePageState extends State<MyHomePage>
                         Text(
                           'Modern School Management',
                           style: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: theme.colorScheme.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
@@ -583,21 +565,21 @@ class _MyHomePageState extends State<MyHomePage>
               ),
               if (!BackendConfig.isSupabasePrimary) ...<Widget>[
                 const SizedBox(height: 17),
-                const Row(
+                Row(
                   children: <Widget>[
-                    Expanded(child: Divider()),
+                    const Expanded(child: Divider()),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
                         'OR',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: theme.colorScheme.onSurfaceVariant,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
-                    Expanded(child: Divider()),
+                    const Expanded(child: Divider()),
                   ],
                 ),
                 const SizedBox(height: 17),
@@ -636,35 +618,33 @@ class _MyHomePageState extends State<MyHomePage>
                   label: const Text('Open Supabase login pilot'),
                 ),
               ],
-              if (!BackendConfig.isSupabasePrimary) ...<Widget>[
-                const SizedBox(height: 11),
-                TextButton.icon(
-                  onPressed: _loading || _googleLoading
-                      ? null
-                      : () => Navigator.push(
-                            context,
-                            MaterialPageRoute<void>(
-                              builder: (_) => const RequestLogin(),
-                            ),
+              const SizedBox(height: 11),
+              TextButton.icon(
+                onPressed: _loading || _googleLoading
+                    ? null
+                    : () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => const RequestLogin(),
                           ),
-                  icon: const Icon(Icons.badge_outlined),
-                  label: const Text('Request a school login ID'),
-                ),
-              ],
+                        ),
+                icon: const Icon(Icons.badge_outlined),
+                label: const Text('Request a school login ID'),
+              ),
               const SizedBox(height: 14),
-              const Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   Icon(
                     Icons.lock_outline_rounded,
                     size: 14,
-                    color: AppColors.textSecondary,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                   SizedBox(width: 5),
                   Text(
                     'Tenant-isolated, role-based access',
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: theme.colorScheme.onSurfaceVariant,
                       fontSize: 11,
                     ),
                   ),
@@ -688,7 +668,9 @@ class _LoginBrandPanel extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          decoration: const BoxDecoration(color: AppColors.navigation),
+          decoration: const BoxDecoration(
+            gradient: AppColors.navigationGradient,
+          ),
           child: Stack(
             children: <Widget>[
               Positioned(
@@ -705,21 +687,9 @@ class _LoginBrandPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.12),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.18),
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(
-                        Icons.school_rounded,
-                        color: Colors.white,
-                        size: 38,
-                      ),
+                    const SchoolBrandLockup(
+                      light: true,
+                      markSize: 62,
                     ),
                     const Spacer(),
                     const Text(

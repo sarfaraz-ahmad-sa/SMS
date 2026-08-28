@@ -24,3 +24,33 @@ export const allRoles = new Set(Object.keys(rolePermissions));
 export function permissionsFor(roles: string[]): string[] {
   return [...new Set(roles.flatMap((role) => rolePermissions[role] ?? []))].sort();
 }
+
+export function validateRoleDelegation(
+  targetRoles: string[],
+  actorRoles: string[],
+): string | null {
+  if (targetRoles.length === 0 || targetRoles.some((role) => !allRoles.has(role))) {
+    return "One or more roles are invalid.";
+  }
+  if (targetRoles.includes("superAdmin") && !actorRoles.includes("superAdmin")) {
+    return "Only a Super Admin can assign the Super Admin role.";
+  }
+  if (targetRoles.includes("schoolOwner") && !actorRoles.includes("superAdmin")) {
+    return "Only a Super Admin can assign the School Owner role.";
+  }
+  if (targetRoles.includes("principal") &&
+    !actorRoles.some((role) => role === "superAdmin" || role === "schoolOwner")) {
+    return "Only a Super Admin or School Owner can assign the Principal role.";
+  }
+  if (targetRoles.includes("vicePrincipal") &&
+    !actorRoles.some((role) =>
+      role === "superAdmin" || role === "schoolOwner" || role === "principal"
+    )) {
+    return "Only school leadership can assign the Vice Principal role.";
+  }
+  if (targetRoles.some((role) => role === "adminStaff" || role === "itAdmin") &&
+    !actorRoles.some((role) => role === "superAdmin" || role === "schoolOwner")) {
+    return "Only a Super Admin or School Owner can assign an account administrator role.";
+  }
+  return null;
+}

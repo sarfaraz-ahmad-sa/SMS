@@ -1,57 +1,49 @@
 import 'package:flutter/material.dart';
 
+/// Backwards-compatible app bar for older screens. Newer ERP screens use
+/// SaasScaffold, but this widget follows the same Material 3 theme.
 class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final bool menuenabled;
   final bool notificationenabled;
-  final void Function()? ontap;
+  final VoidCallback? ontap;
+
   const CommonAppBar({
-    Key? key,
+    super.key,
     required this.title,
     required this.menuenabled,
     required this.notificationenabled,
     required this.ontap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return AppBar(
-      title: Text(
-        "${title}",
-        style: TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      leading: menuenabled == true
+      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      leading: menuenabled
           ? IconButton(
-              color: Colors.black,
+              tooltip: 'Open menu',
               onPressed: ontap,
-              icon: Icon(
-                Icons.menu,
-              ),
+              icon: const Icon(Icons.menu_rounded),
             )
           : null,
-      actions: [
-        notificationenabled == true
-            ? InkWell(
-                onTap: () {},
-                child: Image.asset(
-                  "assets/notification.png",
-                  width: 35,
-                ),
-              )
-            : SizedBox(
-                width: 1,
-              ),
+      actions: <Widget>[
+        if (notificationenabled)
+          IconButton(
+            tooltip: 'Notifications',
+            onPressed: () => Navigator.pushNamed(context, '/notifications'),
+            icon: Badge(
+              backgroundColor: scheme.error,
+              smallSize: 7,
+              child: const Icon(Icons.notifications_none_rounded),
+            ),
+          ),
+        const SizedBox(width: 8),
       ],
-      centerTitle: true,
-      backgroundColor: Colors.transparent,
-      elevation: 0.0,
     );
   }
 
   @override
-  // TODO: implement preferredSize
-  Size get preferredSize => Size.fromHeight(50);
+  Size get preferredSize => const Size.fromHeight(68);
 }

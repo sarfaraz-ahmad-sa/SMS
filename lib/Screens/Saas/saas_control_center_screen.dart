@@ -15,8 +15,22 @@ import '../../theme/app_theme.dart';
 import '../Enterprise/ErpEntityListScreen.dart';
 import '../Enterprise/ErpModuleScreen.dart';
 
-class SaasControlCenterScreen extends StatelessWidget {
+class SaasControlCenterScreen extends StatefulWidget {
   const SaasControlCenterScreen({super.key});
+
+  @override
+  State<SaasControlCenterScreen> createState() =>
+      _SaasControlCenterScreenState();
+}
+
+class _SaasControlCenterScreenState extends State<SaasControlCenterScreen> {
+  late Stream<SaasUsage> _usageStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _usageStream = SaasUsageService().watchCurrent();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +64,7 @@ class SaasControlCenterScreen extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1320),
           child: StreamBuilder<SaasUsage>(
-            stream: SaasUsageService().watchCurrent(),
+            stream: _usageStream,
             builder: (
               BuildContext context,
               AsyncSnapshot<SaasUsage> snapshot,
@@ -68,6 +82,30 @@ class SaasControlCenterScreen extends StatelessWidget {
                     onOnboarding: () =>
                         Navigator.pushNamed(context, '/onboarding'),
                   ),
+                  if (snapshot.hasError) ...<Widget>[
+                    const SizedBox(height: 12),
+                    Material(
+                      color: AppColors.danger.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: <Widget>[
+                            const Icon(Icons.cloud_off_rounded,
+                                color: AppColors.danger),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Live usage could not be loaded. ${snapshot.error}',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   const _SectionHeader(
                     title: 'Usage and plan limits',
@@ -118,6 +156,9 @@ class SaasControlCenterScreen extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await SaasAdminService().refreshUsage();
+      if (mounted) {
+        setState(() => _usageStream = SaasUsageService().watchCurrent());
+      }
       messenger.showSnackBar(
         const SnackBar(content: Text('Subscription usage refreshed.')),
       );

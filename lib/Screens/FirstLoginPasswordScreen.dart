@@ -1,6 +1,8 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/Auth_services.dart';
 import '../services/school_account_service.dart';
@@ -39,6 +41,9 @@ class _FirstLoginPasswordScreenState extends State<FirstLoginPasswordScreen> {
 
   String? _validatePassword(String? value) {
     final password = value ?? '';
+    if (password == _currentPasswordController.text) {
+      return 'New password must be different from the temporary password';
+    }
     if (password.length < 10) return 'Use at least 10 characters';
     if (!RegExp(r'[A-Z]').hasMatch(password)) {
       return 'Add at least one uppercase letter';
@@ -70,15 +75,26 @@ class _FirstLoginPasswordScreenState extends State<FirstLoginPasswordScreen> {
         tenantId,
         _newPasswordController.text,
       );
-      await _authService.refreshCurrentUser();
       SessionState.instance.updateUser(
         profile.copyWith(mustChangePassword: false),
       );
       try {
+        await _authService.refreshCurrentUser();
+      } catch (error) {
+        // The trusted backend already completed the password and membership
+        // update. A token refresh failure must not keep the user on this page.
+        if (kDebugMode) {
+          debugPrint('Post-password session refresh was skipped: $error');
+        }
+      }
+      try {
         await _authService.sendEmailVerification();
-      } on FirebaseAuthException {
-        // Password change is complete even if the verification email provider
-        // is not configured yet.
+      } catch (error) {
+        // Password setup is already complete. Email verification is optional
+        // here and must never turn a successful password change into an error.
+        if (kDebugMode) {
+          debugPrint('Optional verification email was skipped: $error');
+        }
       }
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
@@ -90,7 +106,17 @@ class _FirstLoginPasswordScreenState extends State<FirstLoginPasswordScreen> {
       _showError(_messageFor(error));
     } on FirebaseFunctionsException catch (error) {
       _showError(error.message ?? 'Password setup could not be completed.');
-    } catch (_) {
+    } on AuthException catch (error) {
+      _showError(_messageForSupabase(error));
+    } on SchoolAccountException catch (error) {
+      _showError(error.message);
+    } on StateError catch (error) {
+      _showError(error.message);
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('Initial password setup failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
       _showError('Password could not be changed. Please try again.');
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -111,6 +137,31 @@ class _FirstLoginPasswordScreenState extends State<FirstLoginPasswordScreen> {
       default:
         return error.message ?? 'Password could not be changed.';
     }
+  }
+
+  String _messageForSupabase(AuthException error) {
+    final message = error.message.trim();
+    final normalized = message.toLowerCase();
+    if (normalized.contains('invalid login credentials') ||
+        normalized.contains('invalid credentials')) {
+      return 'The temporary password is incorrect.';
+    }
+    if (normalized.contains('same password') ||
+        normalized.contains('different from the old password') ||
+        normalized.contains('different from old password')) {
+      return 'New password must be different from the temporary password.';
+    }
+    if (normalized.contains('weak') ||
+        normalized.contains('password should be') ||
+        normalized.contains('password must')) {
+      return 'Choose a stronger password that follows all requirements.';
+    }
+    if (normalized.contains('network') || normalized.contains('fetch')) {
+      return 'Network error. Check your internet connection and try again.';
+    }
+    return message.isEmpty
+        ? 'Password setup could not be completed.'
+        : message;
   }
 
   void _showError(String message) {
@@ -197,6 +248,7 @@ class _FirstLoginPasswordScreenState extends State<FirstLoginPasswordScreen> {
                             _PasswordField(
                               controller: _newPasswordController,
                               label: 'New password',
+                              newPassword: true,
                               visible: _newVisible,
                               onToggle: () => setState(
                                 () => _newVisible = !_newVisible,
@@ -207,6 +259,7 @@ class _FirstLoginPasswordScreenState extends State<FirstLoginPasswordScreen> {
                             _PasswordField(
                               controller: _confirmPasswordController,
                               label: 'Confirm new password',
+                              newPassword: true,
                               visible: _confirmVisible,
                               onToggle: () => setState(
                                 () => _confirmVisible = !_confirmVisible,
@@ -276,6 +329,7 @@ class _PasswordField extends StatelessWidget {
     required this.visible,
     required this.onToggle,
     required this.validator,
+    this.newPassword = false,
   });
 
   final TextEditingController controller;
@@ -283,13 +337,16 @@ class _PasswordField extends StatelessWidget {
   final bool visible;
   final VoidCallback onToggle;
   final FormFieldValidator<String> validator;
+  final bool newPassword;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
       obscureText: !visible,
-      autofillHints: const <String>[AutofillHints.password],
+      autofillHints: <String>[
+        newPassword ? AutofillHints.newPassword : AutofillHints.password,
+      ],
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: const Icon(Icons.lock_outline_rounded),

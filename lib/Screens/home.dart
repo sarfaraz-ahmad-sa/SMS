@@ -13,11 +13,13 @@ import '../core/erp/tenant_erp_service.dart';
 import '../services/plan_entitlement_service.dart';
 import '../services/Auth_services.dart';
 import '../services/session_state.dart';
+import '../services/models/app_permission.dart';
 import '../services/models/user_role.dart';
 import '../services/supabase_auth_service.dart';
 import '../services/supabase_dashboard_summary_service.dart';
 import '../config/backend_config.dart';
 import '../theme/app_theme.dart';
+import 'Management/AddStudent.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -28,7 +30,8 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   static const Duration _dashboardCacheTtl = Duration(minutes: 3);
-  static const Duration _dashboardRequestTimeout = Duration(seconds: 18);
+  static const Duration _dashboardRequestTimeout = Duration(seconds: 12);
+  static const int _maxDashboardCacheEntries = 8;
   static final Map<String, _DashboardCacheEntry> _dashboardCache =
       <String, _DashboardCacheEntry>{};
   static final Map<String, Future<_DashboardSummaryData>> _inFlightLoads =
@@ -214,6 +217,7 @@ class _HomeState extends State<Home> {
     }
 
     final load = _loadSummary().then((_DashboardSummaryData data) {
+      _pruneDashboardCache();
       _dashboardCache[key] =
           _DashboardCacheEntry(data: data, loadedAt: DateTime.now());
       return data;
@@ -222,6 +226,19 @@ class _HomeState extends State<Home> {
     });
     _inFlightLoads[key] = load;
     return load;
+  }
+
+  void _pruneDashboardCache() {
+    final now = DateTime.now();
+    _dashboardCache.removeWhere(
+      (_, _DashboardCacheEntry entry) =>
+          now.difference(entry.loadedAt) >= _dashboardCacheTtl,
+    );
+    if (_dashboardCache.length < _maxDashboardCacheEntries) return;
+    final oldestKey = _dashboardCache.entries
+        .reduce((a, b) => a.value.loadedAt.isBefore(b.value.loadedAt) ? a : b)
+        .key;
+    _dashboardCache.remove(oldestKey);
   }
 
   Future<_DashboardSummaryData> _loadSummary() async {
@@ -254,10 +271,10 @@ class _HomeState extends State<Home> {
                 campusId: campusId!,
                 academicYearId: academicYearId!,
               )
-              .timeout(const Duration(seconds: 7))
+              .timeout(const Duration(seconds: 4))
           : await service
               .loadDashboardSummary()
-              .timeout(const Duration(seconds: 7));
+              .timeout(const Duration(seconds: 4));
     } catch (_) {
       // A stale/missing aggregate must never stop navigation or freeze the UI.
       // Bounded count fallbacks below will fill the permitted metrics.
@@ -313,7 +330,7 @@ class _HomeState extends State<Home> {
         final count = visibleEntity != null
             ? service.countVisible(visibleEntity)
             : service.count(collection);
-        return await count.timeout(const Duration(seconds: 8));
+        return await count.timeout(const Duration(seconds: 5));
       } catch (_) {
         return summarized ?? 0;
       }
@@ -352,33 +369,23 @@ class _HomeState extends State<Home> {
       ];
       final statusesComplete =
           summarizedStatuses.every((int? value) => value != null);
-      List<int> counts;
-      if (usesSupabase || statusesComplete) {
-        counts = summarizedStatuses.map((int? value) => value ?? 0).toList();
-      } else {
+      final counts =
+          summarizedStatuses.map((int? value) => value ?? 0).toList();
+      final summarizedTotal = summarizedCount('admission_applications');
+      int total = summarizedTotal ??
+          counts.fold<int>(0, (int sum, int value) => sum + value);
+      // Missing aggregate status data previously triggered eight Firestore
+      // queries on every cold dashboard. One bounded total query is enough for
+      // the overview; detailed status counts belong on the Admissions screen.
+      if (!usesSupabase && !statusesComplete && summarizedTotal == null) {
         try {
-          counts = await Future.wait<int>(<Future<int>>[
-            service.countWhere('admission_applications', 'status', 'Draft'),
-            service.countWhere('admission_applications', 'status', 'Submitted'),
-            service.countWhere(
-              'admission_applications',
-              'status',
-              'Under Review',
-            ),
-            service.countWhere('admission_applications', 'status', 'Assessment'),
-            service.countWhere('admission_applications', 'status', 'Waitlisted'),
-            service.countWhere('admission_applications', 'status', 'Approved'),
-            service.countWhere('admission_applications', 'status', 'Enrolled'),
-            service.countWhere('admission_applications', 'status', 'Rejected'),
-          ].map((Future<int> request) =>
-              request.timeout(const Duration(seconds: 8))));
+          total = await service
+              .count('admission_applications')
+              .timeout(const Duration(seconds: 5));
         } catch (_) {
-          counts = summarizedStatuses.map((int? value) => value ?? 0).toList();
+          // Keep any partial aggregate values without blocking the dashboard.
         }
       }
-      final summarizedTotal = summarizedCount('admission_applications');
-      final total = summarizedTotal ??
-          counts.fold<int>(0, (int sum, int value) => sum + value);
       return _AdmissionSummary(
         total: total,
         pending: counts[0] + counts[1] + counts[2] + counts[3] + counts[4],
@@ -445,9 +452,39 @@ class _HomeState extends State<Home> {
       );
     }
 
+    final compactViewport = MediaQuery.sizeOf(context).width < 720;
+    final canAddStudent = _summary.canViewStudents &&
+        state.hasAnyPermission(const <String>[
+          AppPermission.studentsCreate,
+          AppPermission.studentsManage,
+        ]);
+
     return SaasScaffold(
       title: 'Dashboard',
       activeRoute: '/home',
+      floatingActionButton: canAddStudent
+          ? compactViewport
+              ? FloatingActionButton(
+                  tooltip: 'Add student',
+                  onPressed: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const AddStudentScreen(),
+                    ),
+                  ),
+                  child: const Icon(Icons.person_add_alt_1_rounded),
+                )
+              : FloatingActionButton.extended(
+                  onPressed: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const AddStudentScreen(),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Add student'),
+                )
+          : null,
       body: RefreshIndicator(
         onRefresh: () => _refreshDashboard(force: true),
         child: LayoutBuilder(
@@ -455,9 +492,7 @@ class _HomeState extends State<Home> {
             final mobile = constraints.maxWidth < 720;
             return ListView(
               key: const PageStorageKey<String>('main-dashboard-scroll'),
-              // A very large cache extent caused Chrome and lower-end phones to
-              // lay out most analysis panels before the first interaction.
-              cacheExtent: mobile ? 280 : 420,
+              cacheExtent: mobile ? 160 : 240,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               physics: const AlwaysScrollableScrollPhysics(),
               padding: EdgeInsets.fromLTRB(
@@ -467,34 +502,15 @@ class _HomeState extends State<Home> {
                 mobile ? 26 : 38,
               ),
               children: <Widget>[
-                if (mobile)
-                  _MobileDashboardHeader(
-                    name: user.displayName?.trim().isNotEmpty == true
-                        ? user.displayName!.trim()
-                        : 'User',
-                  )
-                else
-                  _DesktopDashboardHeader(
-                    name: user.displayName?.trim().isNotEmpty == true
-                        ? user.displayName!.trim()
-                        : 'User',
-                    role: user.roleLabel,
-                    school: tenant.name,
+                RepaintBoundary(
+                  child: _LiteDashboard(
+                    summary: _summary,
+                    state: state,
+                    compact: mobile,
+                    loading: _isSummaryLoading,
+                    hasError: _summaryError != null,
                     onRefresh: () => _refreshDashboard(force: true),
                   ),
-                const SizedBox(height: 14),
-                if (_isSummaryLoading)
-                  const _DashboardHydrationBar()
-                else if (_summaryError != null)
-                  _DashboardInlineError(
-                    onRetry: () => _refreshDashboard(force: true),
-                  ),
-                if (_isSummaryLoading || _summaryError != null)
-                  const SizedBox(height: 12),
-                RepaintBoundary(
-                  child: mobile
-                      ? _MobileDashboard(summary: _summary, state: state)
-                      : _DesktopDashboard(summary: _summary, state: state),
                 ),
               ],
             );
@@ -505,24 +521,615 @@ class _HomeState extends State<Home> {
   }
 }
 
-class _MobileDashboardHeader extends StatelessWidget {
-  final String name;
-  const _MobileDashboardHeader({required this.name});
+/// A deliberately small dashboard tree. It avoids nested shrink-wrapped grids,
+/// delayed timers, charts and decorative panels so the first frame and scroll
+/// remain smooth on low-end phones and Flutter web.
+class _LiteDashboard extends StatelessWidget {
+  final _DashboardSummaryData summary;
+  final SessionState state;
+  final bool compact;
+  final bool loading;
+  final bool hasError;
+  final VoidCallback onRefresh;
+
+  const _LiteDashboard({
+    required this.summary,
+    required this.state,
+    required this.compact,
+    required this.loading,
+    required this.hasError,
+    required this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final modules = _visiblePrimaryModules(state);
+    final moduleIds = modules.map((ErpModule item) => item.id).toSet();
+    final metrics = <_MetricData>[
+      if (summary.canViewStudents)
+        _MetricData('Students', summary.students, Icons.school_outlined,
+            AppColors.pastelBlue, const Color(0xFF4E68D8), 'students'),
+      if (summary.canViewAttendance)
+        _MetricData(
+            'Attendance',
+            summary.attendanceSessions,
+            Icons.fact_check_outlined,
+            AppColors.pastelGreen,
+            const Color(0xFF27936B),
+            'attendance'),
+      if (summary.canViewFees)
+        _MetricData('Fee invoices', summary.feeInvoices,
+            Icons.receipt_long_outlined, AppColors.pastelGold,
+            const Color(0xFFD89614), 'fees'),
+      if (summary.canViewAdmissions)
+        _MetricData('Admissions', summary.totalAdmissions,
+            Icons.how_to_reg_outlined, AppColors.pastelCyan,
+            const Color(0xFF22949A), 'admissions'),
+      if (summary.canViewEmployees)
+        _MetricData('Employees', summary.employees, Icons.badge_outlined,
+            AppColors.pastelPurple, const Color(0xFF7B5DC7), 'hr-payroll'),
+      if (summary.canViewExams)
+        _MetricData('Exams', summary.exams,
+            Icons.assignment_turned_in_outlined, AppColors.pastelRose,
+            const Color(0xFFE05D65), 'examinations'),
+    ];
+    const quickIds = <String>[
+      'students',
+      'attendance',
+      'fees',
+      'examinations',
+    ];
+    final quickModules = quickIds
+        .where(moduleIds.contains)
+        .map(ErpCatalog.byId)
+        .whereType<ErpModule>()
+        .toList(growable: false);
+    final shownModules = modules.take(compact ? 6 : 8).toList(growable: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        _LiteWelcomeCard(
+          state: state,
+          compact: compact,
+          loading: loading,
+          onRefresh: onRefresh,
+        ),
+        if (loading) ...<Widget>[
+          const SizedBox(height: 10),
+          const ClipRRect(
+            borderRadius: BorderRadius.all(Radius.circular(99)),
+            child: LinearProgressIndicator(minHeight: 3),
+          ),
+        ] else if (hasError) ...<Widget>[
+          const SizedBox(height: 10),
+          _LiteErrorBanner(onRetry: onRefresh),
+        ],
+        if (metrics.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 22),
+          _LiteSectionHeader(
+            title: 'Overview',
+            subtitle: summary.updatedAt == null
+                ? 'Current school totals'
+                : 'Updated ${_relativeTime(summary.updatedAt!)}',
+          ),
+          const SizedBox(height: 11),
+          _LiteMetricGrid(metrics: metrics, compact: compact),
+        ],
+        if (quickModules.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 24),
+          const _LiteSectionHeader(
+            title: 'Quick actions',
+            subtitle: 'Your most-used school tasks',
+          ),
+          const SizedBox(height: 11),
+          _LiteModuleGrid(
+            modules: quickModules,
+            compact: compact,
+            actionStyle: true,
+          ),
+        ],
+        if (shownModules.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 24),
+          _LiteSectionHeader(
+            title: 'Modules',
+            subtitle: '${modules.length} available for your role',
+            action: TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/modules'),
+              child: const Text('View all'),
+            ),
+          ),
+          const SizedBox(height: 11),
+          _LiteModuleGrid(modules: shownModules, compact: compact),
+        ],
+        if (summary.canViewAdmissions) ...<Widget>[
+          const SizedBox(height: 24),
+          _LiteAdmissionOverview(summary: summary),
+        ],
+      ],
+    );
+  }
+}
+
+class _LiteWelcomeCard extends StatelessWidget {
+  final SessionState state;
+  final bool compact;
+  final bool loading;
+  final VoidCallback onRefresh;
+
+  const _LiteWelcomeCard({
+    required this.state,
+    required this.compact,
+    required this.loading,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final displayName = state.user?.displayName?.trim();
+    final name = displayName?.isNotEmpty == true ? displayName! : 'User';
     final firstName = name.split(RegExp(r'\s+')).first;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(compact ? 16 : 20),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: compact ? 46 : 52,
+            height: compact ? 46 : 52,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(Icons.school_rounded, color: scheme.primary, size: 25),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Good day, $firstName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontSize: compact ? 18 : 21,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${state.tenant?.name ?? 'SEEF School'} · ${_todayLabel()}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filledTonal(
+            tooltip: 'Refresh dashboard',
+            onPressed: loading ? null : onRefresh,
+            icon: const Icon(Icons.refresh_rounded, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiteSectionHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Widget? action;
+
+  const _LiteSectionHeader({
+    required this.title,
+    required this.subtitle,
+    this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 2),
+              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+        if (action != null) action!,
+      ],
+    );
+  }
+}
+
+class _LiteMetricGrid extends StatelessWidget {
+  final List<_MetricData> metrics;
+  final bool compact;
+
+  const _LiteMetricGrid({required this.metrics, required this.compact});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final columns = compact
+            ? 2
+            : constraints.maxWidth >= 1180
+                ? 4
+                : constraints.maxWidth >= 760
+                    ? 3
+                    : 2;
+        const spacing = 10.0;
+        final width =
+            (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: metrics
+              .map((_MetricData metric) => SizedBox(
+                    width: width,
+                    child: _LiteMetricCard(metric: metric),
+                  ))
+              .toList(growable: false),
+        );
+      },
+    );
+  }
+}
+
+class _LiteMetricCard extends StatelessWidget {
+  final _MetricData metric;
+
+  const _LiteMetricCard({required this.metric});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Material(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: InkWell(
+        onTap: () => _openModule(context, metric.moduleId),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 112),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Color.alphaBlend(
+                        metric.foreground.withOpacity(0.12),
+                        scheme.surface,
+                      ),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(metric.icon, color: metric.foreground, size: 19),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.arrow_outward_rounded,
+                      size: 16, color: scheme.onSurfaceVariant),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _compactNumber(metric.value),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                metric.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LiteModuleGrid extends StatelessWidget {
+  final List<ErpModule> modules;
+  final bool compact;
+  final bool actionStyle;
+
+  const _LiteModuleGrid({
+    required this.modules,
+    required this.compact,
+    this.actionStyle = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final columns = compact
+            ? 2
+            : constraints.maxWidth >= 1180
+                ? 4
+                : constraints.maxWidth >= 760
+                    ? 3
+                    : 2;
+        const spacing = 10.0;
+        final width =
+            (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: modules
+              .map((ErpModule module) => SizedBox(
+                    width: width,
+                    child: _LiteModuleTile(
+                      module: module,
+                      actionStyle: actionStyle,
+                    ),
+                  ))
+              .toList(growable: false),
+        );
+      },
+    );
+  }
+}
+
+class _LiteModuleTile extends StatelessWidget {
+  final ErpModule module;
+  final bool actionStyle;
+
+  const _LiteModuleTile({required this.module, required this.actionStyle});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final tone = _toneForModule(module.id);
+    return Material(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: InkWell(
+        onTap: () => _openModule(context, module.id),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: Container(
+          constraints: BoxConstraints(minHeight: actionStyle ? 74 : 68),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Color.alphaBlend(
+                    tone.foreground.withOpacity(0.11),
+                    scheme.surface,
+                  ),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(module.icon, color: tone.foreground, size: 19),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      _shortModuleTitle(module.title),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge,
+                    ),
+                    if (actionStyle) ...<Widget>[
+                      const SizedBox(height: 2),
+                      Text('Open workspace', style: theme.textTheme.bodySmall),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LiteAdmissionOverview extends StatelessWidget {
+  final _DashboardSummaryData summary;
+
+  const _LiteAdmissionOverview({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Material(
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: InkWell(
+        onTap: () => _openModule(context, 'admissions'),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: scheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(Icons.how_to_reg_rounded,
+                    color: scheme.secondary, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('Admissions', style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 3),
+                    Text(
+                      summary.pendingAdmissions > 0
+                          ? '${summary.pendingAdmissions} awaiting review · ${summary.approvedAdmissions} approved'
+                          : '${summary.totalAdmissions} applications in this school',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LiteErrorBanner extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _LiteErrorBanner({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.cloud_off_outlined, color: scheme.onErrorContainer, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Live totals unavailable. Modules still work.',
+              style: TextStyle(color: scheme.onErrorContainer, fontSize: 11.5),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileDashboardHeader extends StatelessWidget {
+  final String name;
+  final SessionState state;
+
+  const _MobileDashboardHeader({required this.name, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final firstName = name.split(RegExp(r'\s+')).first;
+    final visibleIds = _visiblePrimaryModules(state)
+        .map((ErpModule module) => module.id)
+        .toSet();
+    final chips = <_MobileFilterAction>[
+      const _MobileFilterAction('Today', Icons.today_rounded, null),
+      if (visibleIds.contains('attendance'))
+        const _MobileFilterAction(
+          'Attendance',
+          Icons.fact_check_outlined,
+          'attendance',
+        ),
+      if (visibleIds.contains('fees'))
+        const _MobileFilterAction(
+          'Fees',
+          Icons.payments_outlined,
+          'fees',
+        ),
+      if (state.hasAnyPermission(const <String>[
+        AppPermission.studentsManage,
+        AppPermission.feesManage,
+        AppPermission.accountingManage,
+        AppPermission.examsManage,
+      ]))
+        const _MobileFilterAction(
+          'Approvals',
+          Icons.approval_outlined,
+          '/approvals',
+          route: true,
+        ),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.navigation,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: const <BoxShadow>[
-              BoxShadow(color: Color(0x24435C73), blurRadius: 22, offset: Offset(0, 10)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: <Color>[
+                scheme.primaryContainer,
+                Color.alphaBlend(
+                  scheme.primary.withOpacity(0.04),
+                  scheme.surface,
+                ),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Color.alphaBlend(
+                scheme.primary.withOpacity(0.14),
+                scheme.outlineVariant,
+              ),
+            ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: scheme.shadow.withOpacity(0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
             ],
           ),
           child: Row(
@@ -532,56 +1139,33 @@ class _MobileDashboardHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     const Text(
-                      'WELCOME BACK',
+                      'TODAY AT SCHOOL',
                       style: TextStyle(
-                        color: Color(0xFFCAD6E0),
-                        fontSize: 9.5,
+                        color: AppColors.primary,
+                        fontSize: 9,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1.1,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      'Good day, $firstName',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: scheme.onSurface,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.55,
                       ),
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      'Hello, $firstName',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      'Everything you need for today is in one place.',
-                      style: TextStyle(color: Color(0xFFD8E2EA), fontSize: 11.5, height: 1.35),
-                    ),
-                    const SizedBox(height: 12),
-                    Material(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(9),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(9),
-                        onTap: () => Navigator.pushNamed(context, '/modules'),
-                        child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              Icon(Icons.grid_view_rounded, color: AppColors.navigation, size: 16),
-                              SizedBox(width: 7),
-                              Text(
-                                'Open modules',
-                                style: TextStyle(
-                                  color: AppColors.navigation,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      '${_todayLabel()} · Everything is ready in one place.',
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 11,
+                        height: 1.4,
                       ),
                     ),
                   ],
@@ -589,31 +1173,71 @@ class _MobileDashboardHeader extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Container(
-                width: 62,
-                height: 62,
+                width: 58,
+                height: 58,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white.withOpacity(0.14)),
+                  color: scheme.surface.withOpacity(0.74),
+                  borderRadius: BorderRadius.circular(19),
+                  border: Border.all(color: scheme.outlineVariant),
                 ),
-                child: const Icon(Icons.school_rounded, color: Colors.white, size: 31),
+                child: Icon(
+                  Icons.school_rounded,
+                  color: scheme.primary,
+                  size: 29,
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        TextField(
-          readOnly: true,
-          onTap: () => Navigator.pushNamed(context, '/search'),
-          decoration: const InputDecoration(
-            hintText: 'Search students, teachers or modules',
-            prefixIcon: Icon(Icons.search_rounded, size: 20),
-            suffixIcon: Icon(Icons.tune_rounded, size: 18),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 36,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: chips.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (BuildContext context, int index) {
+              final chip = chips[index];
+              return ActionChip(
+                avatar: Icon(
+                  chip.icon,
+                  size: 16,
+                  color: index == 0 ? scheme.primary : scheme.onSurfaceVariant,
+                ),
+                label: Text(chip.label),
+                backgroundColor:
+                    index == 0 ? scheme.primaryContainer : scheme.surface,
+                side: BorderSide(
+                  color: index == 0
+                      ? scheme.primary.withOpacity(0.24)
+                      : scheme.outlineVariant,
+                ),
+                onPressed: chip.target == null
+                    ? () {}
+                    : chip.route
+                        ? () => Navigator.pushNamed(context, chip.target!)
+                        : () => _openModule(context, chip.target!),
+              );
+            },
           ),
         ),
       ],
     );
   }
+}
+
+class _MobileFilterAction {
+  final String label;
+  final IconData icon;
+  final String? target;
+  final bool route;
+
+  const _MobileFilterAction(
+    this.label,
+    this.icon,
+    this.target, {
+    this.route = false,
+  });
 }
 
 class _DesktopDashboardHeader extends StatelessWidget {
@@ -785,30 +1409,20 @@ class _MobileDashboard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const _DashboardSectionTitle(title: 'Academics & operations'),
-        const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 0.92,
-          ),
-          itemCount: modules.length > 9 ? 9 : modules.length,
-          itemBuilder: (BuildContext context, int index) {
-            return _MobileModuleTile(module: modules[index]);
-          },
-        ),
-        if (modules.length > 9) ...<Widget>[
-          const SizedBox(height: 10),
+        if (metrics.isNotEmpty) ...<Widget>[
+          const _DashboardSectionTitle(title: 'Today at a glance'),
+          const SizedBox(height: 11),
           SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/modules'),
-              icon: const Icon(Icons.grid_view_rounded, size: 17),
-              label: Text('View all ${modules.length} modules'),
+            height: 130,
+            child: ListView.separated(
+              key: const PageStorageKey<String>('mobile-dashboard-metrics'),
+              scrollDirection: Axis.horizontal,
+              cacheExtent: 420,
+              itemCount: metrics.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (BuildContext context, int index) {
+                return _MobileMetricCard(data: metrics[index]);
+              },
             ),
           ),
         ],
@@ -816,23 +1430,6 @@ class _MobileDashboard extends StatelessWidget {
           const SizedBox(height: 22),
           const _DashboardSectionTitle(title: 'Quick actions'),
           const SizedBox(height: 11),
-          SizedBox(
-            height: 76,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: quickActions.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
-              itemBuilder: (BuildContext context, int index) {
-                final action = quickActions[index];
-                return _MobileQuickAction(action: action);
-              },
-            ),
-          ),
-        ],
-        if (metrics.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 22),
-          const _DashboardSectionTitle(title: 'Today at a glance'),
-          const SizedBox(height: 12),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -840,19 +1437,40 @@ class _MobileDashboard extends StatelessWidget {
               crossAxisCount: 2,
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
-              childAspectRatio: 2.25,
+              childAspectRatio: 2.05,
             ),
-            itemCount: metrics.length,
+            itemCount: quickActions.length,
             itemBuilder: (BuildContext context, int index) {
-              final metric = metrics[index];
-              return _CompactMetric(
-                label: metric.label,
-                value: _compactNumber(metric.value),
-                icon: metric.icon,
-                color: metric.foreground,
-                background: metric.background,
-                moduleId: metric.moduleId,
-              );
+              return _MobileQuickAction(action: quickActions[index]);
+            },
+          ),
+        ],
+        if (modules.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 22),
+          Row(
+            children: <Widget>[
+              const Expanded(
+                child: _DashboardSectionTitle(title: 'Academics & operations'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/modules'),
+                child: const Text('View all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 11,
+              crossAxisSpacing: 11,
+              childAspectRatio: 0.94,
+            ),
+            itemCount: modules.length > 9 ? 9 : modules.length,
+            itemBuilder: (BuildContext context, int index) {
+              return _MobileModuleTile(module: modules[index]);
             },
           ),
         ],
@@ -887,6 +1505,83 @@ class _MobileDashboard extends StatelessWidget {
   }
 }
 
+class _MobileMetricCard extends StatelessWidget {
+  final _MetricData data;
+
+  const _MobileMetricCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 226,
+      child: Material(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: () => _openModule(context, data.moduleId),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: Color.alphaBlend(
+                          data.foreground.withOpacity(0.12),
+                          scheme.surface,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(data.icon, color: data.foreground, size: 21),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        data.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      color: scheme.onSurfaceVariant,
+                      size: 17,
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  _compactNumber(data.value),
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MobileQuickAction extends StatelessWidget {
   final _DashboardAction action;
 
@@ -894,18 +1589,18 @@ class _MobileQuickAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(12),
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: () => _openModule(context, action.moduleId),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
-          width: 142,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.border),
-            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: scheme.outlineVariant),
+            borderRadius: BorderRadius.circular(18),
           ),
           child: Row(
             children: <Widget>[
@@ -914,7 +1609,7 @@ class _MobileQuickAction extends StatelessWidget {
                 height: 38,
                 decoration: BoxDecoration(
                   color: action.color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(action.icon, color: action.color, size: 19),
               ),
@@ -928,9 +1623,10 @@ class _MobileQuickAction extends StatelessWidget {
                       action.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w800,
+                        color: scheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -938,8 +1634,8 @@ class _MobileQuickAction extends StatelessWidget {
                       action.detail,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
                         fontSize: 8.5,
                       ),
                     ),
@@ -1398,17 +2094,18 @@ class _MobileModuleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = _toneForModule(module.id);
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.card),
+      color: scheme.surface,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.card),
+        borderRadius: BorderRadius.circular(18),
         onTap: () => Navigator.pushNamed(context, '/erp-module', arguments: module),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           decoration: BoxDecoration(
-            border: Border.all(color: AppColors.border),
-            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: scheme.outlineVariant),
+            borderRadius: BorderRadius.circular(18),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1416,7 +2113,13 @@ class _MobileModuleTile extends StatelessWidget {
               Container(
                 width: 47,
                 height: 47,
-                decoration: BoxDecoration(color: tone.background, borderRadius: BorderRadius.circular(13)),
+                decoration: BoxDecoration(
+                  color: Color.alphaBlend(
+                    tone.foreground.withOpacity(0.11),
+                    scheme.surface,
+                  ),
+                  borderRadius: BorderRadius.circular(15),
+                ),
                 child: Icon(module.icon, color: tone.foreground, size: 24),
               ),
               const SizedBox(height: 8),
@@ -1425,86 +2128,12 @@ class _MobileModuleTile extends StatelessWidget {
                 maxLines: 2,
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 10.3, fontWeight: FontWeight.w700, height: 1.1),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CompactMetric extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final Color background;
-  final String moduleId;
-
-  const _CompactMetric({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.background,
-    required this.moduleId,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: InkWell(
-        onTap: () => _openModule(context, moduleId),
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        child: Container(
-          padding: const EdgeInsets.all(13),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: <Widget>[
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: background,
-                  borderRadius: BorderRadius.circular(10),
+                style: TextStyle(
+                  color: scheme.onSurface,
+                  fontSize: 10.3,
+                  fontWeight: FontWeight.w700,
+                  height: 1.1,
                 ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      value,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 16,
-                color: AppColors.textSecondary,
               ),
             ],
           ),

@@ -3,8 +3,8 @@
   "short_name": "SEEF School",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#F1F5F9",
-  "theme_color": "#3F566C",
+  "background_color": "#F4F7FC",
+  "theme_color": "#172554",
   "description": "Multi-tenant school management for students, parents, teachers and administrators.",
   "prefer_related_applications": false,
   "icons": [
@@ -17,6 +17,12 @@
       "src": "icons/Icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "icons/seef-school-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }

@@ -1,5 +1,84 @@
 # Changelog
 
+## 3.8.0+25 — Controlled Multi-School Onboarding
+
+- Added a Super Admin-only school launcher for creating an isolated tenant, main campus, academic year, plan and first School Owner in one workflow.
+- Added a service-role-only PostgreSQL transaction so partial school workspaces cannot be left behind.
+- Added secure owner setup through a Supabase invitation or a strong temporary demo password with mandatory first-login replacement.
+- Reuses an existing authentication identity when one owner manages multiple schools, enabling the existing school switcher without duplicate accounts.
+- Restored the public school-login request entry point in Supabase-primary production while keeping public self-signup disabled.
+- Connected approved login requests to a prefilled administrator account-provisioning form.
+- Added production validation for platform authorization, transactional provisioning, navigation visibility and access-request handoff.
+
+## 3.7.0+24 — Premium School Theme & Brand System
+
+- Added a new original SEEF school crest with graduation, learning and achievement cues.
+- Added reusable Flutter brand mark and lockup widgets with automatic tenant-logo support and a safe SEEF fallback.
+- Applied consistent branding to login, password/auth shells, splash, startup, sidebar and school profile surfaces.
+- Updated mobile headers to display the active school name instead of fixed product copy.
+- Replaced the default Flutter web favicon and PWA icons with the SEEF school identity.
+- Unified the pre-Flutter web loader palette with the Material 3 app theme and sidebar.
+- Preserved the lightweight dashboard and low-cost native rendering path.
+
+## 3.6.3+23 — Production Bootstrap Configuration Fix
+
+- Prevented missing Vercel environment variables from overriding the bundled public Supabase client configuration with empty dart-defines.
+- Added environment dart-defines only when their values are non-empty.
+- Replaced the misleading production network message with a clear configuration message when Supabase startup configuration is invalid.
+- Added validation that guards against reintroducing empty Supabase build overrides.
+
+## 3.6.2+22 — Vercel Deployment Command Fix
+
+- Replaced the 502-character inline Vercel build command with a short script entry point that complies with Vercel's 256-character project-setting limit.
+- Preserved the release Flutter Web build and all Supabase runtime dart-defines in the dedicated build script.
+- Added safe defaults for optional deployment variables so the shell cannot fail on an unset commit identifier.
+- Added static validation for the Vercel command-length limit and build-script wiring.
+
+## 3.6.1+21 — First-login Password Completion Fix
+
+- Added explicit Supabase authentication and School Accounts error handling to the forced first-login password screen.
+- Rejects reuse of the temporary password before submitting the request.
+- Prevents optional email-verification failures from reporting a completed password change as failed.
+- Prevents a post-change session refresh failure from trapping the user after a successful update.
+- Retries Supabase membership completion once after refreshing a rotated password session.
+- Reports partial password/profile completion accurately instead of showing a misleading generic error.
+- Uses new-password autofill semantics for the new and confirmation fields.
+- Added static deployment guards for both Firebase and Supabase password-completion handlers.
+
+## 3.6.0+20 — Lightweight Dashboard Rebuild
+
+- Replaced the active dashboard render path with a compact mobile-first Material 3 layout.
+- Removed nested shrink-wrapped grids, horizontal KPI carousels, delayed section timers, charts and decorative panels from the active dashboard.
+- Reduced the visible surface to a greeting, live overview, four quick actions, role-aware modules and one admissions summary.
+- Replaced eight admission-status fallback requests with one bounded total-count request when aggregate data is unavailable.
+- Reduced aggregate and fallback request timeouts while keeping the dashboard interactive during hydration.
+- Added a static regression check that enforces the lightweight render path and prevents admission query fan-out.
+
+## 3.5.0+19 — Production UX Consistency & Reliability
+
+- Completed dark-mode support across password recovery and access-request screens.
+- Added desktop mouse/trackpad drag support to horizontally scrollable dashboards and data surfaces.
+- Added a safe, session-aware unknown-route screen instead of leaving broken deep links blank.
+- Hid raw backend bootstrap errors from production users while retaining detailed debug diagnostics.
+- Rebuilt legacy attendance cards with lightweight Material 3 surfaces, clear status pills and screen-reader labels.
+- Replaced hard-coded demo profile details with the active tenant and signed-in user.
+- Modernized the legacy app bar and leave-history card to follow the shared theme.
+- Added keyboard submission and stronger phone validation to account recovery/access flows.
+- Corrected inconsistent application naming during failed session recovery.
+
+## 3.4.0+18 — Google-style Mobile UX & Runtime Optimization
+
+- Rebuilt the mobile workspace header around a compact Material app bar, account avatar and theme control.
+- Added a large rounded, touch-friendly global search surface on mobile screens.
+- Replaced the custom mobile navigation renderer with Material 3 NavigationBar destinations.
+- Added a responsive welcome surface, permission-aware filter chips and swipeable dashboard metrics.
+- Reordered mobile dashboard content so live KPIs and frequent actions appear before the module catalog.
+- Reworked quick actions into a stable two-column touch grid and improved dark-mode surfaces.
+- Replaced primary-tab route-stack clearing with route replacement to reduce navigation churn.
+- Bounded the tenant-scoped dashboard cache and pruned expired entries to prevent long-session growth.
+- Removed repeated unmodifiable tenant-list allocations during root application rebuilds.
+- Switched to lower-cost Material ripple painting for smoother Android and web interaction.
+
 ## 3.3.0+17 — Non-blocking Dashboard & Executive Analysis
 
 - Dashboard renders immediately and hydrates live totals after the first frame.

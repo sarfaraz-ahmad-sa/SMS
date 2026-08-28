@@ -1,6 +1,6 @@
-# SEEF School ERP / JinnTV UI — 3.3.0+17
+# SEEF School ERP — 3.8.0+25
 
-Current release: non-blocking dashboard hydration, scoped caching, deferred rendering and executive analysis. See `DASHBOARD_PERFORMANCE_V3_3.md`.
+Current release: controlled Super Admin multi-school onboarding, secure owner invitation/demo setup, public access requests with administrator approval, premium tenant-aware branding and the lightweight Google-style Material shell. See `docs/PLATFORM_ONBOARDING_V3_8.md`.
 
 ---
 

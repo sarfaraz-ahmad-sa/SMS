@@ -12,6 +12,7 @@ import '../config/backend_config.dart';
 import '../services/supabase_auth_service.dart';
 import '../services/supabase_tenant_service.dart';
 import '../theme/app_theme.dart';
+import '../Widgets/school_brand.dart';
 import 'FirstLoginPasswordScreen.dart';
 import 'LoginPage.dart';
 import 'home.dart';
@@ -139,7 +140,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     await _waitForBrandAnimation(startedAt);
     _replace(MyHomePage(
-      title: 'SMS',
+      title: 'SEEF School ERP',
       initialMessage: loginMessage,
     ));
   }
@@ -168,8 +169,10 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fade,
@@ -177,46 +180,22 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Container(
-                  width: 104,
-                  height: 104,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: AppColors.border),
-                    boxShadow: const <BoxShadow>[
-                      BoxShadow(
-                        color: Color(0x160F2740),
-                        blurRadius: 26,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: const Stack(
-                    alignment: Alignment.center,
-                    children: <Widget>[
-                      Positioned(left: 24, top: 28, child: Icon(Icons.person_rounded, color: AppColors.danger, size: 28)),
-                      Positioned(right: 23, top: 28, child: Icon(Icons.person_rounded, color: AppColors.info, size: 28)),
-                      Positioned(top: 18, child: Icon(Icons.circle, color: AppColors.warning, size: 18)),
-                      Positioned(bottom: 20, child: Icon(Icons.menu_book_rounded, color: AppColors.navigation, size: 36)),
-                    ],
-                  ),
-                ),
+                const SchoolBrandMark(size: 104),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'SEEF SCHOOL',
                   style: TextStyle(
-                    color: AppColors.navigation,
+                    color: scheme.onSurface,
                     fontSize: 27,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.8,
                   ),
                 ),
                 const SizedBox(height: 5),
-                const Text(
+                Text(
                   'School Management App',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: scheme.onSurfaceVariant,
                     fontSize: 12,
                     letterSpacing: 1.5,
                     fontWeight: FontWeight.w600,

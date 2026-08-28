@@ -145,6 +145,7 @@ function assertRoleDelegation(callerMembership, requestedRoles) {
     : [];
   const callerIsSuperAdmin = callerRoles.includes("superAdmin");
   const callerIsSchoolOwner = callerRoles.includes("schoolOwner");
+  const callerIsPrincipal = callerRoles.includes("principal");
 
   if (requestedRoles.includes("superAdmin") && !callerIsSuperAdmin) {
     throw new HttpsError(
@@ -153,14 +154,31 @@ function assertRoleDelegation(callerMembership, requestedRoles) {
     );
   }
 
+  if (requestedRoles.includes("schoolOwner") && !callerIsSuperAdmin) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only a super administrator can assign the school-owner role.",
+    );
+  }
   if (
-    requestedRoles.some((role) => leadershipRoles.has(role)) &&
+    requestedRoles.includes("principal") &&
     !callerIsSuperAdmin &&
     !callerIsSchoolOwner
   ) {
     throw new HttpsError(
       "permission-denied",
-      "Only the school owner can assign a leadership role.",
+      "Only the school owner can assign the principal role.",
+    );
+  }
+  if (
+    requestedRoles.includes("vicePrincipal") &&
+    !callerIsSuperAdmin &&
+    !callerIsSchoolOwner &&
+    !callerIsPrincipal
+  ) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only school leadership can assign the vice-principal role.",
     );
   }
 

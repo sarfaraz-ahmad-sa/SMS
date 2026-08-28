@@ -1,14 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../config/backend_config.dart';
 import '../core/erp/tenant_erp_service.dart';
 import 'models/saas_usage.dart';
 import 'session_state.dart';
+import 'supabase_bootstrap.dart';
 
 class SaasUsageService {
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
 
   SaasUsageService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore ??
+            (BackendConfig.isSupabasePrimary
+                ? null
+                : FirebaseFirestore.instance);
 
   Stream<SaasUsage> watchCurrent() {
     if (TenantErpService().isDemoMode) {
@@ -30,7 +35,11 @@ class SaasUsageService {
       return Stream<SaasUsage>.value(const SaasUsage());
     }
 
-    return _firestore
+    if (BackendConfig.isSupabasePrimary) {
+      return Stream<SaasUsage>.fromFuture(_loadSupabase(tenantId));
+    }
+
+    return _firestore!
         .collection('tenants')
         .doc(tenantId)
         .collection('saas_usage')
@@ -40,5 +49,16 @@ class SaasUsageService {
           (DocumentSnapshot<Map<String, dynamic>> snapshot) =>
               SaasUsage.fromMap(snapshot.data() ?? <String, dynamic>{}),
         );
+  }
+
+  Future<SaasUsage> _loadSupabase(String tenantId) async {
+    final response = await SupabaseBootstrap.client.rpc(
+      'get_saas_usage',
+      params: <String, dynamic>{'p_tenant_id': tenantId},
+    );
+    final data = response is Map
+        ? Map<String, dynamic>.from(response)
+        : const <String, dynamic>{};
+    return SaasUsage.fromMap(data);
   }
 }

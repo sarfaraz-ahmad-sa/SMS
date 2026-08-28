@@ -1,17 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../config/backend_config.dart';
 import 'models/app_permission.dart';
 import 'models/student.dart';
 import 'session_state.dart';
 
 class StudentService {
   StudentService({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+      : _db = firestore ??
+            (BackendConfig.isSupabasePrimary
+                ? null
+                : FirebaseFirestore.instance);
 
-  final FirebaseFirestore _db;
+  final FirebaseFirestore? _db;
 
   CollectionReference<Map<String, dynamic>> _collection(String tenantId) =>
-      _db.collection('tenants').doc(tenantId).collection('students');
+      _db!.collection('tenants').doc(tenantId).collection('students');
 
   String _requireTenant() {
     final tenantId = SessionState.instance.tenant?.id;

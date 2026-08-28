@@ -10,6 +10,7 @@ import '../../services/session_state.dart';
 import '../../services/supabase_tenant_service.dart';
 import '../../services/tenant_service.dart';
 import '../../theme/app_theme.dart';
+import '../../Widgets/school_brand.dart';
 
 class SchoolProfileScreen extends StatefulWidget {
   const SchoolProfileScreen({super.key});
@@ -145,19 +146,9 @@ class _SchoolProfileScreenState extends State<SchoolProfileScreen> {
                 ),
                 child: Row(
                   children: <Widget>[
-                    CircleAvatar(
-                      radius: 34,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: tenant.logoUrl?.trim().isNotEmpty == true
-                          ? NetworkImage(tenant.logoUrl!)
-                          : null,
-                      child: tenant.logoUrl?.trim().isNotEmpty == true
-                          ? null
-                          : const Icon(
-                              Icons.school_rounded,
-                              color: Colors.white,
-                              size: 38,
-                            ),
+                    SchoolBrandMark(
+                      size: 68,
+                      logoUrl: tenant.logoUrl,
                     ),
                     const SizedBox(width: 16),
                     Expanded(

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="SEEF School logo">
+  <defs>
+    <linearGradient id="background" x1="160" y1="96" x2="864" y2="928" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F46E5"/>
+      <stop offset="0.52" stop-color="#243B82"/>
+      <stop offset="1" stop-color="#101B40"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="650" y1="364" x2="786" y2="616" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5EEAD4"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="232" fill="url(#background)"/>
+  <circle cx="512" cy="502" r="322" fill="#FFFFFF" opacity="0.055"/>
+  <path d="M212 374 512 226l300 148-300 148-300-148Z" fill="#FFFFFF"/>
+  <path d="M512 522 288 411v85l224 111 224-111v-85L512 522Z" fill="#C7D2FE"/>
+  <path d="M284 536c84 3 155 32 206 86v183c-58-48-128-72-206-72V536Z" fill="#FFFFFF"/>
+  <path d="M740 536c-84 3-155 32-206 86v183c58-48 128-72 206-72V536Z" fill="#FFFFFF"/>
+  <path d="M512 622v183" stroke="#A5B4FC" stroke-width="22" stroke-linecap="round"/>
+  <path d="M758 401v158" stroke="url(#accent)" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="758" cy="596" r="42" fill="#FBBF24"/>
+</svg>

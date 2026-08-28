@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../Widgets/PermissionGate.dart';
@@ -15,6 +16,9 @@ import '../../core/erp/erp_record.dart';
 import '../../core/erp/erp_repository.dart';
 import '../../core/erp/tenant_erp_service.dart';
 import '../../services/plan_entitlement_service.dart';
+import '../../services/operational_job_service.dart';
+import '../../services/record_export_service.dart';
+import '../../services/models/app_permission.dart';
 import '../../services/session_state.dart';
 import '../../theme/app_theme.dart';
 import 'ErpEntityForm.dart';
@@ -40,6 +44,11 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
   bool _loading = true;
   bool _loadingMore = false;
   bool _hasMore = false;
+
+  static const Set<String> _systemJobCollections = <String>{
+    'export_jobs',
+    'backup_jobs',
+  };
 
   @override
   void initState() {
@@ -68,7 +77,11 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
       });
     }
     try {
-      final page = await _service.fetchPage(widget.entity);
+      final page = await _service.fetchPage(
+        widget.entity,
+        query: _query,
+        status: _status,
+      );
       if (!mounted) return;
       setState(() {
         _records
@@ -94,6 +107,8 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
       final page = await _service.fetchPage(
         widget.entity,
         startAfter: _cursor,
+        query: _query,
+        status: _status,
       );
       if (!mounted) return;
       setState(() {
@@ -113,9 +128,13 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
         widget.entity,
         SessionState.instance.user,
         SessionState.instance.hasPermission,
-      );
+      ) ||
+      (widget.entity.collection == 'export_jobs' &&
+          SessionState.instance.hasPermission(AppPermission.reportsView));
 
-  bool get _canEdit => ErpAccessPolicy.canEdit(
+  bool get _canEdit =>
+      !_systemJobCollections.contains(widget.entity.collection) &&
+      ErpAccessPolicy.canEdit(
         widget.entity,
         SessionState.instance.hasPermission,
       );
@@ -129,17 +148,26 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
 
   void _queueFilter(String value) {
     _filterDebounce?.cancel();
-    _filterDebounce = Timer(const Duration(milliseconds: 140), () {
+    _filterDebounce = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
       final next = value.trim().toLowerCase();
       if (next == _query) return;
       setState(() => _query = next);
+      _reload();
     });
   }
 
   Future<void> _openForm([ErpRecord? record]) async {
     if (record == null && !_canCreate) return;
     if (record != null && !_canEdit) return;
+    if (record == null && widget.entity.collection == 'export_jobs') {
+      await _requestExport();
+      return;
+    }
+    if (record == null && widget.entity.collection == 'backup_jobs') {
+      await _requestBackup();
+      return;
+    }
     final saved = await showErpEntityForm(
       context: context,
       entity: widget.entity,
@@ -160,6 +188,128 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
             backgroundColor: AppColors.success,
           ),
         );
+    }
+  }
+
+  Future<void> _requestExport() async {
+    final sourceController = TextEditingController();
+    var format = 'CSV';
+    final request = await showDialog<(String, String)?>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          icon: const Icon(Icons.download_outlined),
+          title: const Text('Request data export'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextField(
+                controller: sourceController,
+                decoration: const InputDecoration(
+                  labelText: 'Source collection',
+                  hintText: 'e.g. students or student_attendance',
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: format,
+                decoration: const InputDecoration(labelText: 'Format'),
+                items: const <String>['CSV', 'XLSX', 'PDF']
+                    .map((value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(value),
+                        ))
+                    .toList(growable: false),
+                onChanged: (value) =>
+                    setDialogState(() => format = value ?? format),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final source = sourceController.text.trim();
+                if (source.isNotEmpty) {
+                  Navigator.pop(dialogContext, (source, format));
+                }
+              },
+              child: const Text('Queue export'),
+            ),
+          ],
+        ),
+      ),
+    );
+    sourceController.dispose();
+    if (request == null) return;
+    try {
+      await const OperationalJobService().requestExport(
+        sourceCollection: request.$1,
+        format: request.$2,
+      );
+      await _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Export job queued securely.')),
+        );
+      }
+    } catch (error) {
+      _showError(error.toString());
+    }
+  }
+
+  Future<void> _requestBackup() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.settings_backup_restore_outlined),
+        title: const Text('Queue manual backup?'),
+        content: const Text(
+          'A trusted backup worker will process this request and record its retention and restore-test status.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Queue backup'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await const OperationalJobService().requestBackup();
+      await _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Backup job queued securely.')),
+        );
+      }
+    } catch (error) {
+      _showError(error.toString());
+    }
+  }
+
+  Future<void> _exportVisible() async {
+    final records = _records.where(_matchesFilter).toList(growable: false);
+    try {
+      await const RecordExportService().exportCsv(
+        entity: widget.entity,
+        records: records,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${records.length} loaded rows exported.')),
+        );
+      }
+    } catch (error) {
+      _showError(error.toString());
     }
   }
 
@@ -237,6 +387,12 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
       activeModuleId: module?.id,
       activeEntityCollection: widget.entity.collection,
       actions: <Widget>[
+        if (kIsWeb && _records.isNotEmpty)
+          IconButton(
+            tooltip: 'Export loaded rows as CSV',
+            onPressed: _exportVisible,
+            icon: const Icon(Icons.download_outlined),
+          ),
         if (_canCreate)
           IconButton(
             tooltip: 'Add ${widget.entity.singularTitle}',
@@ -285,6 +441,7 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
           onQueryChanged: _queueFilter,
           onStatusChanged: (String? value) {
             setState(() => _status = value);
+            _reload();
           },
           onClear: () {
             _filterDebounce?.cancel();
@@ -293,6 +450,7 @@ class _ErpEntityListScreenState extends State<ErpEntityListScreen> {
               _query = '';
               _status = null;
             });
+            _reload();
           },
         ),
         Expanded(

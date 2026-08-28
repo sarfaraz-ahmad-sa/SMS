@@ -170,6 +170,8 @@ class _DesktopTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = SessionState.instance;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     final viewportWidth = MediaQuery.sizeOf(context).width;
     final showContextControls = showContextSwitcher && viewportWidth >= 1450;
     final showProfileDetails = viewportWidth >= 1240;
@@ -184,13 +186,19 @@ class _DesktopTopBar extends StatelessWidget {
         .join();
 
     return Container(
-      height: 76,
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      height: 80,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(color: Color(0x080F2740), blurRadius: 12, offset: Offset(0, 4)),
+        color: scheme.surface,
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: theme.brightness == Brightness.dark
+                ? Colors.black.withOpacity(0.18)
+                : const Color(0xFF101B40).withOpacity(0.035),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
+          ),
         ],
       ),
       child: Row(
@@ -239,8 +247,8 @@ class _DesktopTopBar extends StatelessWidget {
                       : 'Focus mode · sidebar hidden',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w500,
                   ),
@@ -259,10 +267,10 @@ class _DesktopTopBar extends StatelessWidget {
                   decoration: InputDecoration(
                     hintText: 'Search students, teachers, modules or documents...',
                     prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                    suffixIcon: const Icon(
+                    suffixIcon: Icon(
                       Icons.arrow_forward_rounded,
                       size: 18,
-                      color: AppColors.textSecondary,
+                      color: scheme.onSurfaceVariant,
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                   ),
@@ -312,11 +320,11 @@ class _DesktopTopBar extends StatelessWidget {
                   children: <Widget>[
                     CircleAvatar(
                       radius: 17,
-                      backgroundColor: AppColors.pastelGold,
+                      backgroundColor: scheme.primaryContainer,
                       child: Text(
                         initials.isEmpty ? 'U' : initials,
-                        style: const TextStyle(
-                          color: AppColors.navigation,
+                        style: TextStyle(
+                          color: scheme.onPrimaryContainer,
                           fontWeight: FontWeight.w800,
                           fontSize: 12,
                         ),
@@ -340,13 +348,13 @@ class _DesktopTopBar extends StatelessWidget {
                               state.user?.roleLabel ?? 'School user',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 10.2, color: AppColors.textSecondary),
+                              style: TextStyle(fontSize: 10.2, color: scheme.onSurfaceVariant),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(Icons.keyboard_arrow_down_rounded, size: 17, color: AppColors.textSecondary),
+                      Icon(Icons.keyboard_arrow_down_rounded, size: 17, color: scheme.onSurfaceVariant),
                     ],
                   ],
                 ),
@@ -374,21 +382,22 @@ class _TopBarActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: active ? AppColors.pastelBlue : Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(10),
+        color: active ? scheme.primaryContainer : scheme.surface,
+        borderRadius: BorderRadius.circular(AppRadius.control),
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           onTap: onPressed,
           child: Container(
             width: 40,
             height: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: scheme.outlineVariant),
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
             child: Icon(
               icon,
@@ -396,8 +405,8 @@ class _TopBarActionButton extends StatelessWidget {
               color: onPressed == null
                   ? Theme.of(context).disabledColor
                   : active
-                      ? AppColors.navigation
-                      : Theme.of(context).colorScheme.onSurface,
+                      ? scheme.primary
+                      : scheme.onSurface,
             ),
           ),
         ),
@@ -442,6 +451,16 @@ class _MobileTabletShellState extends State<_MobileTabletShell> {
   Widget build(BuildContext context) {
     final state = SessionState.instance;
     final canPop = Navigator.canPop(context);
+    final scheme = Theme.of(context).colorScheme;
+    final displayName = state.user?.displayName?.trim();
+    final name = displayName?.isNotEmpty == true ? displayName! : 'User';
+    final initials = name
+        .split(RegExp(r'\s+'))
+        .where((String part) => part.isNotEmpty)
+        .take(2)
+        .map((String part) => part[0].toUpperCase())
+        .join();
+    final showSearch = !widget.tablet && widget.activeRoute != '/search';
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -461,55 +480,88 @@ class _MobileTabletShellState extends State<_MobileTabletShell> {
         ),
       ),
       appBar: AppBar(
-        leadingWidth: 54,
-        leading: IconButton(
-          tooltip: canPop ? 'Back' : 'Open menu',
-          onPressed: canPop ? () => Navigator.pop(context) : _openDrawer,
-          icon: Icon(
-            canPop ? Icons.arrow_back_ios_new_rounded : Icons.menu_rounded,
-            size: 20,
+        toolbarHeight: 66,
+        backgroundColor: scheme.surface,
+        leadingWidth: 58,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: IconButton(
+            tooltip: canPop ? 'Back' : 'Open menu',
+            onPressed: canPop ? () => Navigator.pop(context) : _openDrawer,
+            icon: Icon(
+              canPop ? Icons.arrow_back_rounded : Icons.menu_rounded,
+              size: 22,
+            ),
           ),
         ),
-        titleSpacing: 2,
+        titleSpacing: 6,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-            if (widget.tablet)
-              const Text(
-                'School management workspace',
-                style: TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
-                ),
+            Text(
+              widget.tablet
+                  ? widget.title
+                  : (state.tenant?.name ?? 'SEEF School'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+            ),
+            Text(
+              widget.tablet ? 'School management workspace' : widget.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w500,
+                color: scheme.onSurfaceVariant,
               ),
+            ),
           ],
         ),
         actions: <Widget>[
-          if (canPop)
-            IconButton(
-              tooltip: 'Open menu',
-              onPressed: _openDrawer,
-              icon: const Icon(Icons.menu_open_rounded, size: 21),
-            ),
-          IconButton(
-            tooltip: 'Search',
-            onPressed: () => _navigate(context, '/search', widget.activeRoute),
-            icon: const Icon(Icons.search_rounded, size: 21),
-          ),
           if (widget.actions.isNotEmpty)
-            ...widget.actions.take(1)
-          else if (state.hasPermission(AppPermission.notificationsView))
-            IconButton(
-              tooltip: 'Notifications',
-              onPressed: () => _navigate(context, '/notifications', widget.activeRoute),
-              icon: const Icon(Icons.notifications_none_rounded, size: 21),
+            ...widget.actions.take(1),
+          IconButton(
+            tooltip: 'Switch theme',
+            onPressed: state.toggleTheme,
+            icon: Icon(
+              Theme.of(context).brightness == Brightness.dark
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined,
+              size: 20,
             ),
-          const SizedBox(width: 4),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Tooltip(
+              message: name,
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: () => _navigate(context, '/profile', widget.activeRoute),
+                child: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: scheme.primary,
+                  foregroundColor: scheme.onPrimary,
+                  child: Text(
+                    initials.isEmpty ? 'U' : initials,
+                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
+        bottom: showSearch
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(68),
+                child: _MobileDiscoveryBar(
+                  onSearch: () => _navigate(context, '/search', widget.activeRoute),
+                ),
+              )
+            : null,
       ),
       floatingActionButton: widget.floatingActionButton,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SafeArea(
         top: false,
         child: Column(
@@ -545,6 +597,53 @@ class _MobileTabletShellState extends State<_MobileTabletShell> {
   }
 }
 
+class _MobileDiscoveryBar extends StatelessWidget {
+  final VoidCallback onSearch;
+
+  const _MobileDiscoveryBar({required this.onSearch});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return ColoredBox(
+      color: scheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
+        child: SearchBar(
+          onTap: onSearch,
+          hintText: 'Search your school',
+          leading: const Icon(Icons.search_rounded, size: 22),
+          trailing: <Widget>[
+            IconButton(
+              tooltip: 'Search filters',
+              onPressed: onSearch,
+              icon: const Icon(Icons.tune_rounded, size: 20),
+            ),
+          ],
+          elevation: const WidgetStatePropertyAll<double>(0),
+          backgroundColor: WidgetStatePropertyAll<Color>(
+            scheme.surfaceContainerHighest,
+          ),
+          surfaceTintColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
+          side: WidgetStatePropertyAll<BorderSide>(
+            BorderSide(color: scheme.outlineVariant),
+          ),
+          constraints: const BoxConstraints(minHeight: 52, maxHeight: 52),
+          padding: const WidgetStatePropertyAll<EdgeInsets>(
+            EdgeInsets.symmetric(horizontal: 16),
+          ),
+          textStyle: WidgetStatePropertyAll<TextStyle>(
+            TextStyle(color: scheme.onSurface, fontSize: 14),
+          ),
+          hintStyle: WidgetStatePropertyAll<TextStyle>(
+            TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SolidBottomNavigation extends StatelessWidget {
   final String activeRoute;
   final VoidCallback onOpenMenu;
@@ -554,6 +653,8 @@ class _SolidBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = _mobileSelectedIndex(activeRoute);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
     const items = <_BottomItem>[
       _BottomItem(Icons.home_outlined, Icons.home_rounded, 'Home', '/home'),
       _BottomItem(Icons.grid_view_outlined, Icons.grid_view_rounded, 'Modules', '/modules'),
@@ -562,112 +663,43 @@ class _SolidBottomNavigation extends StatelessWidget {
       _BottomItem(Icons.person_outline_rounded, Icons.person_rounded, 'Profile', '/profile'),
     ];
 
-    return Container(
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(color: Color(0x140F2740), blurRadius: 20, offset: Offset(0, -6)),
+        color: scheme.surface,
+        border: Border(top: BorderSide(color: scheme.outlineVariant)),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: theme.brightness == Brightness.dark
+                ? Colors.black.withOpacity(0.26)
+                : const Color(0xFF101B40).withOpacity(0.075),
+            blurRadius: 20,
+            offset: const Offset(0, -6),
+          ),
         ],
       ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 70,
-          child: Row(
-            children: List<Widget>.generate(items.length, (int index) {
-              final item = items[index];
-              final isSelected = index == selected;
-              final isCenter = index == 2;
-              return Expanded(
-                child: Semantics(
-                  selected: isSelected,
-                  button: true,
-                  label: item.label,
-                  child: InkWell(
-                    onTap: () {
-                      if (item.route == '/modules' && activeRoute == '/modules') {
-                        onOpenMenu();
-                        return;
-                      }
-                      _navigate(context, item.route, activeRoute);
-                    },
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: <Widget>[
-                        if (isSelected && !isCenter)
-                          const Positioned(
-                            top: 0,
-                            child: SizedBox(
-                              width: 28,
-                              height: 3,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: AppColors.navigation,
-                                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(4)),
-                                ),
-                              ),
-                            ),
-                          ),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: <Widget>[
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              curve: Curves.easeOut,
-                              width: isCenter ? 43 : 34,
-                              height: isCenter ? 43 : 32,
-                              decoration: BoxDecoration(
-                                color: isCenter
-                                    ? AppColors.navigation
-                                    : isSelected
-                                        ? AppColors.pastelBlue
-                                        : Colors.transparent,
-                                borderRadius: BorderRadius.circular(isCenter ? 14 : 10),
-                                boxShadow: isCenter
-                                    ? const <BoxShadow>[
-                                        BoxShadow(
-                                          color: Color(0x30435C73),
-                                          blurRadius: 12,
-                                          offset: Offset(0, 5),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: Icon(
-                                isSelected ? item.selectedIcon : item.icon,
-                                size: isCenter ? 21 : 19,
-                                color: isCenter
-                                    ? Colors.white
-                                    : isSelected
-                                        ? AppColors.navigation
-                                        : AppColors.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              item.label,
-                              style: TextStyle(
-                                fontSize: 9.4,
-                                height: 1,
-                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                                color: isCenter
-                                    ? AppColors.navigation
-                                    : isSelected
-                                        ? AppColors.navigation
-                                        : AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
+      child: NavigationBar(
+        selectedIndex: selected,
+        height: 70,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        indicatorColor: scheme.primaryContainer,
+        onDestinationSelected: (int index) {
+          final item = items[index];
+          if (item.route == '/modules' && activeRoute == '/modules') {
+            onOpenMenu();
+            return;
+          }
+          _navigate(context, item.route, activeRoute);
+        },
+        destinations: items
+            .map(
+              (_BottomItem item) => NavigationDestination(
+                icon: Icon(item.icon, size: 21),
+                selectedIcon: Icon(item.selectedIcon, size: 21),
+                label: item.label,
+              ),
+            )
+            .toList(growable: false),
       ),
     );
   }
@@ -702,7 +734,7 @@ void _navigate(BuildContext context, String route, String activeRoute) {
     '/profile',
   };
   if (primaryRoutes.contains(route)) {
-    Navigator.pushNamedAndRemoveUntil(context, route, (Route<dynamic> _) => false);
+    Navigator.pushReplacementNamed(context, route);
     return;
   }
   Navigator.pushNamed(context, route);

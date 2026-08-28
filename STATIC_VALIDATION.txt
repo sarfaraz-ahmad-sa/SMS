@@ -1,7 +1,7 @@
 SEEF School ERP static validation
-UTC: 2026-08-04 13:32:17
+UTC: 2026-08-25 10:37:14
 
-Dart source/test files: 118
+Dart source/test files: 126
 Dart lexical/delimiter validation: PASS
 Missing relative imports: 0
 ERP modules: 24
@@ -15,6 +15,10 @@ Permission references found: 79
 JSON validation: PASS
 Node syntax validation: PASS
 Secure account lifecycle validation: PASS
+Lightweight dashboard validation: PASS
+Vercel deployment validation: PASS
+Premium branding validation: PASS
+Controlled school onboarding validation: PASS
 
 Flutter SDK validation is separate:
 flutter analyze

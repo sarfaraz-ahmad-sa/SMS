@@ -12,7 +12,14 @@ import '../services/session_state.dart';
 import '../theme/app_theme.dart';
 
 class AccountManagementScreen extends StatefulWidget {
-  const AccountManagementScreen({super.key});
+  const AccountManagementScreen({
+    super.key,
+    this.initialDisplayName,
+    this.initialEmail,
+  });
+
+  final String? initialDisplayName;
+  final String? initialEmail;
 
   @override
   State<AccountManagementScreen> createState() =>
@@ -39,6 +46,8 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
   @override
   void initState() {
     super.initState();
+    _nameController.text = widget.initialDisplayName?.trim() ?? '';
+    _emailController.text = widget.initialEmail?.trim().toLowerCase() ?? '';
     final state = SessionState.instance;
     _campusController.text =
         state.activeCampusId ?? state.user?.campusIds.firstOrNull ?? '';
@@ -64,7 +73,22 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
     if (currentRoles.contains(UserRole.superAdmin)) return UserRole.values;
     if (currentRoles.contains(UserRole.schoolOwner)) {
       return UserRole.values
-          .where((UserRole role) => role != UserRole.superAdmin)
+          .where(
+            (UserRole role) =>
+                role != UserRole.superAdmin && role != UserRole.schoolOwner,
+          )
+          .toList(growable: false);
+    }
+    if (currentRoles.contains(UserRole.principal)) {
+      return UserRole.values
+          .where(
+            (UserRole role) =>
+                role != UserRole.superAdmin &&
+                role != UserRole.schoolOwner &&
+                role != UserRole.principal &&
+                role != UserRole.adminStaff &&
+                role != UserRole.itAdmin,
+          )
           .toList(growable: false);
     }
     return UserRole.values
@@ -211,6 +235,13 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
     return SaasScaffold(
       title: 'School Accounts',
       activeRoute: '/accounts',
+      actions: <Widget>[
+        IconButton(
+          tooltip: 'Review login requests',
+          onPressed: () => Navigator.pushNamed(context, '/access-requests'),
+          icon: const Icon(Icons.mark_email_unread_outlined),
+        ),
+      ],
       body: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           final form = _AccountForm(

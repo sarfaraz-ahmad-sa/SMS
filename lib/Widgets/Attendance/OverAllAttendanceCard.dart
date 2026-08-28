@@ -1,185 +1,88 @@
 import 'package:flutter/material.dart';
 
-class OverallAttendanceCard extends StatefulWidget {
+import '../../theme/app_theme.dart';
+import '../jinn_ui.dart';
+
+class OverallAttendanceCard extends StatelessWidget {
   final String date;
   final String day;
   final bool firsthalf;
   final bool secondhalf;
 
-  const OverallAttendanceCard(
-      {Key? key, required this.date, required this.day, required this.firsthalf, required this.secondhalf})
-      : super(key: key);
+  const OverallAttendanceCard({
+    super.key,
+    required this.date,
+    required this.day,
+    required this.firsthalf,
+    required this.secondhalf,
+  });
 
-  @override
-  _OverallAttendanceCardState createState() => _OverallAttendanceCardState();
-}
-
-class _OverallAttendanceCardState extends State<OverallAttendanceCard>
-    with SingleTickerProviderStateMixin {
-  late Animation animation, delayedAnimation;
-  late AnimationController animationController;
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-
-    animationController =
-        AnimationController(duration: Duration(seconds: 3), vsync: this);
-    animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController, curve: Curves.fastOutSlowIn));
-
-    delayedAnimation = Tween(begin: 1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.2, 0.6, curve: Curves.fastOutSlowIn)));
-  }
-  @override
-  void dispose() {
-    // TODO: implement dispose
-    animationController.dispose();
-    super.dispose();
-  }
   @override
   Widget build(BuildContext context) {
-    final double width = MediaQuery.of(context).size.width;
-    animationController.forward();
-    return AnimatedBuilder(
-      animation: animationController,
-      builder: (BuildContext context, Widget? child) {
-        return Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Transform(
-            transform:
-                Matrix4.translationValues(delayedAnimation.value * width, 0, 0),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                vertical: 13,
-                horizontal: 20,
+    final theme = Theme.of(context);
+    return Semantics(
+      container: true,
+      label: '$day $date. Morning ${firsthalf ? 'present' : 'absent'}, '
+          'afternoon ${secondhalf ? 'present' : 'absent'}',
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: JinnCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: <Widget>[
+              JinnIconBadge(
+                icon: Icons.calendar_today_rounded,
+                color: theme.colorScheme.primary,
+                background: theme.colorScheme.primaryContainer,
+                size: 44,
               ),
-              decoration: BoxDecoration(
-                color: Colors.white70,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    offset: Offset(0, 3),
-                    //blurRadius: 3,
-                    //spreadRadius: 1,
-                  ),
-                ],
-                borderRadius: BorderRadius.circular(10),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(day, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 3),
+                    Text(date, style: theme.textTheme.bodySmall),
+                  ],
+                ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        "${widget.date}",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                      SizedBox(
-                        height: 10,
-                      ),
-                      Text(
-                        "${widget.day}",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Morning Half",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      SizedBox(
-                        height: 10,
-                      ),
-                      Text(
-                        "Afternoon Half",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color:
-                          widget.firsthalf == true ? Colors.green : Colors.red,
-                    ),
-                    child: Center(
-                      child: widget.firsthalf == true
-                          ? Text(
-                              "P",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            )
-                          : Text(
-                              "A",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                    ),
-                  ),
-                  Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color:
-                          widget.secondhalf == true ? Colors.green : Colors.red,
-                    ),
-                    child: Center(
-                      child: widget.secondhalf == true
-                          ? Text(
-                              "P",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            )
-                          : Text(
-                              "A",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+              _HalfStatus(label: 'AM', present: firsthalf),
+              const SizedBox(width: 8),
+              _HalfStatus(label: 'PM', present: secondhalf),
+            ],
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+}
+
+class _HalfStatus extends StatelessWidget {
+  final String label;
+  final bool present;
+
+  const _HalfStatus({required this.label, required this.present});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = present ? AppColors.success : AppColors.danger;
+    return Tooltip(
+      message: '$label: ${present ? 'Present' : 'Absent'}',
+      child: Container(
+        width: 42,
+        height: 42,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.18)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w900),
+        ),
+      ),
     );
   }
 }

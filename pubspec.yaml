@@ -1,7 +1,7 @@
 name: school_management
 description: SEEF multi-tenant School Management SaaS application.
 publish_to: 'none'
-version: 3.3.0+17
+version: 3.8.2+27
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

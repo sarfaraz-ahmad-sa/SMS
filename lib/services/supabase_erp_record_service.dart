@@ -19,10 +19,12 @@ class SupabaseErpRecordService {
     required String academicYearId,
     int pageSize = 50,
     String? afterId,
+    String? query,
+    String? status,
   }) async {
     _scope(tenantId, collection, campusId, academicYearId);
     final safeSize = pageSize.clamp(10, 100).toInt();
-    var query = _client
+    var request = _client
         .from('erp_records')
         .select('id,data,status,created_at,updated_at')
         .eq('tenant_id', tenantId)
@@ -31,8 +33,19 @@ class SupabaseErpRecordService {
         .eq('academic_year_id', academicYearId)
         .eq('is_archived', false);
     final cursor = _text(afterId);
-    if (cursor != null) query = query.gt('id', cursor);
-    final response = await query.order('id').limit(safeSize + 1);
+    final search = _text(query);
+    final statusFilter = _text(status);
+    if (search != null) {
+      final pattern = search
+          .toLowerCase()
+          .replaceAll('\\', '\\\\')
+          .replaceAll('%', '\\%')
+          .replaceAll('_', '\\_');
+      request = request.ilike('search_text', '%$pattern%');
+    }
+    if (statusFilter != null) request = request.eq('status', statusFilter);
+    if (cursor != null) request = request.gt('id', cursor);
+    final response = await request.order('id').limit(safeSize + 1);
     final rows = response
         .whereType<Map>()
         .map((row) => Map<String, dynamic>.from(row))
@@ -71,6 +84,34 @@ class SupabaseErpRecordService {
     );
     return _row(response)['id']?.toString() ??
         (throw const FormatException('ERP create returned no record ID.'));
+  }
+
+  Future<String> createSelfService({
+    required String tenantId,
+    required String collection,
+    required String campusId,
+    required String academicYearId,
+    required Map<String, dynamic> values,
+  }) async {
+    _scope(tenantId, collection, campusId, academicYearId);
+    final actor = _client.auth.currentUser?.id;
+    if (actor == null) throw StateError('No authenticated Supabase user.');
+    final response = await _client.rpc(
+      'create_self_service_erp_record',
+      params: <String, dynamic>{
+        'p_tenant_id': tenantId,
+        'p_collection': collection,
+        'p_campus_id': campusId,
+        'p_academic_year_id': academicYearId,
+        'p_values': _jsonSafe(values),
+        'p_idempotency_key':
+            '$actor:self:$collection:${DateTime.now().microsecondsSinceEpoch}',
+      },
+    );
+    return _row(response)['id']?.toString() ??
+        (throw const FormatException(
+          'Self-service create returned no record ID.',
+        ));
   }
 
   Future<void> update({

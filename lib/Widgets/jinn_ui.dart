@@ -60,18 +60,23 @@ class JinnCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final dark = theme.brightness == Brightness.dark;
     final card = AnimatedContainer(
       duration: const Duration(milliseconds: 160),
       decoration: BoxDecoration(
-        color: color ?? Theme.of(context).colorScheme.surface,
+        color: color ?? scheme.surface,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: Theme.of(context).dividerColor),
+        border: Border.all(color: scheme.outlineVariant),
         boxShadow: shadow
             ? <BoxShadow>[
                 BoxShadow(
-                  color: const Color(0xFF0F2740).withOpacity(0.06),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
+                  color: dark
+                      ? Colors.black.withOpacity(0.24)
+                      : const Color(0xFF101B40).withOpacity(0.07),
+                  blurRadius: 22,
+                  offset: const Offset(0, 8),
                 ),
               ]
             : const <BoxShadow>[],
@@ -150,12 +155,14 @@ class JinnIconBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: background ?? color.withOpacity(0.11),
+        color: background ?? Color.alphaBlend(color.withOpacity(0.12), scheme.surface),
         borderRadius: BorderRadius.circular(size * 0.26),
+        border: Border.all(color: color.withOpacity(0.08)),
       ),
       child: Icon(icon, color: color, size: size * 0.52),
     );
@@ -226,8 +233,8 @@ class JinnEmptyState extends StatelessWidget {
         children: <Widget>[
           JinnIconBadge(
             icon: icon,
-            color: AppColors.primary,
-            background: AppColors.pastelBlue,
+            color: Theme.of(context).colorScheme.primary,
+            background: Theme.of(context).colorScheme.primaryContainer,
             size: 58,
           ),
           const SizedBox(height: 14),

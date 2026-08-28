@@ -170,6 +170,8 @@ class TenantErpService implements ErpRepository {
     ErpEntity entity, {
     int pageSize = 50,
     Object? startAfter,
+    String? query,
+    String? status,
   }) async {
     final safePageSize = pageSize.clamp(10, 100).toInt();
     if (BackendConfig.isSupabasePrimary) {
@@ -192,6 +194,8 @@ class TenantErpService implements ErpRepository {
           academicYearId: scope.$3,
           pageSize: safePageSize,
           afterId: cursor,
+          query: query,
+          status: status,
         );
       }
       final page = await _supabaseStudents!.fetchPage(
@@ -200,6 +204,8 @@ class TenantErpService implements ErpRepository {
         academicYearId: scope.$3,
         pageSize: safePageSize,
         afterId: cursor,
+        query: query,
+        status: status,
       );
       return ErpPage(
         records: page.records.map(_studentRecord).toList(growable: false),
@@ -218,7 +224,7 @@ class TenantErpService implements ErpRepository {
       );
     }
 
-    Query<Map<String, dynamic>> query = _applyAccessScope(
+    Query<Map<String, dynamic>> firestoreQuery = _applyAccessScope(
       entity,
       _activeScopeQuery(entity.collection),
     ).orderBy(FieldPath.documentId);
@@ -229,9 +235,9 @@ class TenantErpService implements ErpRepository {
     final firestoreCursor =
         startAfter as DocumentSnapshot<Map<String, dynamic>>?;
     if (firestoreCursor != null) {
-      query = query.startAfterDocument(firestoreCursor);
+      firestoreQuery = firestoreQuery.startAfterDocument(firestoreCursor);
     }
-    final snapshot = await query.limit(safePageSize + 1).get();
+    final snapshot = await firestoreQuery.limit(safePageSize + 1).get();
     final hasMore = snapshot.docs.length > safePageSize;
     final pageDocuments = snapshot.docs.take(safePageSize).toList();
     return ErpPage(
@@ -378,9 +384,39 @@ class TenantErpService implements ErpRepository {
   @override
   Future<String> create(ErpEntity entity, Map<String, dynamic> values) async {
     final state = SessionState.instance;
+    final user = state.user;
+    final isSelfService = user != null &&
+        entity.allowSelfServiceCreate &&
+        !user.hasPermission(entity.managePermission);
+    final selfServiceMetadata = <String, dynamic>{
+      if (isSelfService) ...<String, dynamic>{
+        'requesterUid': user.uid,
+        ..._selfServiceDefaults(entity.collection),
+      },
+      if (user != null && user.role.isLearner) 'authUid': user.uid,
+      if (user != null && user.role.isGuardian)
+        'guardianUids': <String>[user.uid],
+    };
+    values = <String, dynamic>{
+      ...values,
+      ...selfServiceMetadata,
+      if (isSelfService &&
+          user.role.isLearner &&
+          user.linkedRecordId?.isNotEmpty == true)
+        'studentRecordId': user.linkedRecordId,
+    };
     if (BackendConfig.isSupabasePrimary) {
       if (entity.collection != 'students') {
         final scope = _supabaseScope();
+        if (isSelfService) {
+          return _supabaseRecords!.createSelfService(
+            tenantId: scope.$1,
+            collection: entity.collection,
+            campusId: scope.$2,
+            academicYearId: scope.$3,
+            values: values,
+          );
+        }
         if (_trustedMutationCollections.contains(entity.collection)) {
           return _supabaseTrusted!.create(
             tenantId: scope.$1,
@@ -416,27 +452,6 @@ class TenantErpService implements ErpRepository {
       );
       return created.id;
     }
-    final user = state.user;
-    final isSelfService = user != null &&
-        entity.allowSelfServiceCreate &&
-        !user.hasPermission(entity.managePermission);
-    final selfServiceMetadata = <String, dynamic>{
-      if (isSelfService) ...<String, dynamic>{
-        'requesterUid': user.uid,
-        ..._selfServiceDefaults(entity.collection),
-      },
-      if (user != null && user.role.isLearner) 'authUid': user.uid,
-      if (user != null && user.role.isGuardian)
-        'guardianUids': <String>[user.uid],
-    };
-    values = <String, dynamic>{
-      ...values,
-      ...selfServiceMetadata,
-      if (isSelfService &&
-          user.role.isLearner &&
-          user.linkedRecordId?.isNotEmpty == true)
-        'studentRecordId': user.linkedRecordId,
-    };
     if (!isDemoMode && entity.collection != 'students') {
       values = await _enrichStudentRelationship(values);
     }

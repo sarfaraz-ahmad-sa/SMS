@@ -1,154 +1,106 @@
 import 'package:flutter/material.dart';
 
-class UserDetailCard extends StatefulWidget {
-  @override
-  _UserDetailCardState createState() => _UserDetailCardState();
-}
+import '../services/session_state.dart';
+import '../theme/app_theme.dart';
 
-class _UserDetailCardState extends State<UserDetailCard>
-    with SingleTickerProviderStateMixin {
-  late Animation animation, delayedAnimation, muchDelayedAnimation, LeftCurve;
-  late AnimationController animationController;
+class UserDetailCard extends StatelessWidget {
+  const UserDetailCard({super.key});
 
   @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-
-    animationController =
-        AnimationController(duration: Duration(seconds: 3), vsync: this);
-    animation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController, curve: Curves.fastOutSlowIn));
-
-    delayedAnimation = Tween(begin: 1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.2, 0.5, curve: Curves.fastOutSlowIn)));
-
-    muchDelayedAnimation = Tween(begin: -1.0, end: 0.0).animate(CurvedAnimation(
-        parent: animationController,
-        curve: Interval(0.3, 0.5, curve: Curves.fastOutSlowIn)));
-  }
- @override
-  void dispose() {
-    // TODO: implement dispose
-    animationController.dispose();
-    super.dispose();
-  }
   Widget build(BuildContext context) {
-    animationController.forward();
-    final double width = MediaQuery.of(context).size.width;
-    final double height = MediaQuery.of(context).size.height;
-    return AnimatedBuilder(
-      animation: animationController,
-      builder: (BuildContext context, Widget? child) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(10.0, 5, 10, 3),
-          child: Container(
-            alignment: Alignment(0, 0),
-            child: Padding(
-              padding: const EdgeInsets.only(top: 10.0, right: 0.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(5),
-                ),
-                height: height * 0.17,
-                width: double.infinity,
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(15.0, 10, 0, 0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Transform(
-                            transform: Matrix4.translationValues(
-                                muchDelayedAnimation.value * width, 0, 0),
-                            child: Center(
-                              child: CircleAvatar(
-                                radius: 28,
-                                backgroundImage: AssetImage("assets/home.png"),
-                              ),
-                            ),
-                          ),
-                          Transform(
-                            transform: Matrix4.translationValues(
-                                delayedAnimation.value * width, 0, 0),
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 15.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 8.0),
-                                    child: Container(
-                                      padding: EdgeInsets.all(3),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange[50],
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        "BCM2005",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: Colors.deepOrange,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 10.0),
-                                    child: Text(
-                                      "M.Irtaza",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 21,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 8.0),
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          "Standard: 12",
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          width: 50,
-                                        ),
-                                        Text(
-                                          "Section: B",
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+    final state = SessionState.instance;
+    final user = state.user;
+    final scheme = Theme.of(context).colorScheme;
+    final displayName = user?.displayName?.trim();
+    final name = displayName?.isNotEmpty == true ? displayName! : 'School user';
+    final initials = name
+        .split(RegExp(r'\s+'))
+        .where((String part) => part.isNotEmpty)
+        .take(2)
+        .map((String part) => part[0].toUpperCase())
+        .join();
+
+    return Semantics(
+      container: true,
+      label: '$name, ${user?.roleLabel ?? 'school user'}',
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(10, 5, 10, 3),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: <Color>[
+              scheme.primary,
+              Color.lerp(scheme.primary, AppColors.navigation, 0.62)!,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.hero),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: scheme.primary.withOpacity(0.2),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: <Widget>[
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: Colors.white.withOpacity(0.16),
+              foregroundColor: Colors.white,
+              child: Text(
+                initials.isEmpty ? 'U' : initials,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
               ),
             ),
-          ),
-        );
-      },
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    user?.roleLabel ?? 'School user',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.76),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    state.tenant?.name ?? 'SEEF School ERP',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.white.withOpacity(0.82), fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Open profile',
+              onPressed: () => Navigator.pushNamed(context, '/profile'),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.12),
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.arrow_forward_rounded),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

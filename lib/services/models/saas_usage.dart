@@ -22,25 +22,25 @@ class SaasUsage {
   });
 
   factory SaasUsage.fromMap(Map<String, dynamic> map) {
-    int readInt(String key) {
-      final value = map[key];
+    int readInt(String key, [String? alternate]) {
+      final value = map[key] ?? (alternate == null ? null : map[alternate]);
       if (value is num) return value.toInt();
       return int.tryParse(value?.toString() ?? '') ?? 0;
     }
 
-    final rawUpdatedAt = map['updatedAt'];
+    final rawUpdatedAt = map['updatedAt'] ?? map['updated_at'];
     final updatedAt = rawUpdatedAt is Timestamp
         ? rawUpdatedAt.toDate()
         : DateTime.tryParse(rawUpdatedAt?.toString() ?? '');
 
     return SaasUsage(
       students: readInt('students'),
-      staffUsers: readInt('staffUsers'),
+      staffUsers: readInt('staffUsers', 'staff_users'),
       campuses: readInt('campuses'),
-      storageMb: readInt('storageMb'),
-      smsThisMonth: readInt('smsThisMonth'),
-      emailThisMonth: readInt('emailThisMonth'),
-      aiActionsThisMonth: readInt('aiActionsThisMonth'),
+      storageMb: readInt('storageMb', 'storage_mb'),
+      smsThisMonth: readInt('smsThisMonth', 'sms_this_month'),
+      emailThisMonth: readInt('emailThisMonth', 'email_this_month'),
+      aiActionsThisMonth: readInt('aiActionsThisMonth', 'ai_actions_this_month'),
       updatedAt: updatedAt,
     );
   }

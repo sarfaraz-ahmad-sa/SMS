@@ -44,9 +44,14 @@ class _SupabasePasswordSetupScreenState extends State<SupabasePasswordSetupScree
     setState(() => _loading = true);
     try {
       await _auth.updatePassword(_passwordController.text);
+      await _auth.signOut();
       if (!mounted) return;
       _show('Password saved. You can now sign in.');
-      Navigator.pushNamedAndRemoveUntil(context, '/supabase-auth', (Route<dynamic> _) => false);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/login',
+        (Route<dynamic> _) => false,
+      );
     } on AuthException catch (error) {
       _show(error.message, error: true);
     } finally {
@@ -61,7 +66,8 @@ class _SupabasePasswordSetupScreenState extends State<SupabasePasswordSetupScree
 
   @override
   Widget build(BuildContext context) {
-    if (!BackendConfig.enableSupabaseAuthPilot) {
+    if (!BackendConfig.isSupabasePrimary &&
+        !BackendConfig.enableSupabaseAuthPilot) {
       return const SolidAuthShell(
         icon: Icons.block_rounded,
         eyebrow: 'Unavailable',

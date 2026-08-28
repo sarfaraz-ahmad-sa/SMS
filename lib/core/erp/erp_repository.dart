@@ -20,6 +20,8 @@ abstract interface class ErpRepository {
     ErpEntity entity, {
     int pageSize = 50,
     Object? startAfter,
+    String? query,
+    String? status,
   });
 
   Future<int> countVisible(ErpEntity entity);
