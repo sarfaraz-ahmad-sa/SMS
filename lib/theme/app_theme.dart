@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,9 +10,9 @@ class AppColors {
 
   // Premium education-SaaS palette: confident indigo, calm emerald and
   // high-contrast navy. Tenant branding is blended into this foundation.
-  static const Color primary = Color(0xFF4F46E5);
+  static const Color primary = Color(BrandConfig.primaryColor);
   static const Color primaryDark = Color(0xFF312E81);
-  static const Color secondary = Color(0xFF0F9F75);
+  static const Color secondary = Color(BrandConfig.secondaryColor);
   static const Color accent = Color(0xFF2563EB);
   static const Color navigation = Color(0xFF172554);
   static const Color navigationRaised = Color(0xFF1E3270);

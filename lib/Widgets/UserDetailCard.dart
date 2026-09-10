@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:flutter/material.dart';
 
 import '../services/session_state.dart';
@@ -81,7 +82,7 @@ class UserDetailCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    state.tenant?.name ?? 'SEEF School ERP',
+                    state.tenant?.name ?? BrandConfig.appName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: Colors.white.withOpacity(0.82), fontSize: 12),

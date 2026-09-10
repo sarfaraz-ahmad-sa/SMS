@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -706,7 +707,7 @@ class _LiteWelcomeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${state.tenant?.name ?? 'SEEF School'} · ${_todayLabel()}',
+                  '${state.tenant?.name ?? BrandConfig.companyName} · ${_todayLabel()}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall,

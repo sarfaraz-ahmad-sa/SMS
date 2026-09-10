@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.116.0";
 import {
   permissionsFor,
   validateRoleDelegation,
@@ -104,6 +104,16 @@ Deno.serve(async (request) => {
       }
 
       const existing = await findUserByEmail(admin, email);
+      if (existing) {
+        if (existing.id === authData.user.id) {
+          throw new RequestError("You cannot provision your own access.", 403);
+        }
+        const { data: existingMember, error: lookupError } = await admin
+          .from("tenant_members").select("roles")
+          .eq("tenant_id", tenantId).eq("user_id", existing.id).maybeSingle();
+        if (lookupError) throw lookupError;
+        if (existingMember) validateRoles(strings(existingMember.roles), actorRoles);
+      }
       let user = existing;
       let created = false;
       let passwordEmailSent = false;
@@ -159,6 +169,8 @@ Deno.serve(async (request) => {
     const { data: target, error: targetError } = await admin.from("tenant_members").select("*")
       .eq("tenant_id", tenantId).eq("user_id", targetUid).maybeSingle();
     if (targetError || !target) throw new RequestError("School account was not found.", 404);
+    // Check existing authority before demotion, suspension or password reset.
+    validateRoles(strings(target.roles), actorRoles);
 
     if (action === "updateAccess") {
       const roles = strings(body.roles);
@@ -191,6 +203,15 @@ Deno.serve(async (request) => {
     if (action === "resetPassword") {
       const password = text(body.temporaryPassword);
       if (!strongPassword(password)) throw new RequestError("Temporary password does not meet the security requirements.");
+      // Auth credentials are global across schools. Tenant managers must not
+      // reset a shared identity's password; use user-controlled recovery.
+      const { data: otherMemberships, error: scopeError } = await admin
+        .from("tenant_members").select("tenant_id")
+        .eq("user_id", targetUid).neq("tenant_id", tenantId).limit(1);
+      if (scopeError) throw scopeError;
+      if (otherMemberships?.length) {
+        throw new RequestError("Shared accounts must use password recovery.", 403);
+      }
       const { error: authUpdateError } = await admin.auth.admin.updateUserById(targetUid, { password });
       if (authUpdateError) throw authUpdateError;
       const { error } = await admin.from("tenant_members").update({
@@ -204,7 +225,7 @@ Deno.serve(async (request) => {
     throw new RequestError("Unsupported account action.", 400);
   } catch (error) {
     const status = error instanceof RequestError ? error.status : 500;
-    const message = error instanceof Error ? error.message : "School Accounts request failed.";
+    const message = error instanceof RequestError ? error.message : "School Accounts request failed.";
     console.error("school-accounts", { status, message });
     return json({ error: message }, status);
   }
@@ -215,14 +236,14 @@ function validateRoles(roles: string[], actorRoles: string[]) {
   if (error) throw new RequestError(error, 403);
 }
 
-async function validateCampuses(admin: ReturnType<typeof createClient>, tenantId: string, campusIds: string[]) {
+async function validateCampuses(admin: SupabaseClient, tenantId: string, campusIds: string[]) {
   if (campusIds.length === 0) return;
   const { data, error } = await admin.from("campuses").select("id")
     .eq("tenant_id", tenantId).eq("is_archived", false).in("id", campusIds);
   if (error || (data?.length ?? 0) !== campusIds.length) throw new RequestError("Campus scope contains an invalid campus.");
 }
 
-async function findUserByEmail(admin: ReturnType<typeof createClient>, email: string) {
+async function findUserByEmail(admin: SupabaseClient, email: string) {
   for (let page = 1; page <= 10; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
     if (error) throw error;
@@ -233,7 +254,7 @@ async function findUserByEmail(admin: ReturnType<typeof createClient>, email: st
   throw new RequestError("Authentication directory is too large for email lookup.", 503);
 }
 
-async function audit(admin: ReturnType<typeof createClient>, tenantId: string, actor: string,
+async function audit(admin: SupabaseClient, tenantId: string, actor: string,
   action: string, recordId: string, newData: Record<string, unknown>) {
   const { error } = await admin.from("audit_logs").insert({ tenant_id: tenantId,
     actor_user_id: actor, action, table_name: "tenant_members", record_id: recordId, new_data: newData });

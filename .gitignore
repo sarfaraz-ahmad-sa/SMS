@@ -71,3 +71,15 @@ firebase_options.dart
 
 /android/app/google-services.json
 /ios/Runner/GoogleService-Info.plist
+
+# Commercial delivery / private deployment state
+.vercel/
+.vscode/
+android/key.properties
+*.mobileprovision
+*.p8
+*.pfx
+*.key
+config/*.json
+!config/*.example.json
+release/

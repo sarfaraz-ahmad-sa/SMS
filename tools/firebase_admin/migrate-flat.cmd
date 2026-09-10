@@ -3,7 +3,7 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 echo.
-echo SEEF School ERP - Migrate Legacy Flat Collections
+echo EXAMPLE School ERP - Migrate Legacy Flat Collections
  echo -------------------------------------------------
 
 if "%FIREBASE_PROJECT_ID%"=="" set /p FIREBASE_PROJECT_ID=Firebase project ID: 

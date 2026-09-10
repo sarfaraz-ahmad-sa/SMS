@@ -253,8 +253,8 @@ def main() -> int:
             "SUPABASE_URL=",
             "SUPABASE_PUBLISHABLE_KEY=",
             "SUPABASE_AUTH_REDIRECT_URL=",
-            'if [[ -n "${SUPABASE_URL:-}" ]]',
-            'if [[ -n "${SUPABASE_PUBLISHABLE_KEY:-}" ]]',
+            '${SUPABASE_URL:?',
+            '${SUPABASE_PUBLISHABLE_KEY:?',
         ):
             if required not in vercel_script_source:
                 vercel_errors.append(
@@ -293,13 +293,13 @@ def main() -> int:
             "class SchoolBrandMark",
             "class SchoolBrandLockup",
             "logoUrl",
-            "class _SeefMarkPainter",
+            "class _SchoolMarkPainter",
         ],
         "LoginPage.dart": ["SchoolBrandMark", "SchoolBrandLockup"],
         "SplashScreen.dart": ["SchoolBrandMark"],
         "MainDrawer.dart": ["SchoolBrandMark", "state.tenant?.logoUrl"],
-        "web/index.html": ["icons/seef-school-logo.svg", "#172554"],
-        "web/manifest.json": ["icons/Icon-192.png", "icons/Icon-512.png"],
+        "web/index.html": ["icons/school-mark.svg", "#172554"],
+        "web/manifest.json": ["icons/school-mark.svg"],
     }
     brand_errors = [
         f"{source}: missing {requirement}"
@@ -308,12 +308,8 @@ def main() -> int:
         if requirement not in brand_sources[source]
     ]
     for asset in (
-        ROOT / "assets/seef_school_logo.svg",
-        ROOT / "assets/seef_school_logo.png",
-        ROOT / "web/icons/seef-school-logo.svg",
-        ROOT / "web/icons/Icon-192.png",
-        ROOT / "web/icons/Icon-512.png",
-        ROOT / "web/favicon.png",
+        ROOT / "assets/school-mark.svg",
+        ROOT / "web/icons/school-mark.svg",
     ):
         if not asset.is_file() or asset.stat().st_size == 0:
             brand_errors.append(f"{asset.relative_to(ROOT)}: missing or empty")
@@ -401,7 +397,7 @@ def main() -> int:
         )
 
     lines = [
-        "SEEF School ERP static validation",
+        "School Workspace static validation",
         f"UTC: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}",
         "",
         f"Dart source/test files: {len(files)}",

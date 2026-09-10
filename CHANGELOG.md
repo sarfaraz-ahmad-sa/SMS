@@ -1,3 +1,14 @@
+# Commercial preparation — 2026-09-10
+
+- Removed seller backend defaults and untracked local deployment identifiers without deleting local copies.
+- Centralized application branding and tenant currency/timezone defaults; neutralized app metadata.
+- Fictionalized demo contacts and replaced the default demo launcher with explicit sandbox setup.
+- Hardened CSV encoding for identifiers and every output cell.
+- Added active portal membership migration and account authority/shared-identity reset guards (not deployed).
+- Applied compatible npm audit fixes; retained remaining advisories for review.
+- Added buyer guides, draft license, test evidence, release scanner and file-change manifest.
+- Preserved existing MIT license and historical implementation below.
+
 # Changelog
 
 ## 3.8.0+25 — Controlled Multi-School Onboarding

@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -1288,7 +1289,7 @@ String _value(dynamic value) {
 String _formatValue(ErpField field, dynamic value) {
   if (value == null || value.toString().trim().isEmpty) return '—';
   if (field.type == ErpFieldType.money && value is num) {
-    return 'PKR ${_withCommas(value.toStringAsFixed(0))}';
+    return '${SessionState.instance.tenant?.currency ?? BrandConfig.currency} ${_withCommas(value.toStringAsFixed(0))}';
   }
   if (field.type == ErpFieldType.boolean) {
     return value == true ? 'Yes' : 'No';
@@ -1300,10 +1301,10 @@ String _formatAny(dynamic value) {
   if (value == null) return '—';
   if (value is Timestamp) {
     final date = value.toDate();
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    return '${BrandConfig.formatDate(date)} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
   if (value is DateTime) {
-    return '${value.year}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+    return BrandConfig.formatDate(value);
   }
   if (value is Iterable) return value.join(', ');
   return value.toString();

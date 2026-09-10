@@ -129,5 +129,23 @@ begin
 end $$;
 
 reset role;
+update public.tenant_members set is_active = false, status = 'suspended'
+where tenant_id = 'role-matrix-tenant'
+  and user_id in ('51000000-0000-0000-0000-000000000001',
+                  '52000000-0000-0000-0000-000000000002');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','51000000-0000-0000-0000-000000000001',true);
+do $$ begin
+  if exists (select 1 from public.students) then
+    raise exception 'suspended student retained linked student access';
+  end if;
+end $$;
+select set_config('request.jwt.claim.sub','52000000-0000-0000-0000-000000000002',true);
+do $$ begin
+  if exists (select 1 from public.students) or exists (select 1 from public.guardians) then
+    raise exception 'suspended parent retained linked portal access';
+  end if;
+end $$;
+reset role;
 rollback;
 select 'Student/parent/teacher/admin role integration tests passed' as result;

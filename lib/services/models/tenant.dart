@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'subscription.dart';
@@ -22,8 +23,8 @@ class Tenant {
     this.code,
     this.logoUrl,
     this.brandColor,
-    this.timezone = 'Asia/Karachi',
-    this.currency = 'PKR',
+    this.timezone = BrandConfig.timeZone,
+    this.currency = BrandConfig.currency,
     this.activeAcademicYearId,
     this.isActive = true,
     this.createdAt,
@@ -70,8 +71,8 @@ class Tenant {
       code: map['code']?.toString(),
       logoUrl: map['logoUrl']?.toString(),
       brandColor: map['brandColor'] is int ? map['brandColor'] as int : null,
-      timezone: map['timezone']?.toString() ?? 'Asia/Karachi',
-      currency: map['currency']?.toString() ?? 'PKR',
+      timezone: map['timezone']?.toString() ?? BrandConfig.timeZone,
+      currency: map['currency']?.toString() ?? BrandConfig.currency,
       activeAcademicYearId: map['activeAcademicYearId']?.toString(),
       isActive: map['isActive'] is bool ? map['isActive'] as bool : true,
       subscription: Subscription.fromMap(subscriptionMap),

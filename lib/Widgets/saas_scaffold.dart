@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:flutter/material.dart';
 
 import '../services/models/app_permission.dart';
@@ -501,7 +502,7 @@ class _MobileTabletShellState extends State<_MobileTabletShell> {
             Text(
               widget.tablet
                   ? widget.title
-                  : (state.tenant?.name ?? 'SEEF School'),
+                  : (state.tenant?.name ?? BrandConfig.companyName),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),

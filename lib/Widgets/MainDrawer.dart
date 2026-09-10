@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -192,7 +193,7 @@ class _MainDrawerState extends State<MainDrawer> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 const Text(
-                  'SEEF SCHOOL',
+                  BrandConfig.companyName,
                   style: TextStyle(
                     color: AppColors.navigationText,
                     fontWeight: FontWeight.w900,

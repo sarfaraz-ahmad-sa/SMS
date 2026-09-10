@@ -84,7 +84,7 @@ class _FirstLoginPasswordScreenState extends State<FirstLoginPasswordScreen> {
         // The trusted backend already completed the password and membership
         // update. A token refresh failure must not keep the user on this page.
         if (kDebugMode) {
-          debugPrint('Post-password session refresh was skipped: $error');
+          debugPrint('Post-password session refresh was skipped (details withheld)');
         }
       }
       try {
@@ -93,7 +93,7 @@ class _FirstLoginPasswordScreenState extends State<FirstLoginPasswordScreen> {
         // Password setup is already complete. Email verification is optional
         // here and must never turn a successful password change into an error.
         if (kDebugMode) {
-          debugPrint('Optional verification email was skipped: $error');
+          debugPrint('Optional verification email was skipped (details withheld)');
         }
       }
       if (!mounted) return;
@@ -114,7 +114,7 @@ class _FirstLoginPasswordScreenState extends State<FirstLoginPasswordScreen> {
       _showError(error.message);
     } catch (error, stackTrace) {
       if (kDebugMode) {
-        debugPrint('Initial password setup failed: $error');
+        debugPrint('Initial password setup failed (details withheld)');
         debugPrintStack(stackTrace: stackTrace);
       }
       _showError('Password could not be changed. Please try again.');

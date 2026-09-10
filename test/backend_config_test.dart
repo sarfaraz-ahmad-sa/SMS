@@ -8,7 +8,7 @@ void main() {
     expect(BackendConfig.enableSupabaseAuthPilot, isFalse);
     expect(BackendConfig.enableSupabasePrimary, isTrue);
     expect(BackendConfig.shouldInitializeSupabase, isTrue);
-    expect(BackendConfig.hasSupabaseClientConfiguration, isTrue);
-    expect(BackendConfig.validate, returnsNormally);
+    expect(BackendConfig.hasSupabaseClientConfiguration, isFalse);
+    expect(BackendConfig.validate, throwsStateError);
   });
 }

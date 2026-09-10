@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -21,13 +22,13 @@ class SchoolBrandMark extends StatelessWidget {
     final radius = size * 0.245;
     final fallback = CustomPaint(
       size: Size.square(size),
-      painter: const _SeefMarkPainter(),
+      painter: const _SchoolMarkPainter(),
     );
-    final trimmedLogoUrl = logoUrl?.trim() ?? '';
+    final trimmedLogoUrl = logoUrl?.trim() ?? BrandConfig.logoUrl;
 
     return Semantics(
       image: true,
-      label: trimmedLogoUrl.isEmpty ? 'SEEF School logo' : 'School logo',
+      label: trimmedLogoUrl.isEmpty ? 'School logo' : 'School logo',
       child: Container(
         width: size,
         height: size,
@@ -61,8 +62,8 @@ class SchoolBrandMark extends StatelessWidget {
   }
 }
 
-class _SeefMarkPainter extends CustomPainter {
-  const _SeefMarkPainter();
+class _SchoolMarkPainter extends CustomPainter {
+  const _SchoolMarkPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -156,13 +157,13 @@ class _SeefMarkPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SeefMarkPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SchoolMarkPainter oldDelegate) => false;
 }
 
 class SchoolBrandLockup extends StatelessWidget {
   const SchoolBrandLockup({
     super.key,
-    this.schoolName = 'SEEF SCHOOL',
+    this.schoolName = BrandConfig.companyName,
     this.subtitle = 'SMART CAMPUS ERP',
     this.logoUrl,
     this.light = false,

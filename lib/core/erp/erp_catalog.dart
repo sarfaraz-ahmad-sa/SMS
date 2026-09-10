@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:flutter/material.dart';
 
 import '../../services/models/app_permission.dart';
@@ -124,12 +125,12 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'Main Campus',
+            'name': 'Fictional name 001',
             'code': 'MAIN',
-            'address': 'Shahrah-e-Faisal, Karachi',
-            'phone': '+92 21 111 000 111',
-            'email': 'info@school.edu.pk',
-            'principalName': 'Dr. Ayesha Khan',
+            'address': 'Fictional Address 1',
+            'phone': '0000000000',
+            'email': 'person3@example.invalid',
+            'principalName': 'Fictional principalName 004',
             'status': 'Active'
           },
         ],
@@ -178,7 +179,7 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': '2026-2027',
+            'name': 'Fictional name 002',
             'startDate': '2026-04-01',
             'endDate': '2027-03-31',
             'status': 'Active'
@@ -218,9 +219,9 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'Science Department',
+            'name': 'Fictional name 003',
             'code': 'SCI',
-            'headName': 'Dr. Fatima Ali',
+            'headName': 'Fictional headName 004',
             'description': 'Physics, Chemistry and Biology.'
           },
         ],
@@ -273,14 +274,14 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'Grade 9',
+            'name': 'Fictional name 005',
             'program': 'Matric',
             'board': 'BSEK',
             'capacity': 40,
             'monthlyFee': 8500
           },
           <String, dynamic>{
-            'name': 'Grade 6',
+            'name': 'Fictional name 006',
             'program': 'Middle',
             'board': '',
             'capacity': 35,
@@ -327,10 +328,10 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'A',
+            'name': 'Fictional name 007',
             'className': 'Grade 9',
             'room': 'R-201',
-            'classTeacher': 'Ms. Sara Ahmed',
+            'classTeacher': 'Fictional classTeacher 008',
             'capacity': 40
           },
         ],
@@ -384,7 +385,7 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'Mathematics',
+            'name': 'Fictional name 009',
             'code': 'MATH-09',
             'className': 'Grade 9',
             'totalMarks': 100,
@@ -392,7 +393,7 @@ class ErpCatalog {
             'hasPractical': false
           },
           <String, dynamic>{
-            'name': 'Physics',
+            'name': 'Fictional name 010',
             'code': 'PHY-09',
             'className': 'Grade 9',
             'totalMarks': 100,
@@ -446,7 +447,7 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'Matric Percentage',
+            'name': 'Fictional name 011',
             'scale': 'Percentage',
             'passPercentage': 40,
             'bands':
@@ -491,7 +492,7 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'Pakistan Day',
+            'name': 'Fictional name 012',
             'date': '2027-03-23',
             'type': 'Public',
             'notes': 'School closed.'
@@ -588,10 +589,10 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'studentName': 'Fatima Zahra',
-            'guardianName': 'Ahmed Raza',
-            'phone': '+92 300 1112233',
-            'email': 'guardian@example.com',
+            'studentName': 'Fictional studentName 005',
+            'guardianName': 'Fictional guardianName 006',
+            'phone': '0000000000',
+            'email': 'person8@example.invalid',
             'applyingClass': 'Grade 6',
             'source': 'Website',
             'followUpDate': '2026-07-25',
@@ -683,15 +684,15 @@ class ErpCatalog {
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
             'applicationNo': 'ADM-2026-0012',
-            'studentName': 'Bilal Ahmed',
+            'studentName': 'Fictional studentName 009',
             'dateOfBirth': '2012-05-14',
             'gender': 'Male',
-            'bFormCnic': '42101-1234567-1',
-            'guardianName': 'Imran Ahmed',
-            'guardianCnic': '42101-7654321-9',
-            'phone': '+92 301 2223344',
+            'bFormCnic': 'Fictional bFormCnic 010',
+            'guardianName': 'Fictional guardianName 011',
+            'guardianCnic': 'Fictional guardianCnic 012',
+            'phone': '0000000000',
             'applyingClass': 'Grade 9',
-            'previousSchool': 'City Grammar School',
+            'previousSchool': 'Fictional previousSchool 013',
             'assessmentScore': 82,
             'status': 'Under Review',
             'remarks': 'Documents verified.'
@@ -875,34 +876,34 @@ class ErpCatalog {
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
             'admissionNo': 'STU-2026-0001',
-            'fullName': 'Ali Raza',
-            'fatherName': 'Muhammad Raza',
+            'fullName': 'Fictional fullName 014',
+            'fatherName': 'Fictional fatherName 015',
             'dateOfBirth': '2011-08-12',
             'gender': 'Male',
-            'bFormCnic': '42101-1111111-1',
+            'bFormCnic': 'Fictional bFormCnic 016',
             'className': 'Grade 9',
             'sectionName': 'A',
             'rollNumber': '09-A-01',
-            'phone': '+92 300 1000001',
-            'email': 'ali.student@example.com',
-            'address': 'Karachi',
+            'phone': '0000000000',
+            'email': 'person18@example.invalid',
+            'address': 'Fictional Address 19',
             'bloodGroup': 'O+',
             'boardRegistrationNo': 'BSEK-2026-001',
             'status': 'Active'
           },
           <String, dynamic>{
             'admissionNo': 'STU-2026-0002',
-            'fullName': 'Ayesha Noor',
-            'fatherName': 'Khalid Noor',
+            'fullName': 'Fictional fullName 020',
+            'fatherName': 'Fictional fatherName 021',
             'dateOfBirth': '2012-01-20',
             'gender': 'Female',
-            'bFormCnic': '42101-2222222-2',
+            'bFormCnic': 'Fictional bFormCnic 022',
             'className': 'Grade 8',
             'sectionName': 'B',
             'rollNumber': '08-B-03',
-            'phone': '+92 300 1000002',
-            'email': 'ayesha.student@example.com',
-            'address': 'Karachi',
+            'phone': '0000000000',
+            'email': 'person24@example.invalid',
+            'address': 'Fictional Address 25',
             'bloodGroup': 'A+',
             'boardRegistrationNo': '',
             'status': 'Active'
@@ -1377,14 +1378,14 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'fullName': 'Muhammad Raza',
+            'fullName': 'Fictional fullName 026',
             'relationship': 'Father',
-            'cnic': '42101-3333333-3',
-            'phone': '+92 300 1234567',
-            'alternatePhone': '',
-            'email': 'raza.parent@example.com',
+            'cnic': 'Fictional cnic 027',
+            'phone': '0000000000',
+            'alternatePhone': '0000000000',
+            'email': 'person30@example.invalid',
             'occupation': 'Business',
-            'address': 'Karachi',
+            'address': 'Fictional Address 31',
             'preferredLanguage': 'Urdu',
             'canPickup': true,
             'status': 'Active'
@@ -1612,10 +1613,10 @@ class ErpCatalog {
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
             'employeeNo': 'TCH-001',
-            'fullName': 'Sara Ahmed',
-            'cnic': '42101-4444444-4',
-            'email': 'sara.teacher@example.com',
-            'phone': '+92 300 2000001',
+            'fullName': 'Fictional fullName 032',
+            'cnic': 'Fictional cnic 033',
+            'email': 'person34@example.invalid',
+            'phone': '0000000000',
             'qualification': 'M.Sc Mathematics',
             'specialization': 'Mathematics',
             'joiningDate': '2021-08-01',
@@ -1842,16 +1843,16 @@ class ErpCatalog {
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
             'employeeNo': 'EMP-001',
-            'fullName': 'Usman Ali',
-            'cnic': '42101-5555555-5',
+            'fullName': 'Fictional fullName 036',
+            'cnic': 'Fictional cnic 037',
             'department': 'Administration',
             'designation': 'Office Assistant',
-            'email': 'usman.employee@example.com',
-            'phone': '+92 300 3000001',
+            'email': 'person38@example.invalid',
+            'phone': '0000000000',
             'joiningDate': '2022-01-05',
             'employmentType': 'Permanent',
             'basicSalary': 55000,
-            'bankAccount': 'PK00BANK0000000000000000',
+            'bankAccount': 'Fictional bankAccount 014',
             'status': 'Active'
           },
         ],
@@ -1997,13 +1998,13 @@ class ErpCatalog {
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
             'employeeId': 'TCH-001',
-            'employeeName': 'Sara Ahmed',
+            'employeeName': 'Fictional employeeName 040',
             'leaveType': 'Casual',
             'startDate': '2026-07-28',
             'endDate': '2026-07-28',
             'days': 1,
             'reason': 'Personal work',
-            'approver': 'Principal',
+            'approver': 'Fictional approver 015',
             'status': 'Pending'
           },
         ],
@@ -2077,7 +2078,7 @@ class ErpCatalog {
             'grossAmount': 4250000,
             'deductions': 275000,
             'netAmount': 3975000,
-            'preparedBy': 'HR Manager',
+            'preparedBy': 'Fictional preparedBy 016',
             'approvedBy': '',
             'status': 'Under Review'
           },
@@ -2213,7 +2214,7 @@ class ErpCatalog {
             'className': 'Grade 9',
             'sectionName': 'A',
             'period': 'Morning',
-            'markedBy': 'Sara Ahmed',
+            'markedBy': 'Fictional markedBy 017',
             'presentCount': 37,
             'absentCount': 2,
             'lateCount': 1,
@@ -2301,7 +2302,7 @@ class ErpCatalog {
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
             'studentId': 'STU-2026-0001',
-            'studentName': 'Ali Raza',
+            'studentName': 'Fictional studentName 041',
             'className': 'Grade 9',
             'sectionName': 'A',
             'attendanceDate': '2026-07-21',
@@ -2452,14 +2453,14 @@ class ErpCatalog {
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
             'studentId': 'STU-2026-0001',
-            'studentName': 'Ali Raza',
+            'studentName': 'Fictional studentName 042',
             'className': 'Grade 9',
             'sectionName': 'A',
             'startDate': '2026-07-25',
             'endDate': '2026-07-25',
             'reason': 'Medical appointment',
-            'requestedByName': 'Guardian',
-            'approver': 'Class Teacher',
+            'requestedByName': 'Fictional requestedByName 018',
+            'approver': 'Fictional approver 019',
             'decisionNotes': '',
             'status': 'Pending',
             'authUid': '',
@@ -2992,7 +2993,7 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'Mid Term Examination 2026',
+            'name': 'Fictional name 020',
             'examType': 'Midterm',
             'academicYear': '2026-2027',
             'term': 'First Term',
@@ -3208,7 +3209,7 @@ class ErpCatalog {
           <String, dynamic>{
             'examName': 'Annual Examination 2026',
             'studentId': 'STU-2026-0001',
-            'studentName': 'Ali Raza',
+            'studentName': 'Fictional studentName 043',
             'className': 'Grade 9',
             'obtainedMarks': 792,
             'totalMarks': 900,
@@ -3379,7 +3380,7 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'Grade 9 Standard',
+            'name': 'Fictional name 021',
             'className': 'Grade 9',
             'academicYear': '2026-2027',
             'frequency': 'Monthly',
@@ -3500,7 +3501,7 @@ class ErpCatalog {
           <String, dynamic>{
             'invoiceNo': 'INV-2026-0712',
             'studentId': 'STU-2026-0001',
-            'studentName': 'Ali Raza',
+            'studentName': 'Fictional studentName 044',
             'className': 'Grade 9',
             'billingPeriod': 'July 2026',
             'issueDate': '2026-07-01',
@@ -3517,7 +3518,7 @@ class ErpCatalog {
           <String, dynamic>{
             'invoiceNo': 'INV-2026-0713',
             'studentId': 'STU-2026-0002',
-            'studentName': 'Ayesha Noor',
+            'studentName': 'Fictional studentName 045',
             'className': 'Grade 8',
             'billingPeriod': 'July 2026',
             'issueDate': '2026-07-01',
@@ -3618,12 +3619,12 @@ class ErpCatalog {
             'receiptNo': 'RCP-2026-0021',
             'invoiceNo': 'INV-2026-0712',
             'studentId': 'STU-2026-0001',
-            'studentName': 'Ali Raza',
+            'studentName': 'Fictional studentName 046',
             'paymentDate': '2026-07-08',
             'amount': 6000,
             'paymentMethod': 'JazzCash',
             'transactionReference': 'JC-987654321',
-            'receivedBy': 'System',
+            'receivedBy': 'Fictional receivedBy 022',
             'status': 'Posted',
             'notes': ''
           },
@@ -3833,7 +3834,7 @@ class ErpCatalog {
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
             'accountCode': '110100',
-            'name': 'Cash in Hand',
+            'name': 'Fictional name 023',
             'accountType': 'Asset',
             'parentAccount': 'Current Assets',
             'normalBalance': 'Debit',
@@ -3842,7 +3843,7 @@ class ErpCatalog {
           },
           <String, dynamic>{
             'accountCode': '410100',
-            'name': 'Tuition Fee Income',
+            'name': 'Fictional name 024',
             'accountType': 'Income',
             'parentAccount': 'Operating Income',
             'normalBalance': 'Credit',
@@ -3934,8 +3935,8 @@ class ErpCatalog {
             'debitAmount': 6000,
             'creditAmount': 6000,
             'reference': 'RCP-2026-0021',
-            'preparedBy': 'System',
-            'approvedBy': 'Accountant',
+            'preparedBy': 'Fictional preparedBy 025',
+            'approvedBy': 'Fictional approvedBy 026',
             'status': 'Posted'
           },
         ],
@@ -3978,7 +3979,7 @@ class ErpCatalog {
               key: 'currency',
               label: 'Currency',
               required: true,
-              defaultValue: 'PKR',
+              defaultValue: BrandConfig.currency,
               showInList: true),
           ErpField(
               key: 'openingBalance',
@@ -4222,7 +4223,7 @@ class ErpCatalog {
             'accessionNo': 'LIB-0001',
             'title': 'Mathematics for Secondary Schools',
             'isbn': '978-969-000000-1',
-            'author': 'A. R. Siddiqui',
+            'author': 'Fictional author 047',
             'publisher': 'National Book Foundation',
             'edition': '5th',
             'category': 'Mathematics',
@@ -4326,7 +4327,7 @@ class ErpCatalog {
           <String, dynamic>{
             'loanNo': 'LOAN-2026-011',
             'memberId': 'STU-2026-0001',
-            'memberName': 'Ali Raza',
+            'memberName': 'Fictional memberName 027',
             'memberType': 'Student',
             'accessionNo': 'LIB-0001',
             'bookTitle': 'Mathematics for Secondary Schools',
@@ -4479,10 +4480,10 @@ class ErpCatalog {
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
             'routeCode': 'RT-01',
-            'name': 'Gulshan Route',
-            'startPoint': 'NIPA',
-            'endPoint': 'Main Campus',
-            'stops': 'NIPA > Gulshan Chowrangi > Civic Center > Main Campus',
+            'name': 'Fictional name 028',
+            'startPoint': 'Fictional startPoint 029',
+            'endPoint': 'Fictional endPoint 030',
+            'stops': 'Fictional stops 031',
             'morningStartTime': '06:45 AM',
             'afternoonStartTime': '02:15 PM',
             'distanceKm': 14.5,
@@ -4563,7 +4564,7 @@ class ErpCatalog {
             'year': 2022,
             'capacity': 52,
             'routeName': 'Gulshan Route',
-            'driverName': 'Nadeem Khan',
+            'driverName': 'Fictional driverName 048',
             'fitnessExpiry': '2027-01-31',
             'insuranceExpiry': '2027-03-15',
             'gpsDeviceId': 'GPS-001',
@@ -4785,7 +4786,7 @@ class ErpCatalog {
             'capacity': 3,
             'occupiedBeds': 2,
             'monthlyFee': 18000,
-            'wardenName': 'Mr. Tariq',
+            'wardenName': 'Fictional wardenName 032',
             'facilities': 'Attached bath, study tables, cupboards',
             'status': 'Available'
           },
@@ -5022,7 +5023,7 @@ class ErpCatalog {
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
             'sku': 'STA-A4-001',
-            'name': 'A4 Paper Ream',
+            'name': 'Fictional name 033',
             'category': 'Stationery',
             'unit': 'Ream',
             'warehouse': 'Main Store',
@@ -5030,12 +5031,12 @@ class ErpCatalog {
             'reorderLevel': 25,
             'averageCost': 1150,
             'lastPurchasePrice': 1200,
-            'supplierName': 'Office Mart',
+            'supplierName': 'Fictional supplierName 034',
             'status': 'In Stock'
           },
           <String, dynamic>{
             'sku': 'LAB-GLV-001',
-            'name': 'Laboratory Gloves',
+            'name': 'Fictional name 035',
             'category': 'Laboratory',
             'unit': 'Box',
             'warehouse': 'Science Store',
@@ -5043,7 +5044,7 @@ class ErpCatalog {
             'reorderLevel': 15,
             'averageCost': 900,
             'lastPurchasePrice': 950,
-            'supplierName': 'Medico Supplies',
+            'supplierName': 'Fictional supplierName 036',
             'status': 'Low Stock'
           },
         ],
@@ -5379,7 +5380,7 @@ class ErpCatalog {
             'sendEmail': true,
             'sendSms': false,
             'sendWhatsApp': false,
-            'publishedBy': 'School Administration',
+            'publishedBy': 'Fictional publishedBy 037',
             'status': 'Published'
           },
         ],
@@ -5625,7 +5626,7 @@ class ErpCatalog {
             'registrationRequired': false,
             'registeredCount': 0,
             'description': 'Annual athletics and team sports competition.',
-            'organizer': 'Sports Department',
+            'organizer': 'Fictional organizer 038',
             'status': 'Published'
           },
         ],
@@ -5856,7 +5857,7 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'Standard Transfer Certificate',
+            'name': 'Fictional name 039',
             'documentType': 'Transfer Certificate',
             'language': 'English',
             'templateBody':
@@ -6097,7 +6098,7 @@ class ErpCatalog {
             'className': 'Grade 9',
             'sectionName': 'A',
             'subjectName': 'Mathematics',
-            'teacherName': 'Sara Ahmed',
+            'teacherName': 'Fictional teacherName 049',
             'room': 'R-201',
             'academicYear': '2026-2027',
             'status': 'Published'
@@ -6315,15 +6316,15 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'studentName': 'Ali Raza',
+            'studentName': 'Fictional studentName 050',
             'admissionNo': 'ST-2026-001',
             'bloodGroup': 'B+',
-            'allergies': 'Peanuts',
-            'medicalConditions': 'None',
+            'allergies': 'Fictional allergies 040',
+            'medicalConditions': 'Fictional medicalConditions 041',
             'medications': '',
-            'emergencyInstructions': 'Contact guardian immediately.',
-            'doctorName': 'Dr. Sana',
-            'doctorPhone': '+92 300 0000000',
+            'emergencyInstructions': 'Fictional emergencyInstructions 042',
+            'doctorName': 'Fictional doctorName 043',
+            'doctorPhone': '0000000000',
             'guardianConsent': true
           },
         ],
@@ -6674,8 +6675,8 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'displayName': 'School Owner',
-            'email': 'owner@demo.local',
+            'displayName': 'Fictional displayName 044',
+            'email': 'person52@example.invalid',
             'role': 'School Owner',
             'campusScope': 'All campuses',
             'employeeOrStudentId': 'OWN-001',
@@ -6886,7 +6887,7 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'Firebase Push',
+            'name': 'Fictional name 045',
             'category': 'Push',
             'provider': 'Firebase Cloud Messaging',
             'environment': 'Production',
@@ -6895,7 +6896,7 @@ class ErpCatalog {
             'status': 'Connected'
           },
           <String, dynamic>{
-            'name': 'JazzCash Collection',
+            'name': 'Fictional name 046',
             'category': 'Payment',
             'provider': 'JazzCash',
             'environment': 'Sandbox',
@@ -7623,7 +7624,7 @@ class ErpCatalog {
         ],
         demoRecords: <Map<String, dynamic>>[
           <String, dynamic>{
-            'name': 'Daily Attendance Summary',
+            'name': 'Fictional name 047',
             'category': 'Attendance',
             'description':
                 'Present, absent and late totals by class and section.',
@@ -7634,7 +7635,7 @@ class ErpCatalog {
             'status': 'Active'
           },
           <String, dynamic>{
-            'name': 'Outstanding Fee Report',
+            'name': 'Fictional name 048',
             'category': 'Fees',
             'description':
                 'Student balances grouped by class and aging bucket.',
@@ -7861,11 +7862,11 @@ class ErpCatalog {
           <String, dynamic>{
             'ticketNo': 'TKT-2026-001',
             'subject': 'Classroom projector not working',
-            'requesterName': 'Sara Ahmed',
+            'requesterName': 'Fictional requesterName 049',
             'category': 'IT',
             'priority': 'High',
             'details': 'Projector in room R-201 does not power on.',
-            'assignedTo': 'IT Administrator',
+            'assignedTo': 'Fictional assignedTo 050',
             'dueDate': '2026-07-22',
             'resolution': '',
             'status': 'In Progress'

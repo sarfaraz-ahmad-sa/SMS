@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -45,9 +46,9 @@ class _SchoolProfileScreenState extends State<SchoolProfileScreen> {
     _nameController = TextEditingController(text: tenant?.name ?? '');
     _codeController = TextEditingController(text: tenant?.code ?? '');
     _timezoneController =
-        TextEditingController(text: tenant?.timezone ?? 'Asia/Karachi');
+        TextEditingController(text: tenant?.timezone ?? BrandConfig.timeZone);
     _currencyController =
-        TextEditingController(text: tenant?.currency ?? 'PKR');
+        TextEditingController(text: tenant?.currency ?? BrandConfig.currency);
     _academicYearController =
         TextEditingController(text: tenant?.activeAcademicYearId ?? '');
     _logoUrlController = TextEditingController(text: tenant?.logoUrl ?? '');

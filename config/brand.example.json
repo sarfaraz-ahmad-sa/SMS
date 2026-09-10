@@ -1,0 +1,15 @@
+{
+  "APP_NAME": "School Workspace",
+  "COMPANY_NAME": "Example Academy",
+  "LOGO_URL": "",
+  "PRIMARY_COLOR": "0xFF4F46E5",
+  "SECONDARY_COLOR": "0xFF0F9F75",
+  "SUPPORT_EMAIL": "support@example.invalid",
+  "SUPPORT_PHONE": "",
+  "WEBSITE_URL": "https://example.invalid",
+  "CURRENCY": "PKR",
+  "COUNTRY": "PK",
+  "TIME_ZONE": "Asia/Karachi",
+  "DATE_FORMAT": "yyyy-MM-dd",
+  "RECEIPT_FOOTER": "Thank you. Keep this receipt for your records."
+}

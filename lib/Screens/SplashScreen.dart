@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -58,7 +59,7 @@ class _SplashScreenState extends State<SplashScreen>
         if (_supabaseAuthService!.currentUser == null) {
           SessionState.instance.markInitialized();
           await _waitForBrandAnimation(startedAt);
-          _replace(const MyHomePage(title: 'SEEF School ERP'));
+          _replace(const MyHomePage(title: BrandConfig.appName));
           return;
         }
         final session = await _supabaseTenantService!.loadSession();
@@ -90,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (firebaseUser == null) {
         SessionState.instance.markInitialized();
         await _waitForBrandAnimation(startedAt);
-        _replace(const MyHomePage(title: 'SEEF School ERP'));
+        _replace(const MyHomePage(title: BrandConfig.appName));
         return;
       }
 
@@ -140,7 +141,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     await _waitForBrandAnimation(startedAt);
     _replace(MyHomePage(
-      title: 'SEEF School ERP',
+      title: BrandConfig.appName,
       initialMessage: loginMessage,
     ));
   }
@@ -183,7 +184,7 @@ class _SplashScreenState extends State<SplashScreen>
                 const SchoolBrandMark(size: 104),
                 const SizedBox(height: 24),
                 Text(
-                  'SEEF SCHOOL',
+                  BrandConfig.companyName,
                   style: TextStyle(
                     color: scheme.onSurface,
                     fontSize: 27,

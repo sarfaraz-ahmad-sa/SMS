@@ -1,5 +1,5 @@
 name: school_management
-description: SEEF multi-tenant School Management SaaS application.
+description: White-label multi-tenant School Management SaaS application.
 publish_to: 'none'
 version: 3.8.2+27
 
@@ -27,4 +27,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/
+    - assets/school-mark.svg

@@ -438,7 +438,7 @@ class _SchoolSetupCard extends StatelessWidget {
               ],
               decoration: const InputDecoration(
                 labelText: 'Unique school code',
-                hintText: 'Example: SEEF-DEMO',
+                hintText: 'Example: EXAMPLE-DEMO',
                 prefixIcon: Icon(Icons.qr_code_rounded),
               ),
               validator: (value) {

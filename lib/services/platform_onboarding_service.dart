@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'supabase_bootstrap.dart';
@@ -67,8 +68,8 @@ class PlatformOnboardingService {
     required int trialDays,
     required OwnerSetupMethod setupMethod,
     String? temporaryPassword,
-    String timezone = 'Asia/Karachi',
-    String currency = 'PKR',
+    String timezone = BrandConfig.timeZone,
+    String currency = BrandConfig.currency,
   }) async {
     try {
       final response = await _client.functions.invoke(

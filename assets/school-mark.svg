@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="School workspace">
+<!-- Original geometric placeholder created for this release. -->
+<rect width="128" height="128" rx="28" fill="#312e81"/>
+<path d="M18 43 64 21 110 43 64 65Z" fill="white"/>
+<path d="M34 53v18l30 14 30-14V53L64 67Z" fill="#c7d2fe"/>
+<path d="M29 79q20 0 32 12v22q-12-12-32-12Zm70 0q-20 0-32 12v22q12-12 32-12Z" fill="white"/>
+</svg>

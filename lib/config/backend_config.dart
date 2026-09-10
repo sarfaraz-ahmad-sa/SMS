@@ -51,6 +51,9 @@ class BackendConfig {
         'ENABLE_SUPABASE_AUTH_PILOT must be enabled.',
       );
     }
+    if (supabasePublishableKey.startsWith('sb_secret_')) {
+      throw StateError('Use a public client key, never a server secret key.');
+    }
     final uri = Uri.tryParse(supabaseUrl);
     if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
       throw StateError('SUPABASE_URL must be a valid HTTPS project URL.');

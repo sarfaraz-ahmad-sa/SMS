@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -164,7 +165,7 @@ class _FastStartupView extends StatelessWidget {
         SchoolBrandMark(size: 72, elevation: false),
         SizedBox(height: 18),
         Text(
-          'SEEF School ERP',
+          BrandConfig.appName,
           style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
         ),
         SizedBox(height: 6),
@@ -219,7 +220,7 @@ class MyApp extends StatelessWidget {
       builder: (BuildContext context, Widget? child) {
         final state = SessionState.instance;
         return MaterialApp(
-          title: 'SEEF School ERP',
+          title: BrandConfig.appName,
           debugShowCheckedModeBanner: false,
           theme: AppTheme.lightFor(state.tenant),
           darkTheme: AppTheme.darkFor(state.tenant),
@@ -227,7 +228,7 @@ class MyApp extends StatelessWidget {
           scrollBehavior: const AppScrollBehavior(),
           home: _initialScreen(),
           routes: <String, WidgetBuilder>{
-            '/login': (_) => const MyHomePage(title: 'SEEF School ERP'),
+            '/login': (_) => const MyHomePage(title: BrandConfig.appName),
             '/home': (_) => const Home(),
             '/modules': (_) => const ModulesHubScreen(),
             '/secure-account': (_) => const FirstLoginPasswordScreen(),

@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -156,7 +157,7 @@ class _MyHomePageState extends State<MyHomePage>
     } on FirebaseException catch (error) {
       _showError(_messageForFirebaseServiceError(error));
     } catch (error) {
-      if (kDebugMode) debugPrint('Email sign-in failed: $error');
+      if (kDebugMode) debugPrint('Email sign-in failed (details withheld)');
       _showError('Login could not be completed. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -270,10 +271,10 @@ class _MyHomePageState extends State<MyHomePage>
 
     const tenant = Tenant(
       id: 'school_demo',
-      name: 'SEEF Demo School',
+      name: 'Example Academy (Fictional Demo)',
       code: 'DEMO',
-      timezone: 'Asia/Karachi',
-      currency: 'PKR',
+      timezone: BrandConfig.timeZone,
+      currency: BrandConfig.currency,
       activeAcademicYearId: '2026-2027',
       subscription: Subscription(
         tier: SubscriptionTier.enterprise,
@@ -457,7 +458,7 @@ class _MyHomePageState extends State<MyHomePage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         const Text(
-                          'SEEF SCHOOL',
+                          BrandConfig.companyName,
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
@@ -736,7 +737,7 @@ class _LoginBrandPanel extends StatelessWidget {
                     ),
                     const Spacer(),
                     Text(
-                      'SEEF School ERP  •  Web & Mobile',
+                      '${BrandConfig.appName}  •  Web & Mobile',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.55),
                         fontSize: 12,

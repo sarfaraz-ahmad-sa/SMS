@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:flutter/material.dart';
 
 import '../Widgets/saas_scaffold.dart';
@@ -215,7 +216,7 @@ class SettingsScreen extends StatelessWidget {
                           icon: Icons.verified_user_outlined,
                           title: 'Trusted account and approval backend',
                           subtitle:
-                              'Cloud Functions protect user provisioning, quotas, approvals and audit events.',
+                              'Configured backend services enforce account and approval permissions.',
                           ready: true,
                         ),
                       ],
@@ -224,7 +225,8 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 28),
                   const Center(
                     child: Text(
-                      'SEEF School ERP',
+                      '${BrandConfig.appName}\n${BrandConfig.supportEmail}\n${BrandConfig.supportPhone}\n${BrandConfig.websiteUrl}',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontWeight: FontWeight.w600,

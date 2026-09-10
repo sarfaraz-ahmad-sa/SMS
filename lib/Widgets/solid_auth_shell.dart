@@ -1,3 +1,4 @@
+import 'package:school_management/config/brand_config.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -114,7 +115,7 @@ class _AuthBrandPanel extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          Text('SEEF School ERP', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11.5)),
+          Text(BrandConfig.appName, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11.5)),
         ],
       ),
     );
